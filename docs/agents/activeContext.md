@@ -6,6 +6,17 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 24/11/2026 (suite 65) — **Rush : route d'alignement unique** — branche `feat/rush-route-alignement-2026-11-24`
+
+> **Demande user (verbatim)** : « attaque par contre te plante pas avec ce qu'on avait statué » puis « je valide » la route d'alignement.
+> **Mesuré** : le profil local Wylan a `alignmentOrder = attentif` ; `MilestoneRow` cachait « Valider » dès qu'un Ordre était sélectionné (`!orderKey`) et le serveur validait **tout le milestone** (autres Ordres compris). La page projetait déjà la route (`resolveRushRoute` camp/Ordre/classe) ; le filtre d'Ordre par bloc était redondant. L'overlay décochait tout le chapitre par le nœud.
+> **Fait** : panneau unique `RushAlignmentPanel` (cité / Ordre / palier 20-100 ; badge statique et dropdown masqué quand l'Ordre est terminé ; panneau masqué quand cité 100 + Ordre fait) · `RushOrderSelect` `allowAll` (plus de « Tous » pour un choix de route) · `toggleMilestoneProgress(..., scopeSeqIds)` : cascade, donjons et ressources **sur le périmètre**, `completedSteps` en union, `isCompleted` stocké = bloc entier, événement guilde seulement si bloc entier · complétude de bloc dérivée des séquences de route (dashboard + overlay) · overlay : nœud du chapitre = validation seule, reset dédié · `RushOrderSelect` retiré des blocs.
+> **Preuves** : **8 404 tests ✅** · `tsc` 0 · `lint` 0 erreur (7 802 warnings préexistants) · 1 test de source `rush-route-alignment` + 12 cascade (périmètre) · aucune migration.
+> **Reste** : **graphe des dépendances quête ↔ succès** (siphon OA, quête→succès, succès dérivé, aperçu/cascade) · PR route à ouvrir · Phases 3/4/5 prochaine conversation.
+> **Rotation** : bloc « suite 59 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
+
+
 ## 📝 Session 23/11/2026 (suite 64) — **Rush : plan consolidé 28 points, décisions 16-21, début phase 1** — branche `feat/rush-progression-2026-11-23`
 
 > **Demande user (verbatim)** : « documente/maj les contexte la totalité avant non ? commit puis démarre la phase 1 ».
@@ -53,11 +64,4 @@
 > **Reste** : valider visuellement 310/390 (même bloc, autre bloc, retour) · scorecard lot 3/3 remplie — migration `.agents/skills` encore conditionnée à Cline secondaire + liens CI.
 > **Rotation** : blocs « suite 54 » et antérieurs sortis — récupérables via `git log -p -- docs/agents/activeContext.md`.
 
-## 📝 Session 22/11/2026 (suite 59) — **Rush : overlay compact (PiP étroite)** — branche `fix/rush-overlay-compact-2026-11-22`
-
-> **Demande user (verbatim)** : « en fait la place prise par les quêtes semblent assez dérisoire plus on diminue, les bloc toutes en cours faites verrouillé sont vraiment nécessaire à cette taille ? le champ de recherche le dropdown debloc, tous les boutons du haut avec les étapes etc ? ».
-> **Mesuré** : à 310 px, les 4 filtres wrappent (`Verrouillées 9` sur une 2e ligne), le header passe sur 3 lignes (`8 / 390 / quêtes`), `Ressources 3/3` est coupé, la carte garde un titre 17,5 px et le rail décoratif.
-> **Fait** : `data-compact` sur la racine ; filtre en `select` thématisé ; recherche `h-8` + placeholder court ; « Ressources » en icône + badge ; header secondaire (alignement, Ocre, Metamob, donjons, masquer) dans `⋯` ; cartes `15 px`, padding réduit, rail masqué.
-> **Preuves** : **103 tests ciblés ✅** (dont `rush-overlay-compact`) · `tsc` 0 · `lint` 0 erreur (39 warnings préexistants) · aucune migration.
-> **Reste** : valider visuellement 310/390/768/1024/1440 · 3ᵉ palier (largeur cible + blocs visibles).
 

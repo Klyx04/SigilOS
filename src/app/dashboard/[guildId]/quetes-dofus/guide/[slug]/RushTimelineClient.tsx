@@ -977,11 +977,6 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
   const allMilestones = React.useContext(AllMilestonesCtx) as Milestone[];
   const alignmentSeries = React.useContext(AlignmentSeriesCtx);
   const profileAlign = React.useContext(ProfileAlignmentCtx);
-  const [orderKey, setOrderKey] = React.useState<string | null>(profileAlign.orderId ?? null);
-  const router = useRouter();
-  const mulePseudo = React.useContext(AchievementCharacterCtx);
-  // Changement d alignement : un Ordre de l ancien camp ne doit pas rester selectionne.
-  React.useEffect(() => { setOrderKey(profileAlign.orderId ?? null); }, [profileAlign.camp, profileAlign.orderId]);
   const blockBookmarkSeqId = bookmarksByMs.get(ms.id) || null;
   if(ms.type==="SEPARATEUR")return null;
   if(ms.type==="INFO")return <InfoBanner milestone={ms}/>;
@@ -1003,83 +998,23 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
   const c=accentColor||"#10b981";
   const visibleSeqs = ms.sequences.filter((s:any)=>!hideDone||!completedStepsSet.has(s.id));
   const firstVisibleSeqId = visibleSeqs.find((s:any)=>!isInfoSequence(s))?.id;
-  // Sections contiguës quand le bloc mélange les deux cités ou plusieurs Ordres
-  // (règle pure `groupByAlignmentSeries`). **Fail-closed** : si une seule ligne du bloc
-  // n'a pas de série (encart info, quête commune), on ne réordonne RIEN — l'ordre du
-  // guide est conservé, les pastilles restent affichées.
-  // Ordres du camp du joueur (catalogue partage) : le selecteur est TOUJOURS visible
-  // quand le camp est connu, meme si le bloc ne contient qu un seul Ordre.
-  const orderOptions = profileAlign.camp
-    ? ((ORDERS as unknown as Record<string, Array<{ id: string; name: string }>>)[profileAlign.camp] ?? [])
-    : [];
-  const alignmentFilteredRaw = visibleSeqs.filter((s: any) => {
-    if (!profileAlign.camp) return true;
-    const camp = s.alignReq ? normalizeAlignmentCamp(s.alignReq) : null;
-    return camp === null || camp === profileAlign.camp;
-  });
-  // Un bloc ENTIEREMENT de l autre camp resterait vide : on ne cache jamais tout
-  // (le bloc existe dans le guide, il doit rester lisible).
-  const alignmentFiltered = alignmentFilteredRaw.length > 0 ? alignmentFilteredRaw : visibleSeqs;
-  // Cle EFFECTIVE : un Ordre absent du catalogue du camp courant est ignore (jamais affiche).
-  const effectiveOrderKey = orderKey && orderOptions.some((o) => o.id === orderKey) ? orderKey : null;
-  const selectedOrder = effectiveOrderKey ? orderOptions.find((o) => o.id === effectiveOrderKey) ?? null : null;
-  const [orderConfirm, setOrderConfirm] = React.useState<{ next: string | null; label: string; wouldUncheck: number } | null>(null);
-  const applyOrder = (next: string | null) => {
-    const previous = effectiveOrderKey;
-    setOrderKey(next);
-    if (!profileAlign.camp) return;
-    const payload = { alignment: profileAlign.camp, alignmentOrder: next };
-    const run = mulePseudo ? updateMuleAlignment({ guildId, pseudo: mulePseudo, ...payload }) : updateUserProfile({ guildId, ...payload });
-    void run.then((res) => {
-      if (!res?.success) { setOrderKey(previous); toast.error("Ordre non enregistré"); return; }
-      const cleared = res.data?.cleared ?? 0;
-      toast.success(cleared > 0 ? `Ordre mis à jour — ${cleared} quête${cleared > 1 ? "s" : ""} décochée${cleared > 1 ? "s" : ""}` : "Ordre mis à jour");
-      router.refresh();
-    }).catch(() => { setOrderKey(previous); toast.error("Ordre non enregistré"); });
-  };
-  const handleOrderChange = (next: string | null) => {
-    if (next === effectiveOrderKey) return;
-    const previousOption = effectiveOrderKey ? orderOptions.find((o) => o.id === effectiveOrderKey) ?? null : null;
-    const prevName = previousOption ? normalizeOrderLabel(previousOption.name) : "";
-    const prevCode = previousOption ? normalizeOrderCode(previousOption.id) : "";
-    const wouldUncheck = previousOption ? allMilestones.reduce((acc, m) => acc + (m.sequences ?? []).filter((s: any) => {
-      if (!allCompletedSeqIds.has(s.id)) return false;
-      const entry = alignmentSeries.get(s.id);
-      if (!entry || entry.kind !== "ordre") return false;
-      return normalizeOrderLabel(entry.orderName) === prevName || (!!s.alignOrderCode && normalizeOrderCode(s.alignOrderCode) === prevCode);
-    }).length, 0) : 0;
-    if (wouldUncheck > 0) {
-      setOrderConfirm({ next, label: next ? orderOptions.find((o) => o.id === next)?.name ?? "cet Ordre" : "Tous les Ordres", wouldUncheck });
-      return;
-    }
-    applyOrder(next);
-  };
-  const orderFiltered = selectedOrder
-    ? (() => {
-        const want = normalizeOrderLabel(selectedOrder.name);
-        const wantCode = normalizeOrderCode(selectedOrder.id);
-        const matched = alignmentFiltered.filter((s: any) => {
-          const entry = alignmentSeries.get(s.id);
-          if (!entry || entry.kind !== "ordre") return true;
-          return (
-            normalizeOrderLabel(entry.orderName) === want ||
-            (!!s.alignOrderCode && normalizeOrderCode(s.alignOrderCode) === wantCode)
-          );
-        });
-        // Aucune correspondance (code de source inconnu) : on garde le camp plutot
-        // que de vider le bloc — un filtre muet est pire qu un filtre large.
-        return matched.length > 0 ? matched : alignmentFiltered;
-      })()
-    : alignmentFiltered;
-  // Compteur du bloc aligne sur ce qui est AFFICHE (camp + Ordre filtres).
-  const filteredNonInfo = orderFiltered.filter((s:any)=>!isInfoSequence(s));
+  // La page serveur a déjà projeté la **route** (camp / Ordre / classe) :
+  // `ms.sequences` ne contient que les quêtes de la route. Plus de filtre d'Ordre
+  // local dans le bloc ; il ne reste que « masquer les quêtes terminées ».
+  const filteredNonInfo = visibleSeqs.filter((s:any)=>!isInfoSequence(s));
   const filteredTotal = filteredNonInfo.length;
   const filteredDone = filteredNonInfo.filter((s:any)=>isCompleted||completedStepsSet.has(s.id)).length;
   const allFiltered = isCompleted || (filteredTotal > 0 && filteredDone === filteredTotal);
   const pctFiltered = filteredTotal > 0 ? Math.round((filteredDone / filteredTotal) * 100) : 0;
-  const alignmentGroups = orderFiltered.every((s:any)=>alignmentSeries.has(s.id))
-    ? groupByAlignmentSeries(orderFiltered, alignmentSeries)
-    : [{ key:"ordre-du-guide", camp:null, label:null, sequences:orderFiltered }];
+  // Le bloc contient-il des quêtes d'Ordre ? Sans Ordre choisi, la route montre
+  // encore toutes les branches : on ne propose pas « Valider » sur ce mélange.
+  const hasOrderQuests = nonInfoSeqs.some((s:any)=>!!s.alignOrderCode);
+  // Sections contiguës quand le bloc mélange les deux cités ou plusieurs Ordres
+  // (règle pure `groupByAlignmentSeries`). **Fail-closed** : si une seule ligne du bloc
+  // n'a pas de série (encart info, quête commune), on ne réordonne RIEN.
+  const alignmentGroups = visibleSeqs.every((s:any)=>alignmentSeries.has(s.id))
+    ? groupByAlignmentSeries(visibleSeqs, alignmentSeries)
+    : [{ key:"ordre-du-guide", camp:null, label:null, sequences:visibleSeqs }];
 
   return (
     <div>
@@ -1153,7 +1088,7 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
           )}
           {/* Actions du bloc — hors de la zone de bascule, comme côté public */}
           <div className="flex flex-wrap items-center justify-end gap-1.5 self-end sm:self-center">
-            {!allFiltered&&!orderKey&&<button onClick={e=>{e.stopPropagation();onToggle();}} className="flex items-center gap-1 px-2.5 py-1.5 rounded-[4px] border border-border text-[11px] font-semibold text-muted-foreground transition-colors hover:text-success hover:border-success/50" title="Valider tout le bloc"><Check className="w-3.5 h-3.5"/>Valider</button>}
+            {!allFiltered&&(!hasOrderQuests||!!profileAlign.orderId)&&<button onClick={e=>{e.stopPropagation();onToggle();}} className="flex items-center gap-1 px-2.5 py-1.5 rounded-[4px] border border-border text-[11px] font-semibold text-muted-foreground transition-colors hover:text-success hover:border-success/50" title="Valider tout le bloc"><Check className="w-3.5 h-3.5"/>Valider</button>}
             {(blockBookmarkSeqId||!all)&&<button onClick={e=>{e.stopPropagation();if(blockBookmarkSeqId){const bseq=nonInfoSeqs.find((s:any)=>s.id===blockBookmarkSeqId);if(bseq)onBookmarkSeq(bseq.id,ms);}else{const target=nonInfoSeqs.find((s:any)=>!completedStepsSet.has(s.id)&&!isSequenceBlockedByPrereqs(s,allCompletedSeqIds,allMilestones));if(target)onBookmarkSeq(target.id,ms);}}} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-[4px] border transition-colors text-[11px] font-semibold ${blockBookmarkSeqId?"border-warning/50 text-warning":"border-border text-muted-foreground hover:text-warning hover:border-warning/40"}`} title={blockBookmarkSeqId?"Quête repérée dans ce bloc (cliquer pour retirer).":"Poser « Je suis ici » sur la prochaine quête de ce bloc."}>{blockBookmarkSeqId?<BookmarkCheck className="w-3.5 h-3.5"/>:<Flag className="w-3.5 h-3.5"/>}<span className="hidden sm:inline">{blockBookmarkSeqId?"Repère":"Je suis ici"}</span></button>}
             <button onClick={e=>{e.stopPropagation();onReset();}} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[4px] border border-border text-[11px] font-semibold text-muted-foreground transition-colors hover:text-danger hover:border-danger/40" title="Réinitialiser ce bloc"><RotateCcw className="w-3.5 h-3.5"/><span className="hidden lg:inline">Réinitialiser</span></button>
             <ContextualHelp label="Aide bloc">« Valider » coche toutes les quêtes du bloc ; « Je suis ici » pose un repère ; « Réinitialiser » décoche le bloc.</ContextualHelp>
@@ -1171,31 +1106,9 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
                   ) : (<>
                     {/* Un FIL PAR LISTE (règle de `DaRail`) : les panneaux de bloc sont
                         opaques, un fil unique posé au-dessus passerait DERRIÈRE eux. */}
-                    <div className="mb-1 flex items-center gap-1 px-1">
-                      <RushOrderSelect
-                        options={orderOptions}
-                        value={effectiveOrderKey}
-                        onChange={handleOrderChange}
-                        className="min-w-0 flex-1"
-                      />
-                      <ContextualHelp label="Aide Ordre">Changer d'Ordre affiche les quêtes de cet Ordre et décoche celles de l'ancien.</ContextualHelp>
-                    </div>
-                    {orderConfirm && (
-                      <Dialog open onOpenChange={(open) => { if (!open) setOrderConfirm(null); }}>
-                        <DialogContent className="max-w-sm">
-                          <DialogHeader>
-                            <DialogTitle>Changer pour {orderConfirm.label} ?</DialogTitle>
-                          </DialogHeader>
-                          <p className="text-sm text-muted-foreground">
-                            Cette action va décocher <strong className="text-foreground">{orderConfirm.wouldUncheck} quête{orderConfirm.wouldUncheck > 1 ? "s" : ""}</strong> validée{orderConfirm.wouldUncheck > 1 ? "s" : ""} de ton Ordre actuel. Elle est définitive.
-                          </p>
-                          <DialogFooter>
-                            <button type="button" onClick={() => setOrderConfirm(null)} className="rounded-[4px] border border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground">Annuler</button>
-                            <button type="button" onClick={() => { const next = orderConfirm.next; setOrderConfirm(null); applyOrder(next); }} className="rounded-[4px] border border-danger/50 px-3 py-1.5 text-xs font-semibold text-danger transition-colors hover:bg-danger/10">Décocher et changer</button>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
-                    )}
+                    {/* Le choix de la cité / de l'Ordre vit dans le panneau de route
+                        en haut de page : plus de dropdown répété dans chaque bloc. */}
+
                     <DaRail>
                     {alignmentGroups.map((group)=>(
                       <React.Fragment key={group.key}>
@@ -1377,6 +1290,220 @@ const CanViewSuccesCtx=React.createContext<boolean>(false);
 /** Bloc I — personnage sélectionné (`?character=`), `undefined` pour le principal. */
 const AchievementCharacterCtx=React.createContext<string|undefined>(undefined);
 
+// ─── Panneau de route d'alignement ───────────────────────────────────────────
+/**
+ * **Un seul endroit** pour choisir la cité / l'Ordre et lire le palier. Les blocs ne
+ * portent plus de dropdown : la page serveur projette déjà la route (`resolveRushRoute`)
+ * et le bouton « Valider » valide le périmètre visible.
+ *
+ * Le choix d'Ordre est un geste de **profil** (il décoche les 5 quêtes de l'ancien
+ * Ordre) : il reste ici, avec confirmation, et il disparaît quand l'Ordre est terminé.
+ */
+function RushAlignmentPanel({ onChooseAlignment }: { onChooseAlignment: () => void }) {
+  const profileAlign = React.useContext(ProfileAlignmentCtx);
+  const allCompletedSeqIds = React.useContext(AllCompletedSeqIdsCtx);
+  const allMilestones = React.useContext(AllMilestonesCtx);
+  const alignmentSeries = React.useContext(AlignmentSeriesCtx);
+  const guildId = React.useContext(GuildIdCtx);
+  const mulePseudo = React.useContext(AchievementCharacterCtx);
+  const router = useRouter();
+  const [orderKey, setOrderKey] = React.useState<string | null>(profileAlign.orderId ?? null);
+  const [orderConfirm, setOrderConfirm] = React.useState<{
+    next: string | null;
+    label: string;
+    wouldUncheck: number;
+  } | null>(null);
+
+  React.useEffect(() => {
+    setOrderKey(profileAlign.orderId ?? null);
+  }, [profileAlign.camp, profileAlign.orderId]);
+
+  const orderOptions = profileAlign.camp
+    ? ((ORDERS as unknown as Record<string, Array<{ id: string; name: string; icon?: string }>>)[
+        profileAlign.camp
+      ] ?? [])
+    : [];
+  const effectiveOrderKey =
+    orderKey && orderOptions.some((option) => option.id === orderKey) ? orderKey : null;
+  const selectedOrder = effectiveOrderKey
+    ? orderOptions.find((option) => option.id === effectiveOrderKey) ?? null
+    : null;
+
+  const applyOrder = (next: string | null) => {
+    const previous = effectiveOrderKey;
+    setOrderKey(next);
+    if (!profileAlign.camp) return;
+    const payload = { alignment: profileAlign.camp, alignmentOrder: next };
+    const run = mulePseudo
+      ? updateMuleAlignment({ guildId, pseudo: mulePseudo, ...payload })
+      : updateUserProfile({ guildId, ...payload });
+    void run
+      .then((res) => {
+        if (!res?.success) {
+          setOrderKey(previous);
+          toast.error("Ordre non enregistré");
+          return;
+        }
+        const cleared = res.data?.cleared ?? 0;
+        toast.success(
+          cleared > 0
+            ? `Ordre mis à jour — ${cleared} quête${cleared > 1 ? "s" : ""} décochée${cleared > 1 ? "s" : ""}`
+            : "Ordre mis à jour"
+        );
+        router.refresh();
+      })
+      .catch(() => {
+        setOrderKey(previous);
+        toast.error("Ordre non enregistré");
+      });
+  };
+
+  const handleOrderChange = (next: string | null) => {
+    if (next === effectiveOrderKey) return;
+    const previousOption = selectedOrder;
+    const prevName = previousOption ? normalizeOrderLabel(previousOption.name) : "";
+    const prevCode = previousOption ? normalizeOrderCode(previousOption.id) : "";
+    const wouldUncheck = previousOption
+      ? allMilestones.reduce(
+          (acc, milestone) =>
+            acc +
+            (milestone.sequences ?? []).filter((sequence: any) => {
+              if (!allCompletedSeqIds.has(sequence.id)) return false;
+              const entry = alignmentSeries.get(sequence.id);
+              if (!entry || entry.kind !== "ordre") return false;
+              return (
+                normalizeOrderLabel(entry.orderName) === prevName ||
+                (!!sequence.alignOrderCode &&
+                  normalizeOrderCode(sequence.alignOrderCode) === prevCode)
+              );
+            }).length,
+          0
+        )
+      : 0;
+    if (wouldUncheck > 0) {
+      setOrderConfirm({
+        next,
+        label: next
+          ? orderOptions.find((option) => option.id === next)?.name ?? "cet Ordre"
+          : "Tous les Ordres",
+        wouldUncheck,
+      });
+      return;
+    }
+    applyOrder(next);
+  };
+
+  const cityCount = alignmentCountForCamp(allMilestones, allCompletedSeqIds, profileAlign.camp);
+  const orderQuests = selectedOrder
+    ? allMilestones.flatMap((milestone) =>
+        (milestone.sequences ?? []).filter((sequence: any) => {
+          const entry = alignmentSeries.get(sequence.id);
+          if (!entry || entry.kind !== "ordre") return false;
+          return (
+            normalizeOrderLabel(entry.orderName) === normalizeOrderLabel(selectedOrder.name) ||
+            (!!sequence.alignOrderCode &&
+              normalizeOrderCode(sequence.alignOrderCode) === normalizeOrderCode(selectedOrder.id))
+          );
+        })
+      )
+    : [];
+  const orderDone =
+    !!selectedOrder &&
+    orderQuests.length > 0 &&
+    orderQuests.every((sequence) => allCompletedSeqIds.has(sequence.id));
+  const cityDone = cityCount >= 100;
+
+  // Alignement terminé (cité 100 + les 5 rangs de l'Ordre) : plus de choix à montrer.
+  if (profileAlign.camp && orderDone && cityDone) return null;
+
+  const campLabel =
+    profileAlign.camp === "bontarien"
+      ? "Bontarien"
+      : profileAlign.camp === "brakmarien"
+        ? "Brâkmarien"
+        : null;
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-[6px] border border-border bg-surface px-3 py-2">
+      <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        Route d'alignement
+      </span>
+      {!profileAlign.camp ? (
+        <>
+          <span className="text-xs text-foreground">Choisis ta cité pour filtrer la route.</span>
+          <button
+            type="button"
+            onClick={onChooseAlignment}
+            className="rounded-[4px] border border-border px-2.5 py-1 text-[11px] font-semibold text-foreground transition-colors hover:bg-elevated"
+          >
+            Choisir ma cité
+          </button>
+        </>
+      ) : (
+        <>
+          <span className="text-xs font-semibold text-foreground">{campLabel}</span>
+          {orderDone ? (
+            <span className="rounded-[4px] border border-success/30 bg-success/10 px-2 py-1 text-[11px] font-semibold text-success">
+              {selectedOrder?.name} — terminé
+            </span>
+          ) : (
+            <RushOrderSelect
+              options={orderOptions}
+              value={selectedOrder?.id ?? null}
+              onChange={handleOrderChange}
+              allowAll={false}
+            />
+          )}
+          <span className="text-[11px] text-muted-foreground">{cityCount} / 100 quêtes de cité</span>
+          {selectedOrder && !orderDone ? (
+            <span className="text-[11px] text-muted-foreground">
+              Rang {Math.min(5, Math.floor(cityCount / 20))} / 5
+            </span>
+          ) : null}
+        </>
+      )}
+
+      {orderConfirm ? (
+        <Dialog open onOpenChange={(open) => { if (!open) setOrderConfirm(null); }}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Changer pour {orderConfirm.label} ?</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">
+              Cette action va décocher{" "}
+              <strong className="text-foreground">
+                {orderConfirm.wouldUncheck} quête{orderConfirm.wouldUncheck > 1 ? "s" : ""}
+              </strong>{" "}
+              validée{orderConfirm.wouldUncheck > 1 ? "s" : ""} de ton Ordre actuel. Elle est
+              définitive.
+            </p>
+            <DialogFooter>
+              <button
+                type="button"
+                onClick={() => setOrderConfirm(null)}
+                className="rounded-[4px] border border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const next = orderConfirm.next;
+                  setOrderConfirm(null);
+                  applyOrder(next);
+                }}
+                className="rounded-[4px] border border-danger/50 px-3 py-1.5 text-xs font-semibold text-danger transition-colors hover:bg-danger/10"
+              >
+                Décocher et changer
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      ) : null}
+    </div>
+  );
+}
+
 // ─── ContextualHelp ──────────────────────────────────────────────────────────
 /**
  * Enveloppe locale : la base portée dans le `body` est partagée, le contexte
@@ -1495,9 +1622,23 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
   // Local copy of profile for optimistic alignment updates (sync profile<->rush)
   const [localProfile,setLocalProfile]=useState(currentUserProfile);
   useEffect(()=>{setLocalProfile(currentUserProfile);},[currentUserProfile]);
-  const [completedIds,setCompletedIds]=useState<Set<string>>(()=>new Set(milestones.filter(ms=>ms.playerProgress?.[0]?.isCompleted).map(ms=>ms.id)));
+  // Complétude d'un bloc **pour la route visible** : les séquences affichées (camp /
+  // Ordre) et les étapes cochées. Le drapeau serveur `isCompleted` reste celui du bloc
+  // entier (toutes branches) ; il ne doit pas cocher un bloc d'Ordre à la place du joueur.
+  const routeContentIds = (ms: any) =>
+    (ms.sequences || []).filter((s: any) => !isInfoSequence(s)).map((s: any) => s.id);
+  const isRouteBlockComplete = (ms: any, steps: Iterable<string>) => {
+    const ids = routeContentIds(ms);
+    const set = new Set(steps);
+    return ids.length > 0 && ids.every((id: string) => set.has(id));
+  };
+  const [completedIds,setCompletedIds]=useState<Set<string>>(()=>new Set(milestones.filter(ms=>{
+    const r=ms.playerProgress?.[0]?.completedSteps;
+    const steps=Array.isArray(r)?r:typeof r==="string"?JSON.parse(r):[];
+    return isRouteBlockComplete(ms,steps);
+  }).map(ms=>ms.id)));
   const [completedStepsByMs,setCompletedStepsByMs]=useState<Map<string,Set<string>>>(()=>{const m=new Map;milestones.forEach(ms=>{const r=ms.playerProgress?.[0]?.completedSteps;const a=Array.isArray(r)?r:typeof r==="string"?JSON.parse(r):[];m.set(ms.id,new Set(a));});return m;});
-  useEffect(()=>{const nc=new Set<string>,ns=new Map<string,Set<string>>;milestones.forEach(ms=>{if(ms.playerProgress?.[0]?.isCompleted)nc.add(ms.id);const r=ms.playerProgress?.[0]?.completedSteps;const a=Array.isArray(r)?r:typeof r==="string"?JSON.parse(r):[];ns.set(ms.id,new Set(a));});setCompletedIds(nc);setCompletedStepsByMs(ns);},[milestones]);
+  useEffect(()=>{const nc=new Set<string>,ns=new Map<string,Set<string>>;milestones.forEach(ms=>{const r=ms.playerProgress?.[0]?.completedSteps;const a=Array.isArray(r)?r:typeof r==="string"?JSON.parse(r):[];if(isRouteBlockComplete(ms,a))nc.add(ms.id);ns.set(ms.id,new Set(a));});setCompletedIds(nc);setCompletedStepsByMs(ns);},[milestones]);
   // ─── Bookmark PAR BLOC (jalon) : 1 « Je suis ici » max par bloc ────────────
   const [bookmarksByMs, setBookmarksByMs] = useState<Map<string, string>>(() => {
     const m = new Map<string, string>();
@@ -2098,7 +2239,7 @@ const timelineItems=useMemo(()=>{
       toast.error("Erreur réseau");
     }finally{setLoading(ms.id,false);}
   },[completedStepsByMs,completedIds,bookmarksByMs,guildId,effectiveAltPseudo,setLoading,blockedSeqIds,allCompletedSeqIds,milestones,dungeonsState.states,dungeonsState.refresh,resourceChecks,scheduleLiveRefresh]);
-  const handleToggle=useCallback(async(ms:Milestone)=>{const was=completedIds.has(ms.id);const resourceBefore=resourceChecks;setResourceChecks((ms.sequences||[]).reduce((acc:Set<string>,s:any)=>applyQuestResourceChecks(acc,s.activityTags,!was),resourceChecks));setCompletedIds(prev=>{const n=new Set(prev);was?n.delete(ms.id):n.add(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,was?new Set():new Set(ms.sequences.map(s=>s.id)));return n;});setLoading(ms.id,true);try{const res=await toggleMilestoneProgress(guildId,ms.id,!was,effectiveAltPseudo);if(!(res as any).success){setResourceChecks(resourceBefore);setCompletedIds(prev=>{const n=new Set(prev);was?n.add(ms.id):n.delete(ms.id);return n;});toast.error((res as any)?.error || "Erreur");}else{ if(!was){const isChapterEnd=lastMsOfChapterIds.has(ms.id);if(isChapterEnd)setCelebrate({msId:ms.id,title:`Chapitre ${ms.chapter} terminé ✓`,tint:"#56d4ad"}); if(bookmarksByMs.get(ms.id)){setBookmarksByMs(prev=>{const n=new Map(prev);n.delete(ms.id);return n;}); setRushBookmark(guildId,ms.id,null,effectiveAltPseudo).catch(()=>{});}} toast.success(was?"Décochée":"✅ Bloc validé !",{duration:1500}); scheduleLiveRefresh(); void dungeonsState.refresh(); }}catch{setResourceChecks(resourceBefore);toast.error("Erreur réseau");}finally{setLoading(ms.id,false);}},[completedIds,bookmarksByMs,guildId,effectiveAltPseudo,setLoading,resourceChecks,scheduleLiveRefresh,dungeonsState.refresh]);
+  const handleToggle=useCallback(async(ms:Milestone)=>{const was=completedIds.has(ms.id);const scope=(ms.sequences||[]).filter((s:any)=>!isInfoSequence(s)).map((s:any)=>s.id);const resourceBefore=resourceChecks;setResourceChecks((ms.sequences||[]).reduce((acc:Set<string>,s:any)=>applyQuestResourceChecks(acc,s.activityTags,!was),resourceChecks));setCompletedIds(prev=>{const n=new Set(prev);was?n.delete(ms.id):n.add(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,was?new Set():new Set(ms.sequences.map(s=>s.id)));return n;});setLoading(ms.id,true);try{const res=await toggleMilestoneProgress(guildId,ms.id,!was,effectiveAltPseudo,scope);if(!(res as any).success){setResourceChecks(resourceBefore);setCompletedIds(prev=>{const n=new Set(prev);was?n.add(ms.id):n.delete(ms.id);return n;});toast.error((res as any)?.error || "Erreur");}else{ if(!was){const isChapterEnd=lastMsOfChapterIds.has(ms.id);if(isChapterEnd)setCelebrate({msId:ms.id,title:`Chapitre ${ms.chapter} terminé ✓`,tint:"#56d4ad"}); if(bookmarksByMs.get(ms.id)){setBookmarksByMs(prev=>{const n=new Map(prev);n.delete(ms.id);return n;}); setRushBookmark(guildId,ms.id,null,effectiveAltPseudo).catch(()=>{});}} toast.success(was?"Décochée":"✅ Bloc validé !",{duration:1500}); scheduleLiveRefresh(); void dungeonsState.refresh(); }}catch{setResourceChecks(resourceBefore);toast.error("Erreur réseau");}finally{setLoading(ms.id,false);}},[completedIds,bookmarksByMs,guildId,effectiveAltPseudo,setLoading,resourceChecks,scheduleLiveRefresh,dungeonsState.refresh]);
   const handleReset=useCallback(async(ms:Milestone)=>{setCompletedIds(prev=>{const n=new Set(prev);n.delete(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,new Set);return n;});setLoading(ms.id,true);try{await resetMilestoneProgress(guildId,ms.id,effectiveAltPseudo);toast.success("Réinitialisée");scheduleLiveRefresh();void dungeonsState.refresh();}catch{setCompletedIds(prev=>new Set([...prev,ms.id]));toast.error("Erreur reset");}finally{setLoading(ms.id,false);}},[guildId,effectiveAltPseudo,setLoading,scheduleLiveRefresh,dungeonsState.refresh]);
 
   // ─── Bookmark par séquence ─────────────────────────────────────────────
@@ -2894,6 +3035,7 @@ const timelineItems=useMemo(()=>{
     <AnimatePresence>
       {celebrate && <MilestoneCelebrationBurst title={celebrate.title} tint={celebrate.tint ?? undefined} />}
     </AnimatePresence>
+    <RushAlignmentPanel onChooseAlignment={() => setAlignmentEditOpen(true)} />
     <GuildStatusPanel milestones={contentMilestones} questsByDofus={dofusQuestsByDofus} guildProgress={guildProgress} stepKeysBySequenceId={stepKeysBySequenceId} activeFilter={dofusFilter} onFilterChange={setDofusFilter}/>
     {/* ── Grille de la DA (E3) : 260 | contenu | 300 dès 1 440 px ──────────────
         C'est la MÊME feuille que le guide public (`.da-guide-grid`, trois paliers

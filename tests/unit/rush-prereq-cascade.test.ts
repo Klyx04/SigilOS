@@ -63,6 +63,35 @@ describe("planPrerequisiteCascade", () => {
     expect(new Set(plan.closure)).toEqual(new Set(["e1", "m1", "v1"]));
   });
 
+  it("un périmètre ne cascade que ses propres prérequis", () => {
+    const bloc = milestone("bloc", "QUETE_SERIE", [
+      seq("a1", "A1", [{ type: "prereq_text", id: "m1", name: "M1" }]),
+      seq("a2", "A2", [{ type: "prereq_text", id: "m2", name: "M2" }]),
+    ]);
+    const prerequis = milestone("p", "QUETE_SERIE", [
+      seq("m1", "M1"),
+      seq("m2", "M2"),
+    ]);
+    const guideScope = [bloc, prerequis];
+
+    const partiel = planPrerequisiteCascade({
+      milestones: guideScope,
+      completed: new Set<string>(),
+      targetMilestoneId: "bloc",
+      targetSequenceIds: ["a1"],
+    });
+    expect(partiel.target).toEqual(["a1"]);
+    expect(partiel.added).toEqual(["m1"]);
+
+    const complet = planPrerequisiteCascade({
+      milestones: guideScope,
+      completed: new Set<string>(),
+      targetMilestoneId: "bloc",
+    });
+    expect(complet.target).toEqual(["a1", "a2"]);
+    expect(complet.added).toEqual(["m1", "m2"]);
+  });
+
   it("ne rajoute rien quand la chaîne est déjà validée", () => {
     const plan = planPrerequisiteCascade({
       milestones: guide,

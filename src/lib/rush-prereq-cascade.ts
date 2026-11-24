@@ -89,12 +89,22 @@ export function planPrerequisiteCascade(input: {
   milestones: readonly RushCascadeMilestone[];
   completed: Iterable<string>;
   targetMilestoneId: string;
+  /**
+   * Périmètre à valider (route / Ordre) : seules ces séquences du bloc sont cochées
+   * et seuls **leurs** prérequis sont ajoutés. Absent = tout le bloc (comportement
+   * historique de la validation de bloc).
+   */
+  targetSequenceIds?: readonly string[];
 }): RushPrerequisiteCascadePlan {
   const { milestones, targetMilestoneId } = input;
   const targetMilestone = milestones.find((milestone) => milestone.id === targetMilestoneId);
-  const target = (targetMilestone?.sequences ?? [])
+  const contentTarget = (targetMilestone?.sequences ?? [])
     .filter((sequence) => !isInfoSequence(sequence))
     .map((sequence) => sequence.id);
+  const requested = input.targetSequenceIds ? new Set(input.targetSequenceIds) : null;
+  const target = requested
+    ? contentTarget.filter((sequenceId) => requested.has(sequenceId))
+    : contentTarget;
   const byId = indexSequences(milestones);
 
   const closure = new Set<string>();

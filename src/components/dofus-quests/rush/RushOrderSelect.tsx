@@ -16,11 +16,14 @@ export function RushOrderSelect({
   value,
   onChange,
   className,
+  allowAll = true,
 }: {
   options: RushOrderOption[];
   value: string | null;
   onChange: (orderId: string | null) => void;
   className?: string;
+  /** « Tous » (retirer l'Ordre) : vrai pour un filtre, faux pour un choix de route. */
+  allowAll?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -58,7 +61,9 @@ export function RushOrderSelect({
           // eslint-disable-next-line @next/next/no-img-element
           <img src={selected.icon} alt="" className="h-3.5 w-3.5 shrink-0 object-contain" />
         ) : null}
-        <span className="max-w-[11rem] truncate">{selected?.name ?? "Tous"}</span>
+        <span className="max-w-[11rem] truncate">
+          {selected?.name ?? (allowAll ? "Tous" : "Choisir un Ordre")}
+        </span>
         <ChevronDown className="h-3 w-3 shrink-0" aria-hidden="true" />
       </button>
 
@@ -69,21 +74,23 @@ export function RushOrderSelect({
           className="absolute left-0 top-full z-50 mt-1 w-60 rounded-[6px] border border-border-strong bg-elevated p-1"
         >
           <li>
-            <button
-              type="button"
-              role="option"
-              aria-selected={value === null}
-              onClick={() => {
-                onChange(null);
-                setOpen(false);
-              }}
-              className="flex w-full items-center gap-2 rounded-[4px] px-1.5 py-1 text-left text-[11px] text-foreground transition-colors hover:bg-surface"
-            >
-              <span className="grid h-3.5 w-3.5 shrink-0 place-items-center">
-                {value === null ? <Check className="h-3 w-3" aria-hidden="true" /> : null}
-              </span>
-              Tous
-            </button>
+            {allowAll ? (
+              <button
+                type="button"
+                role="option"
+                aria-selected={value === null}
+                onClick={() => {
+                  onChange(null);
+                  setOpen(false);
+                }}
+                className="flex w-full items-center gap-2 rounded-[4px] px-1.5 py-1 text-left text-[11px] text-foreground transition-colors hover:bg-surface"
+              >
+                <span className="grid h-3.5 w-3.5 shrink-0 place-items-center">
+                  {value === null ? <Check className="h-3 w-3" aria-hidden="true" /> : null}
+                </span>
+                Tous
+              </button>
+            ) : null}
           </li>
           {options.map((option) => (
             <li key={option.id}>

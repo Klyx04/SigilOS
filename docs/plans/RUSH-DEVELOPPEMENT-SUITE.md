@@ -111,7 +111,16 @@ O10 (3 densités `wide/normal/tight`, mesurées sur le conteneur) · O12 (bulles
 | **4 — Ops / vérifs** | ⑲ bêta 540/541 · ⑳ V-C purge · ㉑ contrôle visuel · ㉒ migrations/bot/crons · ㉓ prod (attente) | à faire |
 | **5 — Perf / décisions** | ㉔ T-6 (session dashboard) · ㉕ E2 (écarté) · ㉖ G7/G9 (après mode blanc) · ㉗ itérations (supprimées) · ㉘ D-G1 (idée) | à faire / tranché |
 
-**Prochain lot** : **Phase 2** — mode blanc, fiche de quête (combats/icônes/accordéon) et **choix Brak 55/66** (+ God). Phase 1 livrée en **PR #1525**. Un lot = une branche = une PR → `dev`.
+**Prochain lot** : **Route d'alignement unique** (code + tests, PR à ouvrir), puis **graphe des dépendances quête ↔ succès** (§I). Les phases 3/4/5 restent pour la prochaine conversation.
+
+### I. Route d'alignement & graphe des succès (24/11/2026)
+
+| # | Lot | Définition / mesure | État |
+|---|---|---|---|
+| 1 | **Route d'alignement unique** | Un seul `RushAlignmentPanel` (cité / Ordre / palier 20-100) ; plus de dropdown dans chaque bloc ; l'Ordre terminé devient un badge statique (dropdown masqué) ; `toggleMilestoneProgress` accepte un **périmètre** (`scopeSeqIds`) et ne valide que la route visible (cascade + donjons + ressources sur ce périmètre) ; la complétude d'un bloc se déduit de ses séquences de route (dashboard + overlay), plus du drapeau global ; l'overlay ne dévalide plus par le nœud du chapitre, le reset est l'action dédiée ; `RushOrderSelect` `allowAll` pour un choix de route. Aucune migration. | **code + tests** (branche `feat/rush-route-alignement-2026-11-24`, PR à ouvrir) |
+| 2 | **Graphe des dépendances quête ↔ succès** | Le client expose `OA=<achievementId>` (succès prérequis) en plus de `Qf=<questId>` (quêtes du succès) : **576** succès avec OA, **1 983** OA distincts ; dans le guide, **3** succès ont des OA (1705 Six sur six, 2298 La chevauchée fantastique, 7761 En attendant le printemps) et **61** succès sont des prérequis. Étendre `siphon-achievements.py` (`successIds`), ajouter l'arête **quête → succès** (conditions de quête du client / tag God), graphe pur (cycles, hors guide), **succès dérivé** (`Qf + OA`), affichage « 3/3 quêtes · 4/11 succès », **« Valider les prérequis » avec aperçu** (écrit seulement les quêtes du guide ; les nœuds hors guide sont affichés, jamais inventés). Aucune migration. | **à coder** |
+
+> **Six sur six** : 3 Qf (2048/2049/2050) + 11 OA ; 10 sont dans le guide, **565 La fin de l'éternité** est hors guide. Le bloc « Six sur six - Prérequis 2/2 » est un ajout manuel de 2 quêtes, **pas** les 11 succès ; il reste un bloc de quêtes tant que l'arbre n'est pas livré.
 
 ## 0. Ce qui fait foi depuis le 21/10/2026
 

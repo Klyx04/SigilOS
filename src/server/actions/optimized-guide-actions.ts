@@ -976,7 +976,13 @@ async function removeCascadeProgress(input: {
 /**
  * Marquer un milestone comme terminé/non terminé pour l'utilisateur courant.
  */
-export async function toggleMilestoneProgress(guildId: string, milestoneId: string, isCompleted: boolean, altPseudo?: string) {
+export async function toggleMilestoneProgress(
+  guildId: string,
+  milestoneId: string,
+  isCompleted: boolean,
+  altPseudo?: string,
+  scopeSeqIds?: string[]
+) {
   const ctx = await getUserContext(guildId);
   if (!ctx.isAuthenticated) throw new Error("Non autorisé");
   if (!ctx.profileId) throw new Error("Profile ID manquant");
@@ -999,7 +1005,21 @@ export async function toggleMilestoneProgress(guildId: string, milestoneId: stri
 
   const snapshot = await loadProgressSnapshot(profileId, characterSlot, guide.id);
   const dungeonSequences = await loadDungeonSequences(guide);
-  const targetSequenceIds = targetMilestone.sequences.map((sequence) => sequence.id);
+  const targetContentIds = targetMilestone.sequences
+    .filter((sequence) => !isInfoSequenceRow(sequence))
+    .map((sequence) => sequence.id);
+  // Périmètre : la route visible (camp / Ordre) ou tout le bloc. Le serveur ne fait
+  // jamais confiance au client pour sortir du bloc : les ids sont filtrés ci-dessous.
+  const requestedScope = Array.isArray(scopeSeqIds)
+    ? new Set(scopeSeqIds.filter((id): id is string => typeof id === "string").slice(0, 500))
+    : null;
+  const targetIds = requestedScope
+    ? targetContentIds.filter((id) => requestedScope.has(id))
+    : targetContentIds;
+  const targetIdSet = new Set(targetIds);
+  const previous = snapshot.byMilestone.get(milestoneId);
+  const previousSteps = previous?.completedSteps ?? [];
+  const wasFullCompleted = previous?.isCompleted ?? false;
 
   // ── Validation d'un BLOC : AUCUN verrou de donjon ni de prérequis ───────────
   // Décision user du 20/11/2026 : un membre déjà en cours sur Sylvestre ne doit pas
@@ -1007,6 +1027,8 @@ export async function toggleMilestoneProgress(guildId: string, milestoneId: stri
   // geste de **confort** : il valide tout, et la dévalidation reste toujours possible.
   // Décision du 23/11/2026 : il reste **cohérent** — cascade montante des prérequis
   // et coche des donjons requis, sans jamais refuser le geste.
+  // Décision du 24/11/2026 : le périmètre est la **route** (camp / Ordre) ; les
+  // séquences des autres Ordres ne sont ni cochées ni cascadées.
   // Les gardes restent **fail-closed** sur la validation quête par quête
   // (`setRushSequenceProgress`) — c'est là que le verrou de donjon et de prérequis
   // protège réellement la progression.
@@ -1016,12 +1038,16 @@ export async function toggleMilestoneProgress(guildId: string, milestoneId: stri
         milestones: cascadeMilestones(guide),
         completed: snapshot.completed,
         targetMilestoneId: milestoneId,
+        targetSequenceIds: targetIds,
       })
     : null;
 
-  // La coche de donjons couvre le bloc **et** les prérequis que la cascade vient de
-  // valider : sans eux, un prérequis coché resterait « fait » avec un donjon manquant.
-  const dungeonSequenceIds = new Set([...targetSequenceIds, ...(cascade?.added ?? [])]);
+  // La coche de donjons couvre le périmètre **et** les prérequis que la cascade vient
+  // de valider : sans eux, un prérequis coché resterait « fait » avec un donjon manquant.
+  const scopeSequences = targetMilestone.sequences.filter((sequence) =>
+    targetIdSet.has(sequence.id)
+  );
+  const dungeonSequenceIds = new Set([...targetIds, ...(cascade?.added ?? [])]);
   const dungeonSequenceList = [...dungeonSequenceIds]
     .map((sequenceId) => dungeonSequences.get(sequenceId))
     .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
@@ -1029,22 +1055,31 @@ export async function toggleMilestoneProgress(guildId: string, milestoneId: stri
     ? planRequiredDungeonChecks(dungeonSequenceList, snapshot.doneDungeonKeys)
     : [];
 
+  const nextSteps = isCompleted
+    ? [...new Set([...previousSteps, ...targetIds])]
+    : previousSteps.filter((id) => !targetIdSet.has(id));
+  const nextStepSet = new Set(nextSteps);
+  // `isCompleted` stocké = **tout le bloc** (toutes les branches). La route se déduit
+  // côté client à partir de `completedSteps` et de ses séquences visibles.
+  const fullCompleted =
+    targetContentIds.length > 0 && targetContentIds.every((id) => nextStepSet.has(id));
+
   const progress = await db.playerGuideProgress.upsert({
     where: {
       profileId_milestoneId_characterSlot: { profileId, milestoneId, characterSlot }
     },
     update: {
-      isCompleted,
-      completedAt: isCompleted ? new Date() : null,
-      completedSteps: isCompleted ? targetSequenceIds : [],
+      isCompleted: fullCompleted,
+      completedAt: fullCompleted ? (previous?.completedAt ?? new Date()) : null,
+      completedSteps: nextSteps,
     },
     create: {
       profileId,
       milestoneId,
       characterSlot,
-      isCompleted,
-      completedAt: isCompleted ? new Date() : null,
-      completedSteps: isCompleted ? targetSequenceIds : [],
+      isCompleted: fullCompleted,
+      completedAt: fullCompleted ? new Date() : null,
+      completedSteps: nextSteps,
     }
   });
 
@@ -1064,7 +1099,10 @@ export async function toggleMilestoneProgress(guildId: string, milestoneId: stri
       profileId,
       characterSlot,
     });
-  } else {
+  } else if (!requestedScope) {
+    // Dévalidation **du bloc entier** : on retire les prérequis que la cascade avait
+    // ajoutés et qui ne sont plus impliqués. Une dévalidation **de périmètre** ne
+    // touche pas aux prérequis des autres branches (le reset du bloc s'en charge).
     removedPrerequisites = await removeCascadeProgress({
       guide,
       snapshot,
@@ -1083,12 +1121,12 @@ export async function toggleMilestoneProgress(guildId: string, milestoneId: stri
     const resourceKeys = new Set<string>();
     const resourceSequences = isCompleted
       ? [
-          ...targetMilestone.sequences,
+          ...scopeSequences,
           ...guide.milestones
             .flatMap((milestone) => milestone.sequences)
             .filter((sequence) => cascade?.added.includes(sequence.id)),
         ]
-      : targetMilestone.sequences;
+      : scopeSequences;
     for (const sequence of resourceSequences) {
       for (const key of resourceKeysForTags(sequence.activityTags as never)) resourceKeys.add(key);
     }
@@ -1114,7 +1152,9 @@ export async function toggleMilestoneProgress(guildId: string, milestoneId: stri
   }
 
   // Temps réel (Phase E) : broadcast « jalon complété » — fail-closed, non bloquant.
-  if (isCompleted) {
+  // Seul un bloc **entier** est annoncé à la guilde ; une validation de route partielle
+  // reste un geste personnel (le client affiche son toast).
+  if (isCompleted && fullCompleted && !wasFullCompleted) {
     await publishGuideEvent(guildId, guide.slug, {
       type: "milestone:completed",
       profileId,

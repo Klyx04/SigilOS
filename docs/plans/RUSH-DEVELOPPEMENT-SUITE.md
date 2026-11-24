@@ -22,7 +22,7 @@ description: Rush Sylvestre — fiche unique des restes (section ⚡ en tête), 
 >
 > **Mesures locales du 24/11/2026** (non autoritaires pour la bêta) : **541 séquences** (bêta **540**)
 > · **117 séquences Brâkmarien = 102 série + 15 quêtes d'Ordre** (3 × 5) · **391 `constraints`**
-> (157 multi-combats, 336 avec combat ; **325 séquences** avaient des conditions mais aucun `tips` —
+> (161 multi-combats, 719 combats ; **325 séquences** avaient des conditions mais aucun `tips` —
 > la section est désormais visible) · **29 conseils** (7 de quête + 22 de bloc ; bêta
 > **49**) · **742 tags combat** (bêta 746) · **6 positions** de quêtes ajoutées à traiter (local fait,
 > bêta à vérifier) · dialogue **DPLN : 0 à mettre à jour** (532 positions sur les deux).
@@ -107,12 +107,18 @@ O10 (3 densités `wide/normal/tight`, mesurées sur le conteneur) · O12 (bulles
 | Phase | Contenu | État |
 |---|---|---|
 | **1 — Cohérence de progression** (aucune migration) | ① cascade montante · ② donjons à la validation · ③ resets qui effacent les donjons · ④ modale Dofus recalculée · ⑤ modale Donjons par membre + refresh · ⑥ coche du sommaire · ⑦ reset bloc overlay · ⑧ célébration unifiée | ✅ **livré — PR #1525** |
-| **2 — Lisibilité** | ⑨ mode blanc · ⑩ fiche quête (types de combat, icônes, accordéon vide, assets) · ⑪ choix Brak 55/66 + God | ⑩ ✅ **livré — PR #1531** (conditions visibles sans `tips`, multi-combats, cartes illustrées) · ⑨/⑪ à faire |
-| **3 — Données** | ⑫ 6 positions (bêta + 894) · ⑬ 514 positions sous-mondes + verbe ops · ⑭ contraintes 1 085 + 4 donjons Maïmane · ⑮ 98 conseils · ⑯ combats 746/742 · ⑰ actage Brâkmarien · ⑱ Touglie VPS | ⑭ ✅ **livré en local — PR #1531** (391 séquences, 157 multi-combats ; bêta/prod à appliquer) · 4 donjons Maïmane mesurés **0 à ajouter / 0 inconnu** en local · ⑫/⑬/⑮/⑯/⑰/⑱ à faire |
+| **2 — Lisibilité** | ⑨ mode blanc · ⑩ fiche quête (types de combat, icônes, accordéon vide, assets) · ⑪ choix Brak 55/66 + God | ⑩ ✅ **livré — PR #1531 + revue #1532** (conditions visibles sans `tips`, multi-combats, cartes illustrées) · ⑨/⑪ à faire |
+| **3 — Données** | ⑫ 6 positions (bêta + 894) · ⑬ 514 positions sous-mondes + verbe ops · ⑭ contraintes 1 085 + 4 donjons Maïmane · ⑮ 98 conseils · ⑯ combats 746/742 · ⑰ actage Brâkmarien · ⑱ Touglie VPS | ⑭ ✅ **livré en local — PR #1531 + revue #1532** (391 séquences, 161 multi-combats ; bêta/prod à appliquer) · 4 donjons Maïmane mesurés **0 à ajouter / 0 inconnu** en local · ⑫/⑬/⑮/⑯/⑰/⑱ à faire |
 | **4 — Ops / vérifs** | ⑲ bêta 540/541 · ⑳ V-C purge · ㉑ contrôle visuel · ㉒ migrations/bot/crons · ㉓ prod (attente) | à faire |
 | **5 — Perf / décisions** | ㉔ T-6 (session dashboard) · ㉕ E2 (écarté) · ㉖ G7/G9 (après mode blanc) · ㉗ itérations (supprimées) · ㉘ D-G1 (idée) | à faire / tranché |
 
-**Prochain lot** : ⑭ et ⑩ sont **livrés** (#1531). Restent **⑨ mode blanc**, **⑪ choix Brak 55/66 + God**, puis la **phase 3 données** (⑫/⑬/⑯), les **98 conseils** (⑮), les ops (⑰/⑱), le **contrôle hebdo VPS** (`--check` + alerte Discord ops/Sentry) et les phases 4/5.
+**Prochain lot** : ⑭ et ⑩ sont **livrés** (#1531, revue #1532). Restent **⑨ mode blanc**, **⑪ choix Brak 55/66 + God**, puis la **phase 3 données** (⑫/⑬/⑯), les **98 conseils** (⑮), les ops (⑰/⑱), le **contrôle hebdo VPS** (`--check` + alerte Discord ops/Sentry) et les phases 4/5.
+
+> **Revue #1531 → #1532 (24/11/2026)** : bloc « Conseils » vide corrigé (conditions seules), v1
+> normalisée **en lecture** (serveur + éditeur), niveaux de monstres >200 conservés (mesuré 1 000),
+> combats identiques conservés dans l'ordre, cible DB explicite et `DATABASE_URL` obligatoire.
+> Mesure : **391 séquences · 161 multi-combats · 719 combats**. Payload `constraints` ≈ **230 Ko**
+> dans le RSC des 3 surfaces — à alléger si **T-6** le demande.
 
 ### I. Route d'alignement & graphe des succès (24/11/2026)
 

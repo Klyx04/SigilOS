@@ -321,6 +321,11 @@ export function RushOverlayQuestDetailModal({
               <RushTipLines text={seq.tips} constraints={seq.constraints ?? null} />
                     </div>
                   )}
+                  {!seq.tips && hasRushHints({ constraints: seq.constraints }) && (
+                    <div className="rounded-[4px] border-l-2 border-l-gold/70 bg-surface px-2.5 py-2 text-[12px] leading-relaxed text-foreground">
+                      <RushTipLines text="" constraints={seq.constraints ?? null} />
+                    </div>
+                  )}
                   {seq.note && (
                     <div className="rounded-[4px] border border-border bg-surface px-2.5 py-2 text-[12px] leading-relaxed text-muted-foreground">
                       <RushTipLines text={seq.note} />

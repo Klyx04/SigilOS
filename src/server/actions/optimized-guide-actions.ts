@@ -216,6 +216,28 @@ export async function getOptimizedGuidesLite(guildId?: string) {
 }
 
 /**
+ * Projette les `constraints` lues en **v2** (v1 `combat` → `combats[]`).
+ *
+ * Pourquoi ici : les `get*GuideDetail` sont la porte d'entrée des 3 surfaces. Sans
+ * cette projection, une ligne v1 sauvegardée avant le lot resterait invisible (le
+ * rendu ne lit que `combats`) et l'éditeur God la renverrait telle quelle au schéma
+ * strict, qui la refuserait. La validation est fail-closed : une forme invalide
+ * devient `null` (aucune condition affichée), jamais une écriture silencieuse.
+ */
+function normalizeGuideConstraints<
+  T extends { milestones: Array<{ sequences: Array<{ constraints?: unknown }> }> },
+>(guide: T): T {
+  for (const milestone of guide.milestones) {
+    for (const sequence of milestone.sequences) {
+      (sequence as { constraints?: unknown }).constraints = parseRushQuestConstraints(
+        sequence.constraints,
+      );
+    }
+  }
+  return guide;
+}
+
+/**
  * 🌐 Version publique de lecture d'un guide optimisé (0-login, sans guildId ni profil).
  * Lit le catalogue maître sans toucher aux données membres ni écrire en base.
  */
@@ -274,7 +296,7 @@ export async function getPublicGuideDetail(slug: string) {
     }
   }
 
-  return { success: true, guide };
+  return { success: true, guide: normalizeGuideConstraints(guide) };
 }
 
 export async function getOptimizedGuideDetail(slug: string, guildId: string, altPseudo?: string) {
@@ -378,7 +400,7 @@ export async function getOptimizedGuideDetail(slug: string, guildId: string, alt
     }
   }
 
-  return { success: true, guide, resolvedProfileId: profileId };
+  return { success: true, guide: normalizeGuideConstraints(guide), resolvedProfileId: profileId };
 }
 
 /**

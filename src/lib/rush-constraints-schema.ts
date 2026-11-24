@@ -22,6 +22,8 @@ const JOB_IDS: ReadonlySet<string> = new Set(Object.values(DOFUS_JOBS).flat().ma
 const CLASS_IDS: ReadonlySet<string> = new Set(DOFUS_CLASSES.map((dofusClass) => dofusClass.id));
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 const level = z.number().int().min(1).max(200);
+/** Niveau d'un monstre / donjon : Dofus dépasse 200 (mesuré : 1000). */
+const monsterLevel = z.number().int().min(1).max(10_000);
 const jobId = z.string().refine((id) => JOB_IDS.has(id), "Métier inconnu");
 const classId = z.string().refine((id) => CLASS_IDS.has(id), "Classe inconnue");
 
@@ -39,7 +41,7 @@ const combatSchema = z
         z.object({
           name: z.string().trim().min(1).max(120),
           count: z.number().int().min(1).max(20),
-          level: z.number().int().min(1).max(200).optional(),
+          level: monsterLevel.optional(),
           health: z.number().int().min(1).max(999999).optional(),
           imageUrl: z.string().trim().max(500).optional(),
         }),
@@ -87,7 +89,7 @@ const baseShape = {
             id: z.string().trim().max(100).optional(),
             name: z.string().trim().min(1).max(120),
             bossName: z.string().trim().max(120).optional(),
-            level: z.number().int().min(1).max(200).optional(),
+            level: monsterLevel.optional(),
             imageUrl: z.string().trim().max(500).optional(),
           }),
         )
@@ -100,7 +102,7 @@ const baseShape = {
     .array(
       z.object({
         name: z.string().trim().min(1).max(120),
-        level: z.number().int().min(1).max(200).optional(),
+        level: monsterLevel.optional(),
         imageUrl: z.string().trim().max(500).optional(),
       }),
     )

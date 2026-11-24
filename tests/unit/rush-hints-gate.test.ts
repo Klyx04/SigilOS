@@ -32,4 +32,10 @@ describe("section Conseils & notes — les conditions seules suffisent", () => {
       expect(code, file).not.toContain("{(seq.tips || seq.note) &&");
     }
   });
+
+  it("la modale partagée rend le corps des conditions seules", () => {
+    const overlay = readFileSync(SURFACES[2], "utf8");
+    expect(overlay).toContain("!seq.tips && hasRushHints({ constraints: seq.constraints })");
+    expect(overlay).toContain('RushTipLines text="" constraints={seq.constraints');
+  });
 });

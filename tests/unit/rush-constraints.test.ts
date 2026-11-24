@@ -231,6 +231,23 @@ describe("rushQuestConstraintsSchema", () => {
     });
     expect(parsed?.hours).toEqual({ kind: "window", from: "20:00" });
   });
+
+  it("accepte un niveau de monstre au-delà de 200 (mesuré 1000)", () => {
+    const parsed = parseRushQuestConstraints({
+      ...validConstraints,
+      combats: [{ mode: "solo", monsters: [{ name: "Gros Med", count: 1, level: 800 }] }],
+    });
+    expect(parsed?.combats?.[0]?.monsters[0]?.level).toBe(800);
+  });
+
+  it("refuse un niveau de monstre au-delà de 10 000", () => {
+    expect(
+      parseRushQuestConstraints({
+        ...validConstraints,
+        combats: [{ mode: "solo", monsters: [{ name: "Test", count: 1, level: 10_001 }] }],
+      }),
+    ).toBeNull();
+  });
 });
 
 describe("constraintsToInfos", () => {
@@ -352,6 +369,21 @@ describe("sanitizeConstraints", () => {
       players: { roles: [{ kind: "free", text: " " }] },
     });
     expect(sanitized.players).toBeNull();
+  });
+
+  it("normalise un document v1 sans réémettre la clé combat", () => {
+    const legacy = {
+      version: 1,
+      jobs: [],
+      spells: [],
+      notes: [],
+      combat: { mode: "solo", monsters: [{ name: "Tarche", count: 1 }] },
+    } as unknown as RushQuestConstraints;
+    const sanitized = sanitizeConstraints(legacy);
+    expect(sanitized.version).toBe(2);
+    expect(sanitized.combats).toHaveLength(1);
+    expect("combat" in sanitized).toBe(false);
+    expect(parseRushQuestConstraints(sanitized)).not.toBeNull();
   });
 });
 

@@ -532,7 +532,11 @@ export function sanitizeConstraints(constraints: RushQuestConstraints): RushQues
         ),
       }
     : null;
-  const combats = (constraints.combats ?? [])
+  // Lecture de la forme v1 (`combat` unique) : `sanitizeConstraints` ne doit jamais
+  // réémettre la clé héritée, sinon le schéma strict refuse l'enregistrement.
+  const legacyCombat = (constraints as unknown as { combat?: RushCombat | null }).combat;
+  const sourceCombats = constraints.combats ?? (legacyCombat ? [legacyCombat] : []);
+  const combats = sourceCombats
     .map((combat) => ({
       ...combat,
       detail: combat.detail?.trim() || undefined,
@@ -550,10 +554,14 @@ export function sanitizeConstraints(constraints: RushQuestConstraints): RushQues
     : null;
   const bashMobs = (constraints.bashMobs ?? []).filter((mob) => mob.name.trim() !== "");
 
+  // Retour **explicite** : aucun spread de l'entrée, donc aucune clé héritée
+  // (`combat`, champ inconnu) ne peut repartir en base.
   return {
-    ...constraints,
+    version: 2,
+    hours: constraints.hours ?? null,
     players:
       players && (players.count !== undefined || players.roles.length > 0) ? players : null,
+    jobs: constraints.jobs,
     spells: constraints.spells.map((spell) => spell.trim()).filter(Boolean),
     notes: constraints.notes.map((note) => note.trim()).filter(Boolean),
     combats,

@@ -7,6 +7,7 @@ import { useDaTheme } from "@/components/da/da-theme";
 import { daScopeProps } from "@/lib/da-scope";
 import type { RushGuideQuestRef, RushSuccessRef } from "@/lib/rush-guide-utils";
 import { buildSuccessQuestRows } from "@/lib/rush-success-quests";
+import { evaluateSuccess, type RushSuccessCatalog, type RushSuccessEvaluation } from "@/lib/rush-success-graph";
 import { questTypeIconPath } from "@/lib/quest-type-icon";
 import { cn } from "@/lib/utils";
 
@@ -47,14 +48,21 @@ function loadQuestNames(): Promise<QuestNames> {
   return questNamesPromise;
 }
 
-type AchievementQuestIndex = {
-  byId: Map<string, number[]>;
-  byName: Map<string, number[]>;
+type AchievementCatalogRow = {
+  id: number;
+  name: string;
+  questIds: number[];
+  successIds: number[];
+};
+type AchievementCatalogIndex = {
+  byId: Map<string, AchievementCatalogRow>;
+  byName: Map<string, AchievementCatalogRow>;
+  rows: Map<number, AchievementCatalogRow>;
   ok: boolean;
 };
-let achievementsPromise: Promise<AchievementQuestIndex> | null = null;
+let achievementsPromise: Promise<AchievementCatalogIndex> | null = null;
 
-/** Cle de repli par NOM (casse, accents, ponctuation) : l id du tag peut etre un id Dofus. */
+/** Cle de repli par NOM (casse, accents, ponctuation) : l id du tag peut être un id Dofus. */
 function normalizeAchievementName(value: string | null | undefined): string {
   return (value ?? "")
     .normalize("NFD")
@@ -64,25 +72,45 @@ function normalizeAchievementName(value: string | null | undefined): string {
     .trim();
 }
 
-function loadAchievementQuests(): Promise<AchievementQuestIndex> {
+function loadAchievementQuests(): Promise<AchievementCatalogIndex> {
   if (!achievementsPromise) {
     achievementsPromise = fetch(ACHIEVEMENTS_URL)
       .then(async (response) => {
         const ok = response.ok;
-        const data: { achievements?: Array<{ id?: number; name?: string; questIds?: number[] }> } =
-          ok ? await response.json() : { achievements: [] };
-        const byId = new Map<string, number[]>();
-        const byName = new Map<string, number[]>();
+        const data: {
+          achievements?: Array<{
+            id?: number;
+            name?: string;
+            questIds?: number[];
+            successIds?: number[];
+          }>;
+        } = ok ? await response.json() : { achievements: [] };
+        const byId = new Map<string, AchievementCatalogRow>();
+        const byName = new Map<string, AchievementCatalogRow>();
+        const rows = new Map<number, AchievementCatalogRow>();
         for (const row of data.achievements ?? []) {
           if (row?.id == null) continue;
-          const questIds = Array.isArray(row.questIds) ? row.questIds : [];
-          byId.set(String(row.id), questIds);
-          const name = normalizeAchievementName(row.name);
-          if (name) byName.set(name, questIds);
+          const entry: AchievementCatalogRow = {
+            id: row.id,
+            name: row.name ?? `Succès ${row.id}`,
+            questIds: Array.isArray(row.questIds) ? row.questIds : [],
+            successIds: Array.isArray(row.successIds) ? row.successIds : [],
+          };
+          byId.set(String(row.id), entry);
+          rows.set(row.id, entry);
+          const name = normalizeAchievementName(entry.name);
+          if (name) byName.set(name, entry);
         }
-        return { byId, byName, ok };
+        return { byId, byName, rows, ok };
       })
-      .catch(() => ({ byId: new Map<string, number[]>(), byName: new Map<string, number[]>(), ok: false }));
+      .catch(
+        () => ({
+          byId: new Map<string, AchievementCatalogRow>(),
+          byName: new Map<string, AchievementCatalogRow>(),
+          rows: new Map<number, AchievementCatalogRow>(),
+          ok: false,
+        })
+      );
   }
   return achievementsPromise;
 }
@@ -98,7 +126,8 @@ function SuccessSheet({
   iconSrc: string;
   onClose: () => void;
 }) {
-  const [ids, setIds] = useState<number[] | null>(null);
+  const [entry, setEntry] = useState<AchievementCatalogRow | null>(null);
+  const [catalog, setCatalog] = useState<RushSuccessCatalog | null>(null);
   const [catalogOk, setCatalogOk] = useState<boolean | null>(null);
   const [names, setNames] = useState<QuestNames>({});
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -147,20 +176,34 @@ function SuccessSheet({
       if (alive) {
         setCatalogOk(map.ok);
         setNames(questNames);
-        setIds(map.byId.get(String(success.id)) ?? map.byName.get(normalizeAchievementName(success.name)) ?? []);
+        setCatalog(map.rows);
+        setEntry(
+          map.byId.get(String(success.id)) ??
+            map.byName.get(normalizeAchievementName(success.name)) ??
+            null
+        );
       }
     });
     return () => {
       alive = false;
     };
-  }, [success.id]);
+  }, [success.id, success.name]);
 
   const rows = useMemo(
-    () => buildSuccessQuestRows(ids, quests, names),
-    [ids, quests, names]
+    () => buildSuccessQuestRows(entry?.questIds ?? [], quests, names),
+    [entry, quests, names]
+  );
+  const evaluation = useMemo<RushSuccessEvaluation | null>(
+    () =>
+      entry && catalog
+        ? evaluateSuccess(entry.id, { catalog, guideQuests: quests, questNames: names })
+        : null,
+    [entry, catalog, quests, names]
   );
 
   const done = rows.filter((row) => row.done).length;
+  const prerequisites = evaluation?.prerequisites ?? [];
+  const prerequisitesDone = prerequisites.filter((row) => row.state === "done").length;
 
   return (
     <div
@@ -198,16 +241,44 @@ function SuccessSheet({
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
-          {!ids ? (
+          {!entry ? (
             <p className="px-2 py-6 text-center text-[11px] text-muted-foreground">Chargement…</p>
-          ) : rows.length === 0 ? (
+          ) : rows.length === 0 && prerequisites.length === 0 ? (
             <p className="px-2 py-6 text-center text-[11px] text-muted-foreground">
               {catalogOk === false
                 ? "Catalogue des succès indisponible."
                 : "Aucune quête connue pour ce succès."}
             </p>
           ) : (
-            <ul className="space-y-1">
+            <>
+              {evaluation && (
+                <div className="mb-2 flex flex-wrap items-center gap-1.5 px-1">
+                  <span
+                    className={cn(
+                      "rounded-[3px] border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide",
+                      evaluation.state === "done"
+                        ? "border-success/40 bg-success/10 text-success"
+                        : evaluation.state === "pending"
+                          ? "border-warning/40 bg-warning/10 text-warning"
+                          : "border-border text-muted-foreground"
+                    )}
+                  >
+                    {evaluation.state === "done"
+                      ? "Succès validé"
+                      : evaluation.state === "pending"
+                        ? "En attente"
+                        : "Hors guide"}
+                  </span>
+                  <span className="font-mono text-[10px] tabular-nums text-muted-foreground">
+                    Quêtes {done}/{rows.length}
+                    {prerequisites.length > 0
+                      ? ` · Prérequis ${prerequisitesDone}/${prerequisites.length}`
+                      : ""}
+                  </span>
+                </div>
+              )}
+              {rows.length > 0 && (
+                <ul className="space-y-1">
               {rows.map((row) => (
                 <li
                   key={row.id}
@@ -249,6 +320,61 @@ function SuccessSheet({
                 </li>
               ))}
             </ul>
+              )}
+              {prerequisites.length > 0 && (
+                <section className="mt-3 border-t border-border pt-2">
+                  <div className="flex items-center justify-between px-1 pb-1">
+                    <p className="m-0 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Succès prérequis
+                    </p>
+                    <span className="font-mono text-[10px] tabular-nums text-muted-foreground">
+                      {prerequisitesDone} / {prerequisites.length}
+                    </span>
+                  </div>
+                  <ul className="space-y-1">
+                    {prerequisites.map((prereq) => (
+                      <li
+                        key={prereq.id}
+                        className="flex items-center gap-2 rounded-[4px] border border-border bg-surface px-2 py-1.5 text-[12px]"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={iconSrc}
+                          alt=""
+                          aria-hidden="true"
+                          loading="lazy"
+                          className="h-4 w-4 shrink-0 object-contain"
+                        />
+                        <span className="min-w-0 flex-1 truncate">{prereq.name}</span>
+                        <span
+                          className={cn(
+                            "shrink-0 rounded-[3px] border px-1 py-0.5 text-[9px] font-semibold",
+                            prereq.state === "done"
+                              ? "border-success/40 bg-success/10 text-success"
+                              : prereq.state === "pending"
+                                ? "border-warning/40 bg-warning/10 text-warning"
+                                : "border-dashed border-border text-muted-foreground"
+                          )}
+                        >
+                          {prereq.state === "done"
+                            ? "Fait"
+                            : prereq.state === "pending"
+                              ? "À faire"
+                              : "Hors guide"}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  {evaluation &&
+                    (evaluation.outsideGuideQuestIds.length > 0 ||
+                      evaluation.outsideGuideSuccessIds.length > 0) && (
+                      <p className="px-1 pt-1 text-[10px] text-muted-foreground">
+                        Certains prérequis sont hors guide : le succès reste non vérifiable.
+                      </p>
+                    )}
+                </section>
+              )}
+            </>
           )}
         </div>
       </div>

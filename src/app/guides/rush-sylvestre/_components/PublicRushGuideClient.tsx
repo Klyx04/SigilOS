@@ -76,13 +76,16 @@ import {
 // donnée de guilde, aucun serveur : le verrou est appliqué dans les écritures.
 import {
   clearDungeonStates,
+  clearDungeonStatesForSequence,
   readDungeonStates,
   writeDungeonState,
+  writeDungeonStates,
   type LocalDungeonStates,
 } from "@/lib/rush-dungeon-storage";
 import {
   dungeonOccurrenceKey,
   doneDungeonKeysForSequence,
+  missingRequiredDungeons,
   occurrenceState,
   resolveSequenceDungeons,
   sequenceDungeonProgress,
@@ -1134,16 +1137,28 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
   );
 
   /**
-   * Verrou de DONJONS (même règle que l'interne et le serveur) : seuls les donjons
-   * REQUIS **de cette quête** comptent, d'où `doneDungeonKeysForSequence`.
+   * Donjons (décision 24/11/2026) : valider une quête (ou un bloc) coche ses donjons
+   * requis ; la dévalider efface ses états locaux (retour à « À faire »). Le verrou
+   * n'existe plus, la pastille reste informative.
    */
-  const isSeqBlockedByDungeon = useCallback(
-    (seqId: string): boolean => {
-      const s = seqById.get(seqId);
-      if (!s || completedSeqIds.has(seqId)) return false;
-      return sequenceDungeonProgress(s, doneDungeonKeysForSequence(dungeonStates, seqId)).blocked;
+  const applyDungeonChecksForSequence = useCallback(
+    (seqId: string, validate: boolean) => {
+      if (!validate) {
+        setDungeonStates(clearDungeonStatesForSequence(storagePrefix, seqId));
+        return;
+      }
+      const sequence = seqById.get(seqId);
+      if (!sequence) return;
+      const doneKeys = doneDungeonKeysForSequence(dungeonStates, seqId);
+      const missing = missingRequiredDungeons(sequence, doneKeys);
+      if (missing.length === 0) return;
+      const updates: Record<string, RushDungeonState> = {};
+      for (const dungeon of missing) {
+        updates[dungeonOccurrenceKey(seqId, dungeon.key)] = "done";
+      }
+      setDungeonStates(writeDungeonStates(storagePrefix, updates));
     },
-    [seqById, completedSeqIds, dungeonStates]
+    [seqById, dungeonStates, storagePrefix, setDungeonStates]
   );
 
   /** Coche / décoche une OCCURRENCE (re-cliquer retire l'état). */
@@ -1246,14 +1261,9 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
         return;
       }
 
-      // 🚫 Même doctrine pour les DONJONS : un donjon requis non coché dans CETTE
-      // quête verrouille la validation. Ici le refus est local (aucun serveur).
-      if (!was && isSeqBlockedByDungeon(seqId)) {
-        toast.error("Donjon requis non fait — coche-le sur la pastille Donjon de cette quête.");
-        return;
-      }
-
+      // Donjons (décision 24/11/2026) : plus de refus local ; valider coche les requis.
       was ? current.delete(seqId) : current.add(seqId);
+      applyDungeonChecksForSequence(seqId, !was);
 
       // Ressources : valider coche les ressources de la quête, invalider les décoche.
       const seqForResources = milestones.flatMap((m) => m.sequences || []).find((s) => s.id === seqId);
@@ -1292,7 +1302,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
         });
       }
     },
-    [completedStepsByMs, milestones, storagePrefix, isStepLocked, isSeqBlockedByDungeon, applyResourceChecksForQuest]
+    [completedStepsByMs, milestones, storagePrefix, isStepLocked, applyResourceChecksForQuest, applyDungeonChecksForSequence]
   );
 
   // Toggle whole chapter
@@ -1307,10 +1317,15 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
       // verrouillée : « Tout valider » ne contourne pas les prérequis.
       ms.sequences.filter((s) => !isInfoSequence(s)).forEach((s) => {
         if (completeAll && !current.has(s.id) && isStepLocked(s.id)) return;
-        // « Tout valider » ne contourne pas non plus un donjon requis non coché.
-        if (completeAll && !current.has(s.id) && isSeqBlockedByDungeon(s.id)) return;
         completeAll ? current.add(s.id) : current.delete(s.id);
       });
+
+      // Donjons : seules les quêtes réellement basculées cochent/effacent leurs requis.
+      for (const s of ms.sequences) {
+        if (isInfoSequence(s)) continue;
+        if (before.has(s.id) === current.has(s.id)) continue;
+        applyDungeonChecksForSequence(s.id, current.has(s.id));
+      }
 
       // Ressources : seules les quêtes réellement basculées touchent leurs coches.
       for (const s of ms.sequences) {
@@ -1345,7 +1360,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
         return next;
       });
     },
-    [completedStepsByMs, milestones, storagePrefix, isStepLocked, isSeqBlockedByDungeon, applyResourceChecksForQuest]
+    [completedStepsByMs, milestones, storagePrefix, isStepLocked, applyResourceChecksForQuest, applyDungeonChecksForSequence]
   );
 
   // Toggle all steps of one quest block (comme le guide interne)
@@ -1357,10 +1372,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
         ? seqIds.filter((id) => {
             const s = seqById.get(id);
             if (!s || completedSeqIds.has(id)) return true;
-            return (
-              !isSequenceBlockedByPrereqs(s, completedSeqIds, milestones) &&
-              !isSeqBlockedByDungeon(id)
-            );
+            return !isSequenceBlockedByPrereqs(s, completedSeqIds, milestones);
           })
         : seqIds;
       // Ressources : les quêtes réellement basculées cochent/décochent leurs ressources.
@@ -1368,6 +1380,8 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
         const s = seqById.get(id);
         if (s) applyResourceChecksForQuest((s as any).activityTags, completeAll);
       }
+      // Donjons : le lot valide/coche ou efface, comme la quête seule.
+      for (const id of targets) applyDungeonChecksForSequence(id, completeAll);
       setCompletedStepsByMs((prev) => {
         const next = new Map(prev);
         const current = new Set(next.get(msId) || []);
@@ -1409,7 +1423,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
         });
       }
     },
-    [completedStepsByMs, milestones, storagePrefix, seqById, completedSeqIds, isSeqBlockedByDungeon, applyResourceChecksForQuest]
+    [completedStepsByMs, milestones, storagePrefix, seqById, completedSeqIds, applyResourceChecksForQuest, applyDungeonChecksForSequence]
   );
 
   // Personnage déclaré → libellé affiché (icône de classe + pseudo + serveur) et
@@ -3038,8 +3052,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                             // Verrou de prérequis (même règle que le guide interne) : la case
                             // devient inerte, la carte passe en danger, le prérequis est nommé.
                             const prereqLocked = !stepDone && isStepLocked(seq.id);
-                            const dungeonLocked = !stepDone && isSeqBlockedByDungeon(seq.id);
-                            const stepLocked = prereqLocked || dungeonLocked;
+                            const stepLocked = prereqLocked;
                             const prereqRefs = prereqLocked ? getPrereqRefs(seq, milestones) : [];
                             // Groupes « au choix » (`prereq_expr`) : une seule alternative suffit.
                             const choiceGroups = prereqLocked
@@ -3159,9 +3172,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                                   title={
                                     prereqLocked
                                       ? "Prérequis non terminé — valide d'abord les quêtes citées sous la ligne."
-                                      : dungeonLocked
-                                        ? "Donjon requis non fait — coche-le sur la pastille Donjon de cette quête."
-                                        : undefined
+                                      : undefined
                                   }
                                   className="da-node"
                                 >

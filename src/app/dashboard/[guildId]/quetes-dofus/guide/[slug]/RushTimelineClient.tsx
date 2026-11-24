@@ -86,7 +86,7 @@ import { RushOverlayResourcesModal } from "@/app/overlay/guide/[guildId]/[slug]/
 import { aggregateRushResources, getDungeons } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
 import { isSequenceBlockedByPrereqs, alignmentCountForCamp, getPrereqRefs, resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, resolvePrereqTarget, RUSH_RESOURCES_PICTO, RUSH_ACTIVITY_TAG_CONFIG, getSequenceCoord, blockHeaderCoord, getAlignmentSet, collectCascadeUncheck, rushChapterNumbers, getSequenceSuccesses, type RushGuideQuestRef, type RushPrereqRef } from "@/lib/rush-guide-utils";
 // Verrou de DONJONS : la MÊME règle que le serveur et le guide public (`rush-dungeons`).
-import { doneDungeonKeysForSequence, missingRequiredDungeons, occurrenceState, sequenceDungeonProgress, type RushDungeonMemberState, type RushDungeonState } from "@/lib/rush-dungeons";
+import { doneDungeonKeysForSequence, occurrenceState, sequenceDungeonProgress, type RushDungeonMemberState, type RushDungeonState } from "@/lib/rush-dungeons";
 import type { DungeonAchievementDungeon, DungeonAchievementPanelLoadInput, DungeonAchievementToggleInput } from "@/lib/rush-dungeon-achievements";
 import { DungeonAchievementsModal } from "@/components/dofus-quests/rush/DungeonAchievementsModal";
 import { RushDungeonsProgressTile } from "@/components/dofus-quests/rush/RushDungeonsProgressTile";
@@ -2148,28 +2148,9 @@ const timelineItems=useMemo(()=>{
     const cur=new Set(completedStepsByMs.get(ms.id)||[]);
     const was=cur.has(seqId);
     if(!was&&blockedSeqIds.has(seqId)){toast.warning("Terminez d'abord les prérequis de cette quête.");return;}
-    // Verrou de DONJONS (même règle que le serveur) : seuls les donjons REQUIS de CETTE
-    // quête comptent — un optionnel ne bloque jamais, et la coche d'une autre quête
-    // demandant le même donjon ne vaut pas ici (clé par occurrence).
-    if(!was){
-      const seqObj=ms.sequences.find((s:any)=>s.id===seqId);
-      if(seqObj){
-        const doneKeys=doneDungeonKeysForSequence(dungeonsState.states,seqId);
-        if(sequenceDungeonProgress(seqObj as any,doneKeys).blocked){
-          const names=missingRequiredDungeons(seqObj as any,doneKeys).map((d:any)=>d.name);
-          // On OUVRE le panneau des donjons de cette quete : cocher devient un geste,
-          // pas une chasse dans l interface.
-          if (typeof window !== "undefined") {
-            window.dispatchEvent(new CustomEvent("rush:open-dungeons", { detail: { seqId } }));
-          }
-          toast.error(names.length>0?`Donjon requis non fait : ${names.join(", ")}`:"Donjon requis non fait", {
-            description: "Le panneau des donjons s ouvre : coche-le(s) ici.",
-            duration: 4000,
-          });
-          return;
-        }
-      }
-    }
+    // Donjons (décision 24/11/2026) : valider une quête coche ses donjons requis côté
+    // serveur, elle n'est plus refusée pour un donjon non fait. Le panneau reste
+    // informatif (pulse) avant la validation.
     was?cur.delete(seqId):cur.add(seqId);
     const arr=Array.from(cur);
     const regularSeqs=ms.sequences.filter((s:any)=>!isInfoSequence(s));
@@ -2267,7 +2248,7 @@ const timelineItems=useMemo(()=>{
       setCompletedIds(prev=>{const n=new Set(prev);wasMilestoneCompleted?n.add(ms.id):n.delete(ms.id);return n;});
       toast.error("Erreur réseau");
     }finally{setLoading(ms.id,false);}
-  },[completedStepsByMs,completedIds,bookmarksByMs,guildId,effectiveAltPseudo,setLoading,blockedSeqIds,allCompletedSeqIds,milestones,dungeonsState.states,dungeonsState.refresh,resourceChecks,scheduleLiveRefresh]);
+  },[completedStepsByMs,completedIds,bookmarksByMs,guildId,effectiveAltPseudo,setLoading,blockedSeqIds,allCompletedSeqIds,milestones,dungeonsState.refresh,resourceChecks,scheduleLiveRefresh]);
   const handleToggle=useCallback(async(ms:Milestone)=>{const was=completedIds.has(ms.id);const scope=(ms.sequences||[]).filter((s:any)=>!isInfoSequence(s)).map((s:any)=>s.id);const resourceBefore=resourceChecks;setResourceChecks((ms.sequences||[]).reduce((acc:Set<string>,s:any)=>applyQuestResourceChecks(acc,s.activityTags,!was),resourceChecks));setCompletedIds(prev=>{const n=new Set(prev);was?n.delete(ms.id):n.add(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,was?new Set():new Set(ms.sequences.map(s=>s.id)));return n;});setLoading(ms.id,true);try{const res=await toggleMilestoneProgress(guildId,ms.id,!was,effectiveAltPseudo,scope);if(!(res as any).success){setResourceChecks(resourceBefore);setCompletedIds(prev=>{const n=new Set(prev);was?n.add(ms.id):n.delete(ms.id);return n;});toast.error((res as any)?.error || "Erreur");}else{ if(!was){const isChapterEnd=lastMsOfChapterIds.has(ms.id);if(isChapterEnd)setCelebrate({msId:ms.id,title:`Chapitre ${ms.chapter} terminé ✓`,tint:"#56d4ad"}); if(bookmarksByMs.get(ms.id)){setBookmarksByMs(prev=>{const n=new Map(prev);n.delete(ms.id);return n;}); setRushBookmark(guildId,ms.id,null,effectiveAltPseudo).catch(()=>{});}} toast.success(was?"Décochée":"✅ Bloc validé !",{duration:1500}); scheduleLiveRefresh(); void dungeonsState.refresh(); }}catch{setResourceChecks(resourceBefore);toast.error("Erreur réseau");}finally{setLoading(ms.id,false);}},[completedIds,bookmarksByMs,guildId,effectiveAltPseudo,setLoading,resourceChecks,scheduleLiveRefresh,dungeonsState.refresh]);
   const handleReset=useCallback(async(ms:Milestone)=>{setCompletedIds(prev=>{const n=new Set(prev);n.delete(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,new Set);return n;});setLoading(ms.id,true);try{await resetMilestoneProgress(guildId,ms.id,effectiveAltPseudo);toast.success("Réinitialisée");scheduleLiveRefresh();void dungeonsState.refresh();}catch{setCompletedIds(prev=>new Set([...prev,ms.id]));toast.error("Erreur reset");}finally{setLoading(ms.id,false);}},[guildId,effectiveAltPseudo,setLoading,scheduleLiveRefresh,dungeonsState.refresh]);
 

@@ -94,6 +94,40 @@ export function readDungeonStates(progressPrefix: string): LocalDungeonStates {
 }
 
 /**
+ * Écrit PLUSIEURS occurrences et retourne la carte à jour (`null` retire la ligne).
+ * Utilisé quand une quête validée coche ses donjons requis d'un seul geste.
+ */
+export function writeDungeonStates(
+  progressPrefix: string,
+  updates: Readonly<Record<string, RushDungeonState | null>>,
+): LocalDungeonStates {
+  const next = { ...readDungeonStates(progressPrefix) };
+  let changed = false;
+  for (const [key, state] of Object.entries(updates)) {
+    if (!isDungeonOccurrenceKey(key)) continue;
+    if (state === null) {
+      if (key in next) {
+        delete next[key];
+        changed = true;
+      }
+      continue;
+    }
+    if (next[key] !== state) {
+      next[key] = state;
+      changed = true;
+    }
+  }
+  if (changed && typeof localStorage !== "undefined") {
+    try {
+      localStorage.setItem(dungeonStatesStorageKey(progressPrefix), serializeDungeonStates(next));
+    } catch {
+      /* stockage plein / navigation privée : on garde l'état en mémoire */
+    }
+  }
+  return next;
+}
+
+/**
  * Écrit UNE occurrence et retourne la carte à jour — `state === null` retire la ligne.
  * Cet état retourné est la source de vérité à passer au `useState` de la surface :
  * on ne relit jamais deux fois le stockage.
@@ -103,13 +137,23 @@ export function writeDungeonState(
   occurrenceKey: string,
   state: RushDungeonState | null
 ): LocalDungeonStates {
+  return writeDungeonStates(progressPrefix, { [occurrenceKey]: state });
+}
+
+/** Efface toutes les occurrences d'une quête (dévalidation / reset). */
+export function clearDungeonStatesForSequence(
+  progressPrefix: string,
+  sequenceId: string,
+): LocalDungeonStates {
   const next = { ...readDungeonStates(progressPrefix) };
-  if (!isDungeonOccurrenceKey(occurrenceKey)) return next;
-
-  if (state === null) delete next[occurrenceKey];
-  else next[occurrenceKey] = state;
-
-  if (typeof localStorage !== "undefined") {
+  const prefix = `${sequenceId}::`;
+  let changed = false;
+  for (const key of Object.keys(next)) {
+    if (!key.startsWith(prefix)) continue;
+    delete next[key];
+    changed = true;
+  }
+  if (changed && typeof localStorage !== "undefined") {
     try {
       localStorage.setItem(dungeonStatesStorageKey(progressPrefix), serializeDungeonStates(next));
     } catch {

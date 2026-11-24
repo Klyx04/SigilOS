@@ -892,10 +892,9 @@ export default function GuideOverlayClient({
   const getSeqGate = useCallback(
     (seq: RushSequence): { locked: boolean; prereqs: RushPrereqRef[]; missingDungeons: RushMissingDungeon[]; choiceGroups: RushPrereqChoiceGroup[] } => {
       const refs = prereqBySeq.get(seq.id) || getPrereqRefs(seq, milestones);
-      // Même règle que le serveur (`setRushSequenceProgress`) : un donjon **requis** non
-      // coché verrouille la quête. Sans ce test, le bouton restait cliquable et le clic
-      // partait au serveur — qui refuse — d'où une « erreur de synchronisation » au lieu
-      // d'une explication (mesure du 22/10/2026).
+      // Donjons (décision 24/11/2026) : un donjon requis n'est plus un verrou de
+      // validation ; il est coché par le serveur quand la quête est validée. On garde
+      // la liste pour l'affichage (pulse, panneau).
       const missingDungeons = missingRequiredDungeons(
         seq,
         doneDungeonKeysForSequence(dungeonActions.states, seq.id)
@@ -905,7 +904,7 @@ export default function GuideOverlayClient({
       // l'affichage (nommer les prérequis ET) — elle ne couvrait ni le palier ni l'OU.
       const choiceGroups = getPrereqChoiceGroups(seq, milestones);
       return {
-        locked: isSequenceBlockedByPrereqs(seq, gateAllCompleted, milestones) || missingDungeons.length > 0,
+        locked: isSequenceBlockedByPrereqs(seq, gateAllCompleted, milestones),
         // Seuls les prérequis ENCORE manquants : la carte affiche « Terminer : X » et
         // X devait être la quête précédente même une fois validée (mesure du 05/11/2026).
         // Le verrou, lui, reste calculé sur le guide entier.
@@ -1324,13 +1323,8 @@ export default function GuideOverlayClient({
           ? getSeqGate(seqObj)
           : { locked: false, prereqs: [] as RushPrereqRef[], missingDungeons: [] as RushMissingDungeon[] };
         if (gate.locked) {
-          // On dit **ce qui manque** dans la fenêtre de l'overlay (jamais une erreur de
-          // synchronisation : le clic ne doit même pas partir au serveur).
-          toast.warning(
-            gate.missingDungeons.length > 0
-              ? `Donjons requis à cocher d'abord : ${gate.missingDungeons.map((d) => d.name).join(", ")}.`
-              : "Terminez d'abord les prérequis de cette quête."
-          );
+          // Un verrou de donjon n'existe plus : il ne reste que les prérequis.
+          toast.warning("Terminez d'abord les prérequis de cette quête.");
           return;
         }
       }
@@ -1440,6 +1434,9 @@ export default function GuideOverlayClient({
         if (!(res as any)?.success) throw new Error("Échec mutation");
         // Validation → le repère (« je suis ici ») de cette quête est retiré :
         // une quête est soit validée, soit marquée d'un repère, jamais les deux.
+        // Les donjons requis viennent d'être cochés par le serveur : on relit l'état
+        // pour mettre à jour le panneau et le compteur « Progression Donjons ».
+        void guildDungeons.refresh();
         if (!was && bookmarksByMs.get(ms.id) === seqId) {
           setBookmarksByMs((prev) => {
             const n = new Map(prev);
@@ -1489,7 +1486,7 @@ export default function GuideOverlayClient({
         toast.error("Erreur de synchronisation");
       }
     },
-    [completedStepsByMs, completedIds, bookmarksByMs, guildId, effectiveAltPseudo, getSeqGate, goToNextMs, resourceChecks, isGuest, persistGuestResourceChecks, notifyBlockDone]
+    [completedStepsByMs, completedIds, bookmarksByMs, guildId, effectiveAltPseudo, getSeqGate, goToNextMs, resourceChecks, isGuest, persistGuestResourceChecks, notifyBlockDone, guildDungeons.refresh]
   );
 
   // Réinitialise TOUTE la progression du guide (synchro serveur + dashboard),

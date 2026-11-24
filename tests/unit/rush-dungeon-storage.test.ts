@@ -17,11 +17,13 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   DUNGEON_STATES_SUFFIX,
   clearDungeonStates,
+  clearDungeonStatesForSequence,
   dungeonStatesStorageKey,
   parseDungeonStates,
   readDungeonStates,
   serializeDungeonStates,
   writeDungeonState,
+  writeDungeonStates,
 } from "@/lib/rush-dungeon-storage";
 import { dungeonOccurrenceKey } from "@/lib/rush-dungeons";
 
@@ -141,6 +143,29 @@ describe("clearDungeonStates — remise à zéro", () => {
 
     expect(readDungeonStates(PREFIX)).toEqual({});
     expect(localStorage.getItem(`${PREFIX}steps`)).not.toBeNull();
+  });
+});
+
+describe("writeDungeonStates / clearDungeonStatesForSequence", () => {
+  it("écrit plusieurs occurrences en une passe", () => {
+    const next = writeDungeonStates(PREFIX, {
+      "s1::dj-1": "done",
+      "s1::dj-2": "todo",
+      "clé-invalide": "done",
+    });
+    expect(next).toEqual({ "s1::dj-1": "done", "s1::dj-2": "todo" });
+    expect(readDungeonStates(PREFIX)).toEqual({ "s1::dj-1": "done", "s1::dj-2": "todo" });
+  });
+
+  it("n'efface que les occurrences de la quête invalidée", () => {
+    writeDungeonStates(PREFIX, {
+      "s1::dj-1": "done",
+      "s1::dj-2": "todo",
+      "s2::dj-1": "done",
+    });
+    const next = clearDungeonStatesForSequence(PREFIX, "s1");
+    expect(next).toEqual({ "s2::dj-1": "done" });
+    expect(readDungeonStates(PREFIX)).toEqual({ "s2::dj-1": "done" });
   });
 });
 

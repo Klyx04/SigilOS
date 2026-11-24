@@ -2148,17 +2148,14 @@ const timelineItems=useMemo(()=>{
     const cur=new Set(completedStepsByMs.get(ms.id)||[]);
     const was=cur.has(seqId);
     if(!was&&blockedSeqIds.has(seqId)){toast.warning("Terminez d'abord les prérequis de cette quête.");return;}
-    // Verrou de DONJONS (même règle que le serveur) : seuls les donjons REQUIS de CETTE
-    // quête comptent — un optionnel ne bloque jamais, et la coche d'une autre quête
-    // demandant le même donjon ne vaut pas ici (clé par occurrence).
+    // Verrou de DONJONS (validation UNITAIRE) : seuls les donjons REQUIS de CETTE quête
+    // comptent — un optionnel ne bloque jamais. La validation par BLOC bypass ce verrou.
     if(!was){
       const seqObj=ms.sequences.find((s:any)=>s.id===seqId);
       if(seqObj){
         const doneKeys=doneDungeonKeysForSequence(dungeonsState.states,seqId);
         if(sequenceDungeonProgress(seqObj as any,doneKeys).blocked){
           const names=missingRequiredDungeons(seqObj as any,doneKeys).map((d:any)=>d.name);
-          // On OUVRE le panneau des donjons de cette quete : cocher devient un geste,
-          // pas une chasse dans l interface.
           if (typeof window !== "undefined") {
             window.dispatchEvent(new CustomEvent("rush:open-dungeons", { detail: { seqId } }));
           }

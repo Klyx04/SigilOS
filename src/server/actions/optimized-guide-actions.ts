@@ -1663,7 +1663,8 @@ async function findSequenceBlockedByPrereq(
  *
  * Les donjons sont une entité globale du guide (`dungeonKey` = id > slug > nom), la coche
  * vit dans `PlayerGuideDungeonState`. Un donjon **optionnel** (`dungeonOptionalIds`),
- * même non coché, ne bloque jamais.
+ * même non coché, ne bloque jamais. La validation **par bloc** bypass ce verrou
+ * (décision 20/11) ; la validation **unitaire** le conserve (décision 24/11).
  */
 async function findSequenceBlockedByMissingDungeon(
   guideId: string,
@@ -1680,8 +1681,6 @@ async function findSequenceBlockedByMissingDungeon(
       dungeonId: true,
       dungeonIds: true,
       dungeonOptionalIds: true,
-      /** Les tags portent les groupes « au choix » (Sufokia, Maïmane) : sans eux, le
-       *  serveur exigeait TOUS les donjons d'un tag de 5 alors qu'un seul suffit. */
       activityTags: true,
       dungeon: { select: { id: true, name: true, slug: true, bossName: true } },
     },
@@ -1714,7 +1713,6 @@ async function findSequenceBlockedByMissingDungeon(
 
     // ⚠️ La séquence telle que la voit le VERROU doit porter les `activityTags` :
     // `getDungeons` y lit les groupes « au choix » (un seul donjon du tag suffit).
-    // Sans eux, le serveur exigeait les 11 donjons de Maïmane au lieu des 6 totems.
     const seqLike = {
       dungeons: refs,
       activityTags: Array.isArray(row.activityTags) ? row.activityTags : [],
@@ -1725,7 +1723,6 @@ async function findSequenceBlockedByMissingDungeon(
       return {
         id: row.id,
         name: row.subGuideName,
-        // Une entrée par EXIGENCE (un groupe = 1), pas une par alternative.
         missing: missingRequiredDungeons(seqLike, doneKeys).map((d) => d.key),
       };
     }
@@ -1798,11 +1795,10 @@ export async function setRushSequenceProgress(guildId: string, milestoneId: stri
   const isCompleted = counts.total > 0 && counts.done === counts.total;
   const unvalidatedSeqIds = previouslyChecked.filter((id) => !checkedSet.has(id));
 
-  // ── Verrou de DONJONS (S0-4) ────────────────────────────────────────────────
-  // Une quête **nouvellement** cochée dont un donjon **requis** n'est pas marqué
-  // « fait » est refusée : le client ne fait pas foi, la règle est ici. Un donjon
-  // optionnel ne bloque jamais, et décocher reste toujours possible.
-  if (newlyChecked.length > 0) {
+  // ── Verrou de DONJONS de la QUÊTE SEULE (fail-closed) ───────────────────────
+  // Décision 24/11/2026 : la validation **unitaire** ne passe pas sans ses donjons
+  // requis ; seule la validation **par bloc** bypass ce verrou (décision 20/11).
+  if (newlyValidated.length > 0) {
     const stateRows = await db.playerGuideDungeonState.findMany({
       where: { profileId, guideId: milestone.guide.id, characterSlot },
       select: { sequenceId: true, dungeonKey: true, state: true },
@@ -1814,7 +1810,7 @@ export async function setRushSequenceProgress(guildId: string, milestoneId: stri
     }
     const blocked = await findSequenceBlockedByMissingDungeon(
       milestone.guide.id,
-      newlyChecked,
+      newlyValidated,
       dungeonStates
     );
     if (blocked) {
@@ -1852,6 +1848,26 @@ export async function setRushSequenceProgress(guildId: string, milestoneId: stri
     update: { completedSteps: incoming, isCompleted, completedAt: isCompleted ? new Date() : null },
     create: { profileId, milestoneId, characterSlot, completedSteps: incoming, isCompleted, completedAt: isCompleted ? new Date() : null },
   });
+
+  // ── Donjons : une quête DÉVALIDÉE remet ses donjons à « À faire » ────────────
+  // (La validation unitaire est verrouillée ci-dessus ; le bloc, lui, coche ses donjons.)
+  try {
+    if (unvalidatedSeqIds.length > 0) {
+      await db.playerGuideDungeonState.deleteMany({
+        where: {
+          profileId,
+          guideId: milestone.guide.id,
+          characterSlot,
+          sequenceId: { in: unvalidatedSeqIds },
+        },
+      });
+    }
+  } catch (error) {
+    logger.error(
+      "[setRushSequenceProgress] reset des donjons de la quête échoué (non bloquant)",
+      { error },
+    );
+  }
 
   // ── Ressources : une quête VALIDÉE coche toutes ses ressources ──────────────
   // « Une fois la quête validée, ça override et valide tout. » Une ressource

@@ -507,13 +507,14 @@ describe("Donjons cochables — même coquille, même règle, verrou dans les é
     expect(codeOf("src/hooks/use-rush-dungeon-states.ts")).toMatch(/dungeonOccurrenceKey/);
   });
 
-  it("le verrou est appliqué dans les TROIS chemins d'écriture du public", () => {
-    // étape · chapitre entier · lot de quêtes
+  it("le verrou donjon ne vise que la quête UNITAIRE ; le bloc bypass", () => {
+    // Étape seule : le verrou est appliqué.
     expect(PUB).toMatch(/if \(!was && isSeqBlockedByDungeon\(seqId\)\)/);
-    expect(PUB).toMatch(
+    // Chapitre entier et lot de quêtes : la validation par bloc bypass le verrou.
+    expect(PUB).not.toMatch(
       /if \(completeAll && !current\.has\(s\.id\) && isSeqBlockedByDungeon\(s\.id\)\) return;/
     );
-    expect(PUB).toMatch(/!isSeqBlockedByDungeon\(id\)/);
+    expect(PUB).not.toMatch(/!isSeqBlockedByDungeon\(id\)/);
   });
 
   it("le public ouvre le panneau du donjon de CETTE quête (pastille compacte, comme l'interne)", () => {

@@ -76,6 +76,7 @@ import {
 // donnée de guilde, aucun serveur : le verrou est appliqué dans les écritures.
 import {
   clearDungeonStates,
+  clearDungeonStatesForSequence,
   readDungeonStates,
   writeDungeonState,
   type LocalDungeonStates,
@@ -1134,8 +1135,9 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
   );
 
   /**
-   * Verrou de DONJONS (même règle que l'interne et le serveur) : seuls les donjons
-   * REQUIS **de cette quête** comptent, d'où `doneDungeonKeysForSequence`.
+   * Verrou UNITAIRE : un donjon requis non coché bloque la validation de la quête.
+   * La validation par bloc bypass ce verrou (décision 20/11) ; la quête seule le
+   * conserve (décision 24/11). Le guide public est local : la règle est ici.
    */
   const isSeqBlockedByDungeon = useCallback(
     (seqId: string): boolean => {
@@ -1144,6 +1146,14 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
       return sequenceDungeonProgress(s, doneDungeonKeysForSequence(dungeonStates, seqId)).blocked;
     },
     [seqById, completedSeqIds, dungeonStates]
+  );
+
+  /** Une quête invalidée remet ses donjons à « À faire » (efface ses occurrences). */
+  const clearDungeonStatesOnInvalidate = useCallback(
+    (seqId: string) => {
+      setDungeonStates(clearDungeonStatesForSequence(storagePrefix, seqId));
+    },
+    [storagePrefix, setDungeonStates]
   );
 
   /** Coche / décoche une OCCURRENCE (re-cliquer retire l'état). */
@@ -1246,14 +1256,14 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
         return;
       }
 
-      // 🚫 Même doctrine pour les DONJONS : un donjon requis non coché dans CETTE
-      // quête verrouille la validation. Ici le refus est local (aucun serveur).
+      // Verrou UNITAIRE de donjon : la validation par bloc bypass, pas la quête seule.
       if (!was && isSeqBlockedByDungeon(seqId)) {
         toast.error("Donjon requis non fait — coche-le sur la pastille Donjon de cette quête.");
         return;
       }
 
       was ? current.delete(seqId) : current.add(seqId);
+      if (was) clearDungeonStatesOnInvalidate(seqId);
 
       // Ressources : valider coche les ressources de la quête, invalider les décoche.
       const seqForResources = milestones.flatMap((m) => m.sequences || []).find((s) => s.id === seqId);
@@ -1292,7 +1302,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
         });
       }
     },
-    [completedStepsByMs, milestones, storagePrefix, isStepLocked, isSeqBlockedByDungeon, applyResourceChecksForQuest]
+    [completedStepsByMs, milestones, storagePrefix, isStepLocked, isSeqBlockedByDungeon, clearDungeonStatesOnInvalidate, applyResourceChecksForQuest]
   );
 
   // Toggle whole chapter
@@ -1307,10 +1317,16 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
       // verrouillée : « Tout valider » ne contourne pas les prérequis.
       ms.sequences.filter((s) => !isInfoSequence(s)).forEach((s) => {
         if (completeAll && !current.has(s.id) && isStepLocked(s.id)) return;
-        // « Tout valider » ne contourne pas non plus un donjon requis non coché.
-        if (completeAll && !current.has(s.id) && isSeqBlockedByDungeon(s.id)) return;
+        // La validation par BLOC bypass le verrou donjon (décision 20/11) :
+        // on ne filtre pas sur `isSeqBlockedByDungeon` ici.
         completeAll ? current.add(s.id) : current.delete(s.id);
       });
+
+      // Une quête invalidée remet ses donjons à « À faire ».
+      for (const s of ms.sequences) {
+        if (isInfoSequence(s)) continue;
+        if (before.has(s.id) && !current.has(s.id)) clearDungeonStatesOnInvalidate(s.id);
+      }
 
       // Ressources : seules les quêtes réellement basculées touchent leurs coches.
       for (const s of ms.sequences) {
@@ -1345,7 +1361,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
         return next;
       });
     },
-    [completedStepsByMs, milestones, storagePrefix, isStepLocked, isSeqBlockedByDungeon, applyResourceChecksForQuest]
+    [completedStepsByMs, milestones, storagePrefix, isStepLocked, isSeqBlockedByDungeon, clearDungeonStatesOnInvalidate, applyResourceChecksForQuest]
   );
 
   // Toggle all steps of one quest block (comme le guide interne)
@@ -1357,10 +1373,8 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
         ? seqIds.filter((id) => {
             const s = seqById.get(id);
             if (!s || completedSeqIds.has(id)) return true;
-            return (
-              !isSequenceBlockedByPrereqs(s, completedSeqIds, milestones) &&
-              !isSeqBlockedByDungeon(id)
-            );
+            // La validation par BLOC bypass le verrou donjon (décision 20/11).
+            return !isSequenceBlockedByPrereqs(s, completedSeqIds, milestones);
           })
         : seqIds;
       // Ressources : les quêtes réellement basculées cochent/décochent leurs ressources.
@@ -1368,6 +1382,9 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
         const s = seqById.get(id);
         if (s) applyResourceChecksForQuest((s as any).activityTags, completeAll);
       }
+      // Une quête invalidée remet ses donjons à « À faire » (le bloc valide, lui,
+      // laisse le verrou donjon de côté — décision 20/11).
+      for (const id of targets) if (!completeAll) clearDungeonStatesOnInvalidate(id);
       setCompletedStepsByMs((prev) => {
         const next = new Map(prev);
         const current = new Set(next.get(msId) || []);
@@ -1409,7 +1426,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
         });
       }
     },
-    [completedStepsByMs, milestones, storagePrefix, seqById, completedSeqIds, isSeqBlockedByDungeon, applyResourceChecksForQuest]
+    [completedStepsByMs, milestones, storagePrefix, seqById, completedSeqIds, isSeqBlockedByDungeon, applyResourceChecksForQuest, clearDungeonStatesOnInvalidate]
   );
 
   // Personnage déclaré → libellé affiché (icône de classe + pseudo + serveur) et

@@ -386,8 +386,9 @@ export function constraintsToInfos(constraints: RushQuestConstraints): RushConst
     });
   }
 
-  const combat = constraints.combat;
-  if (combat && combat.monsters.length > 0) {
+  const combats = constraints.combats ?? [];
+  for (const combat of combats) {
+    if (combat.monsters.length === 0) continue;
     const mode =
       RUSH_COMBAT_MODES.find((entry) => entry.id === combat.mode) ?? RUSH_COMBAT_MODES[0];
     infos.push({
@@ -436,7 +437,13 @@ export function constraintsToInfos(constraints: RushQuestConstraints): RushConst
  * (rôles en texte libre) devient un rôle `free` ; le texte reste visible.
  */
 export function constraintsFromLegacyTips(tips: string | null | undefined): RushQuestConstraints {
-  const result: RushQuestConstraints = { version: 1, jobs: [], spells: [], notes: [] };
+  const result: RushQuestConstraints = {
+    version: 2,
+    jobs: [],
+    spells: [],
+    notes: [],
+    combats: [],
+  };
   for (const info of parseRushConstraints(tips).constraints) {
     if (info.kind === "hours" && info.hours) {
       result.hours =
@@ -489,9 +496,25 @@ export function isEmptyConstraints(
     constraints.jobs.length === 0 &&
     constraints.spells.length === 0 &&
     constraints.notes.length === 0 &&
-    !(constraints.combat && constraints.combat.monsters.length > 0) &&
+    !(constraints.combats ?? []).some((combat) => combat.monsters.length > 0) &&
     !(constraints.dungeonChoice && constraints.dungeonChoice.dungeons.length > 0) &&
     (constraints.bashMobs?.length ?? 0) === 0
+  );
+}
+
+/**
+ * La section « Conseils & notes » doit-elle exister ? **Une seule règle** pour les trois
+ * surfaces : un conseil, une note **ou** des conditions structurées suffisent. Mesure du
+ * 24/11/2026 : 325 séquences ont des conditions mais aucun `tips` — sans cette règle,
+ * tout le backfill restait invisible.
+ */
+export function hasRushHints(input: {
+  tips?: string | null;
+  note?: string | null;
+  constraints?: RushQuestConstraints | null;
+}): boolean {
+  return Boolean(
+    input.tips?.trim() || input.note?.trim() || !isEmptyConstraints(input.constraints),
   );
 }
 
@@ -509,14 +532,13 @@ export function sanitizeConstraints(constraints: RushQuestConstraints): RushQues
         ),
       }
     : null;
-  const combat = constraints.combat
-    ? {
-        ...constraints.combat,
-        monsters: constraints.combat.monsters.filter(
-          (monster) => monster.name.trim() !== "",
-        ),
-      }
-    : null;
+  const combats = (constraints.combats ?? [])
+    .map((combat) => ({
+      ...combat,
+      detail: combat.detail?.trim() || undefined,
+      monsters: combat.monsters.filter((monster) => monster.name.trim() !== ""),
+    }))
+    .filter((combat) => combat.monsters.length > 0);
   const dungeonChoice = constraints.dungeonChoice
     ? {
         ...constraints.dungeonChoice,
@@ -534,7 +556,7 @@ export function sanitizeConstraints(constraints: RushQuestConstraints): RushQues
       players && (players.count !== undefined || players.roles.length > 0) ? players : null,
     spells: constraints.spells.map((spell) => spell.trim()).filter(Boolean),
     notes: constraints.notes.map((note) => note.trim()).filter(Boolean),
-    combat: combat && combat.monsters.length > 0 ? combat : null,
+    combats,
     dungeonChoice: dungeonChoice && dungeonChoice.dungeons.length > 0 ? dungeonChoice : null,
     bashMobs,
   };

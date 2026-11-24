@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import {
   constraintsFromLegacyTips,
   constraintsToInfos,
+  hasRushHints,
   isEmptyConstraints,
   parseRushConstraints,
   RUSH_CONSTRAINT_LABELS,
@@ -166,7 +167,7 @@ describe("parseRushConstraints", () => {
 });
 
 const validConstraints: RushQuestConstraints = {
-  version: 1,
+  version: 2,
   hours: { kind: "window", from: "20:00", to: "08:00", optional: true },
   players: {
     count: 4,
@@ -178,6 +179,7 @@ const validConstraints: RushQuestConstraints = {
   jobs: [{ job: "forgeron", level: 180 }],
   spells: ["Capture d'âmes"],
   notes: ["Avoir un métier de niveau 50"],
+  combats: [],
 };
 
 describe("rushQuestConstraintsSchema", () => {
@@ -279,17 +281,18 @@ describe("constraintsFromLegacyTips", () => {
 
   it("ne produit rien sur un tips libre", () => {
     expect(constraintsFromLegacyTips("Pensez à prendre la quête")).toEqual({
-      version: 1,
+      version: 2,
       jobs: [],
       spells: [],
       notes: [],
+      combats: [],
     });
   });
 });
 
 describe("isEmptyConstraints", () => {
   it("reconnaît un modèle vide", () => {
-    expect(isEmptyConstraints({ version: 1, jobs: [], spells: [], notes: [] })).toBe(true);
+    expect(isEmptyConstraints({ version: 2, jobs: [], spells: [], notes: [], combats: [] })).toBe(true);
     expect(isEmptyConstraints(null)).toBe(true);
   });
 
@@ -298,13 +301,35 @@ describe("isEmptyConstraints", () => {
   });
 });
 
+describe("hasRushHints", () => {
+  it("garde la section ouverte pour des conditions seules", () => {
+    expect(hasRushHints({ constraints: validConstraints })).toBe(true);
+    expect(hasRushHints({ tips: "", note: null, constraints: validConstraints })).toBe(true);
+  });
+
+  it("accepte un conseil ou une note sans condition", () => {
+    expect(hasRushHints({ tips: "Pensez à prendre la quête" })).toBe(true);
+    expect(hasRushHints({ note: "Une note" })).toBe(true);
+  });
+
+  it("masque une section réellement vide", () => {
+    expect(hasRushHints({ tips: "   ", note: null, constraints: null })).toBe(false);
+    expect(
+      hasRushHints({
+        constraints: { version: 2, jobs: [], spells: [], notes: [], combats: [] },
+      }),
+    ).toBe(false);
+  });
+});
+
 describe("sanitizeConstraints", () => {
   it("retire les lignes vides de l'éditeur", () => {
     const sanitized = sanitizeConstraints({
-      version: 1,
+      version: 2,
       jobs: [],
       spells: ["", "  ", "Capture d'âmes"],
       notes: ["", "  ", "Avoir un métier de niveau 50"],
+      combats: [],
       players: {
         roles: [
           { kind: "free", text: "  " },
@@ -319,10 +344,11 @@ describe("sanitizeConstraints", () => {
 
   it("met les joueurs à null quand tout est vide", () => {
     const sanitized = sanitizeConstraints({
-      version: 1,
+      version: 2,
       jobs: [],
       spells: [],
       notes: [],
+      combats: [],
       players: { roles: [{ kind: "free", text: " " }] },
     });
     expect(sanitized.players).toBeNull();
@@ -331,13 +357,20 @@ describe("sanitizeConstraints", () => {
 
 const extraConstraints: RushQuestConstraints = {
   ...validConstraints,
-  combat: {
-    mode: "group",
-    monsters: [
-      { name: "Miss Tique", count: 1, level: 200, health: 27000, imageUrl: "/assets/dofus/monsters/1542.png" },
-      { name: "Miss Teigne", count: 2, level: 200, health: 27000 },
-    ],
-  },
+  combats: [
+    {
+      mode: "group",
+      monsters: [
+        { name: "Miss Tique", count: 1, level: 200, health: 27000, imageUrl: "/assets/dofus/monsters/1542.png" },
+        { name: "Miss Teigne", count: 2, level: 200, health: 27000 },
+      ],
+      detail: "Deux vagues",
+    },
+    {
+      mode: "solo",
+      monsters: [{ name: "Bagarreur clandestin", count: 1, level: 120 }],
+    },
+  ],
   dungeonChoice: {
     dungeons: [
       { id: "dj1", name: "Salons privés de Klime", bossName: "Klime", level: 200 },
@@ -357,7 +390,7 @@ describe("conditions de combat, donjon au choix et monstres", () => {
     expect(
       parseRushQuestConstraints({
         ...extraConstraints,
-        combat: { mode: "inconnu", monsters: [] },
+        combats: [{ mode: "inconnu", monsters: [] }],
       }),
     ).toBeNull();
   });
@@ -366,7 +399,7 @@ describe("conditions de combat, donjon au choix et monstres", () => {
     expect(
       parseRushQuestConstraints({
         ...extraConstraints,
-        combat: { mode: "solo", monsters: [{ name: "Test", count: 0 }] },
+        combats: [{ mode: "solo", monsters: [{ name: "Test", count: 0 }] }],
       }),
     ).toBeNull();
   });
@@ -374,8 +407,16 @@ describe("conditions de combat, donjon au choix et monstres", () => {
   it("refuse plus de vingt monstres dans un combat", () => {
     const monsters = Array.from({ length: 21 }, () => ({ name: "Test", count: 1 }));
     expect(
-      parseRushQuestConstraints({ ...extraConstraints, combat: { mode: "solo", monsters } }),
+      parseRushQuestConstraints({
+        ...extraConstraints,
+        combats: [{ mode: "solo", monsters }],
+      }),
     ).toBeNull();
+  });
+
+  it("refuse plus de vingt combats sur une quête", () => {
+    const combats = Array.from({ length: 21 }, () => ({ mode: "solo", monsters: [] }));
+    expect(parseRushQuestConstraints({ ...extraConstraints, combats })).toBeNull();
   });
 
   it("refuse plus de huit donjons au choix", () => {
@@ -388,29 +429,50 @@ describe("conditions de combat, donjon au choix et monstres", () => {
     ).toBeNull();
   });
 
-  it("rend le combat, le donjon au choix et les monstres comme infos dédiées", () => {
+  it("rend chaque combat, le donjon au choix et les monstres comme infos dédiées", () => {
     const infos = constraintsToInfos(extraConstraints);
-    const combat = infos.find((info) => info.kind === "combat");
+    const combats = infos.filter((info) => info.kind === "combat");
     const dungeon = infos.find((info) => info.kind === "dungeon");
     const mobs = infos.find((info) => info.kind === "mobs");
 
-    expect(combat?.label).toBe("Combat de groupe");
-    expect(combat?.combat?.monsters).toHaveLength(2);
+    expect(combats).toHaveLength(2);
+    expect(combats[0].label).toBe("Combat de groupe");
+    expect(combats[0].combat?.monsters).toHaveLength(2);
+    expect(combats[0].combat?.detail).toBe("Deux vagues");
+    expect(combats[1].label).toBe("Combat solo");
+    expect(combats[1].combat?.monsters[0]?.name).toBe("Bagarreur clandestin");
     expect(dungeon?.dungeons).toHaveLength(2);
     expect(dungeon?.dungeonNote).toBe("Un seul donjon à faire");
     expect(mobs?.mobs?.[0]?.name).toBe("Gangredogue embusqué");
   });
 
+  it("normalise l'ancienne forme à un seul combat en version 2", () => {
+    const parsed = parseRushQuestConstraints({
+      version: 1,
+      jobs: [],
+      spells: [],
+      notes: [],
+      combat: { mode: "solo", monsters: [{ name: "Tarche", count: 1 }] },
+    });
+    expect(parsed?.version).toBe(2);
+    expect(parsed?.combats).toEqual([
+      { mode: "solo", monsters: [{ name: "Tarche", count: 1 }] },
+    ]);
+  });
+
   it("retire les lignes vides de combat et de donjon", () => {
     const sanitized = sanitizeConstraints({
       ...extraConstraints,
-      combat: {
-        mode: "solo",
-        monsters: [
-          { name: "  ", count: 1 },
-          { name: "Bagarreur clandestin", count: 1 },
-        ],
-      },
+      combats: [
+        {
+          mode: "solo",
+          monsters: [
+            { name: "  ", count: 1 },
+            { name: "Bagarreur clandestin", count: 1 },
+          ],
+        },
+        { mode: "solo", monsters: [{ name: " ", count: 1 }] },
+      ],
       dungeonChoice: {
         dungeons: [{ name: " " }, { name: "Palais du roi Nidas" }],
         note: "  ",
@@ -418,8 +480,8 @@ describe("conditions de combat, donjon au choix et monstres", () => {
       bashMobs: [{ name: " " }, { name: "Pistilangue embusqué" }],
     });
 
-    expect(sanitized.combat?.monsters).toEqual([
-      { name: "Bagarreur clandestin", count: 1 },
+    expect(sanitized.combats).toEqual([
+      { mode: "solo", detail: undefined, monsters: [{ name: "Bagarreur clandestin", count: 1 }] },
     ]);
     expect(sanitized.dungeonChoice?.dungeons).toEqual([{ name: "Palais du roi Nidas" }]);
     expect(sanitized.dungeonChoice?.note).toBeUndefined();

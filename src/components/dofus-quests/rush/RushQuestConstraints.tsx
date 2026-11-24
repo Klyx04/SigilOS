@@ -154,6 +154,11 @@ function RushCombatCard({
           </div>
         ))}
       </div>
+      {combat.detail && (
+        <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
+          {combat.detail}
+        </p>
+      )}
     </div>
   );
 }

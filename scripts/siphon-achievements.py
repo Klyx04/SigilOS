@@ -136,6 +136,11 @@ def quest_ids_of(criterion: str) -> list[int]:
     return sorted({int(value) for value in re.findall(r"Q[fqa]=(\d+)", criterion or "") if value.isdigit()})
 
 
+def success_ids_of(criterion: str) -> list[int]:
+    """Ids de succès prérequis d'un critère : `OA=<achievementId>` (succès terminé)."""
+    return sorted({int(value) for value in re.findall(r"OA=(\d+)", criterion or "") if value.isdigit()})
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Siphon des succès officiels (client Dofus 3).")
     parser.add_argument("--dofus-dir", help="Dossier Dofus Unity (Dofus-dofus3)")
@@ -168,6 +173,7 @@ def main() -> None:
 
     rows = []
     with_quests = 0
+    with_successes = 0
     covered_quests: set[int] = set()
     unresolved_names = 0
     for achievement_id, data in achievements.items():
@@ -176,16 +182,23 @@ def main() -> None:
             unresolved_names += 1
             continue
         quest_ids: set[int] = set()
+        success_ids: set[int] = set()
         for objective_id in data.get("objectiveIds") or []:
             objective = objectives.get(objective_id)
             if not isinstance(objective, dict):
                 continue
-            for quest_id in quest_ids_of(objective.get("criterion")):
+            criterion = objective.get("criterion")
+            for quest_id in quest_ids_of(criterion):
                 if quest_id in quests:
                     quest_ids.add(quest_id)
+            for success_id in success_ids_of(criterion):
+                if success_id in achievements:
+                    success_ids.add(success_id)
         if quest_ids:
             with_quests += 1
             covered_quests.update(quest_ids)
+        if success_ids:
+            with_successes += 1
         rows.append(
             {
                 "id": achievement_id,
@@ -194,6 +207,7 @@ def main() -> None:
                 "level": data.get("level"),
                 "points": data.get("points"),
                 "questIds": sorted(quest_ids),
+                "successIds": sorted(success_ids),
             }
         )
 
@@ -210,6 +224,7 @@ def main() -> None:
     print()
     print(f"Succès nommés          : {len(rows)} (sans nom : {unresolved_names})")
     print(f"Succès avec des quêtes : {with_quests}")
+    print(f"Succès avec des OA     : {with_successes}")
     print(f"Quêtes couvertes       : {len(covered_quests)}")
     print(f"Sortie                 : {out_path} ({size_kb:.0f} Ko)")
 

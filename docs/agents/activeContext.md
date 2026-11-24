@@ -6,6 +6,15 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 24/11/2026 (suite 70) — **Rush : overlay, donjons « À faire », PiP** — branche `fix/rush-overlay-dungeons-pip-2026-11-24` (PR **#1533**)
+
+> **Demande user (verbatim)** : retours captures — tiroir conditions vide, donjons « à faire » par défaut + clignotement, image des combats, overlay compact, Opera GX.
+> **Mesuré** : `prereq_text` était compté en conditions alors que `RushTagBadge` le masque → tiroir vide ; un placeholder 1×1 du proxy passait pour une image ; `requestWindow` n'était pas catché dans le hook ; le commentaire « Opera GX n'expose pas l'API » était faux (Opera 102+ supporte Document PiP).
+> **Fait** : prérequis retirés des conditions ; portrait 1×1 → repli ; `dungeonDisplayState` = « À faire » par défaut (affichage seul) ; pulse sur la pastille donjon et les vignettes manquantes (3 surfaces) ; `openPipWindow` catch + toast si la popup de secours est bloquée ; toast « non épinglée » redondant retiré ; commentaires Opera corrigés.
+> **Preuves** : **8 468 tests ✅** · `tsc` 0 · `lint` 0 erreur · aucune migration.
+> **Reste** : validation d'une quête = donjons requis passés en « Fait » + reset qui les efface + **Progression Donjons** (décision user B) ; liens monstres → fiche ; overlay compact + petite modale au clic d'une quête.
+> **Rotation** : bloc « suite 64 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
 ## 📝 Session 24/11/2026 (suite 69) — **Rush : conditions Tougli (⑭ + ⑩)** — branche `feat/rush-constraints-2026-11-24` (PR **#1531**, revue **#1532**)
 
 > **Demande user (verbatim)** : « go » sur le plan ⑭ contraintes → ⑩ fiche quête.
@@ -54,13 +63,4 @@
 
 
 
-## 📝 Session 23/11/2026 (suite 64) — **Rush : plan consolidé 28 points, décisions 16-21, début phase 1** — branche `feat/rush-progression-2026-11-23`
-
-> **Demande user (verbatim)** : « documente/maj les contexte la totalité avant non ? commit puis démarre la phase 1 ».
-> **Décisions** : ① validation de bloc = **cascade montante** des prérequis (un seul par groupe « OU ») + **coche des donjons requis** (un par groupe « au choix ») ; ② **reset bloc/guide** recalcule la fermeture des blocs validés, **retire** les prérequis qui ne sont plus impliqués et **efface les donjons** du personnage ; ③ dévalider un bloc **laisse** les donjons ; ④ la modale Dofus « Avancement », la modale « Progression Donjons » (statut par membre) et la coche du sommaire se recalculent après chaque mutation, pour le personnage ciblé ; ⑤ overlay = bouton **« Réinitialiser »** du bloc ; ⑥ célébration unifiée (bloc = toast, chapitre = burst) ; ⑦ **choix Brak 55/66** = carte claire + éditable God ; ⑧ **mode blanc** prioritaire sur G7/G9 ; ⑨ **E2 écarté** (pas de migration) ; ⑩ **itérations 5/6 supprimées** ; ⑪ **prod en attente**.
-> **Mesuré** : 117 Brâkmarien local = **102 série + 15 Ordres** (3×5) ; le 121 est le compte brut, pas un doublon. **0 constraints réelles** en local ; **29 conseils** (7+22, bêta 49) ; **742 tags combat** (bêta 746) ; **6 positions** des quêtes ajoutées (local fait, bêta à vérifier ; 894 sans source) ; DPLN **0 à mettre à jour** (532) ; **bêta 540 / local 541** ; 20 `createContext` dans `RushTimelineClient` ; `resetMilestoneProgress`/`resetGuideProgress` **n'effacent pas** `PlayerGuideDungeonState` ; `dungeonsCommunity` chargé **une fois** ; la modale Dofus lit `guildProgress` serveur, pas l'état local.
-> **Fait (docs + Phase 1)** : fiche unique §H (plan 28 points/5 phases + décisions), ROADMAP §0 + rangs 9/10/10b/55/59/64 + §3 bis, `REFONTE-EDITEUR-RUSH` (choix Brak), `ROUTE-RUSH-ISO-TOUGLI` (itérations supprimées), `MAINTENANCE` (positions DPLN ≠ manuelles) · **Phase 1A serveur** : cascade montante (`rush-prereq-cascade`), donjons requis (`rush-block-dungeons`), resets qui effacent les donjons, retrait des prérequis orphelins · **Phase 1B UI** : projection `memberCompletedStepKeys` (bloc `isCompleted` = toutes ses quêtes), statut par membre dans la modale Donjons, relecture de la communauté, reset du bloc dans l'overlay, célébration réservée aux fins de chapitre, `refresh` des donjons après chaque mutation · **PR #1525** (CI verte).
-> **Preuves** : **27 tests neufs** (12 cascade + 6 donjons + 2 projections + 7 verrous source) · `tsc` 0 · **8 397 tests ✅** · `lint` 0 erreur (7 796 warnings préexistants) · **CI #1525 verte** · aucune migration.
-> **Reste** : Phase 2 (mode blanc, fiche quête, choix Brak + God) · Phase 3 données (6 positions bêta, 894, 514, 1 085 contraintes, 98 conseils, combats) · ops/prod en attente.
-> **Rotation** : bloc « suite 58 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 

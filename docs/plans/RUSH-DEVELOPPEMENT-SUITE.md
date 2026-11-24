@@ -114,6 +114,14 @@ O10 (3 densités `wide/normal/tight`, mesurées sur le conteneur) · O12 (bulles
 
 **Prochain lot** : ⑭ et ⑩ sont **livrés** (#1531, revue #1532). Restent **⑨ mode blanc**, **⑪ choix Brak 55/66 + God**, puis la **phase 3 données** (⑫/⑬/⑯), les **98 conseils** (⑮), les ops (⑰/⑱), le **contrôle hebdo VPS** (`--check` + alerte Discord ops/Sentry) et les phases 4/5.
 
+> **Overlay / donjons (24/11, PR #1533)** : tiroir « conditions » vide corrigé (`prereq_text` hors conditions),
+> donjons non renseignés affichés **« À faire » par défaut** (affichage seul), clignotement des donjons
+> manquants sur les 3 surfaces, portrait 1×1 remplacé par le repli, `requestWindow` catché + message popup.
+>
+> **Décision du 24/11 (à coder)** : valider une **quête seule** coche ses donjons requis en « Fait » (comme
+> le bloc) ; un **reset** de bloc ou de quête les efface ; la modale **Progression Donjons** se met à jour.
+> Lot suivant : cette règle + liens monstres → fiche + overlay compact (icônes en haut, clic quête → DPLN/DofusDB/info).
+
 > **Revue #1531 → #1532 (24/11/2026)** : bloc « Conseils » vide corrigé (conditions seules), v1
 > normalisée **en lecture** (serveur + éditeur), niveaux de monstres >200 conservés (mesuré 1 000),
 > combats identiques conservés dans l'ordre, cible DB explicite et `DATABASE_URL` obligatoire.

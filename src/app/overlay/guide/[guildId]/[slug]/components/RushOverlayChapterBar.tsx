@@ -108,24 +108,35 @@ export function RushOverlayChapterBar({
         {/* Case « tout le chapitre » — un `button` FRÈRE du déclencheur, jamais
             imbriqué dedans (HTML invalide, et le clic ouvrirait la liste). */}
         {activeMs && onToggleChapter && showProgress && (
-          <button
-            type="button"
-            onClick={() => {
-              if (!loading) onToggleChapter(activeMs);
-            }}
-            disabled={loading}
-            aria-label={msDone ? "Marquer le chapitre comme non terminé" : "Marquer le chapitre comme terminé"}
-            title={msDone ? "Décocher tout le chapitre" : "Valider tout le chapitre"}
-            className={cn(
-              "da-node-btn shrink-0 cursor-pointer rounded focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent",
-              loading && "cursor-not-allowed opacity-50"
-            )}
-          >
-            {/* DA « Gouache Wakfu » : le nœud de la liste, pas un carré nu. */}
-            <span className="da-node" data-state={msDone ? "done" : "todo"} aria-hidden="true">
-              {msDone && <Check className="h-3 w-3 stroke-[3]" />}
+          msDone ? (
+            <span
+              className="da-node-btn shrink-0 cursor-default rounded"
+              role="img"
+              aria-label="Bloc validé"
+              title="Bloc validé — utilise Réinitialiser pour décocher"
+            >
+              <span className="da-node" data-state={msDone ? "done" : "todo"} aria-hidden="true">
+                <Check className="h-3 w-3 stroke-[3]" />
+              </span>
             </span>
-          </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                if (!loading) onToggleChapter(activeMs);
+              }}
+              disabled={loading}
+              aria-label="Marquer le chapitre comme terminé"
+              title="Valider tout le chapitre"
+              className={cn(
+                "da-node-btn shrink-0 cursor-pointer rounded focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent",
+                loading && "cursor-not-allowed opacity-50"
+              )}
+            >
+              {/* DA « Gouache Wakfu » : le nœud de la liste, pas un carré nu. */}
+              <span className="da-node" data-state={msDone ? "done" : "todo"} aria-hidden="true" />
+            </button>
+          )
         )}
 
         {/* Réinitialiser le bloc courant — manque signalé le 23/11/2026 dans l'overlay.

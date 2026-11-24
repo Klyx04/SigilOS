@@ -386,7 +386,13 @@ export default function GuideOverlayClient({
     }
     const s = new Set<string>();
     milestones.forEach((ms) => {
-      if (ms.playerProgress?.[0]?.isCompleted) s.add(ms.id);
+      // Même règle que le dashboard : la complétude est celle de la **route** (les
+      // séquences visibles), pas le drapeau global du bloc toutes branches.
+      const contentIds = (ms.sequences || [])
+        .filter((sequence) => !isInfoSequence(sequence))
+        .map((sequence) => sequence.id);
+      const steps = ms.playerProgress?.[0]?.completedStepIds ?? [];
+      if (contentIds.length > 0 && contentIds.every((id) => steps.includes(id))) s.add(ms.id);
     });
     return s;
   });
@@ -1071,6 +1077,9 @@ export default function GuideOverlayClient({
     async (ms: RushMilestone) => {
       if (loadingIds.has(ms.id)) return;
       const was = completedIds.has(ms.id);
+      const scope = (ms.sequences || [])
+        .filter((sequence) => !isInfoSequence(sequence))
+        .map((sequence) => sequence.id);
       // Ressources : valider le chapitre coche toutes ses ressources ; l'invalider les
       // décoche. Écho optimiste de la règle serveur, persisté pour l'invité.
       const resourceBefore = resourceChecks;
@@ -1127,7 +1136,7 @@ export default function GuideOverlayClient({
       setLoadingIds((prev) => new Set([...prev, ms.id]));
       let refusal: string | null = null;
       try {
-        const res = await toggleMilestoneProgress(guildId, ms.id, !was, effectiveAltPseudo);
+        const res = await toggleMilestoneProgress(guildId, ms.id, !was, effectiveAltPseudo, scope);
         if (!(res as any)?.success) {
           // Refus serveur (ex. donjon requis non fait) : on affiche SA raison, pas « Erreur ».
           refusal = (res as any)?.error || null;

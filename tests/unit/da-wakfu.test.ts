@@ -57,10 +57,10 @@ function mix(base: string, other: string, ratio: number): string {
     return `#${out.map((c) => c.toString(16).padStart(2, "0")).join("")}`;
 }
 
-/** Déclarations `--da-*` d'un sélecteur exact (le `{` doit suivre le sélecteur). */
+/** Déclarations `--da-*` d'un sélecteur (accepte une liste `sélecteur, autre {`). */
 function tokens(css: string, selector: string): Record<string, string> {
     const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const found = [...css.matchAll(new RegExp(`${escaped}\\s*\\{([^}]*)\\}`, "g"))];
+    const found = [...css.matchAll(new RegExp(`${escaped}\\s*(?:,[^{}]*)?\\{([^}]*)\\}`, "g"))];
     expect(found.length, `sélecteur absent : ${selector}`).toBeGreaterThan(0);
 
     const out: Record<string, string> = {};
@@ -591,7 +591,20 @@ describe("DA Gouache Wakfu — les modales du Rush passent à la DA (E3c)", () =
     it("la passerelle `.da-portal` remappe les jetons produit sur le nœud portailé", () => {
         const globals = readFileSync("src/app/globals.css", "utf8");
         expect(globals).toMatch(/\[data-da="wakfu"\]\.da-portal\s*\{/);
-        expect(globals).toMatch(/\[data-da="wakfu"\]\.da-portal\[data-theme="light"\]\s*\{/);
+        expect(globals).toMatch(
+          /\[data-da="wakfu"\]\.da-portal\[data-theme="light"\]\s*(?:,|\{)/,
+        );
+    });
+
+    it("le mode clair suit `html.light` (guide, overlay, portails)", () => {
+        // Aucun état React : la classe next-themes sur <html> suffit à basculer les jetons,
+        // y compris dans la PiP (la classe est copiée dans son document).
+        expect(css).toMatch(/html\.light \[data-da="wakfu"\]\s*(?:,|\{)/);
+        expect(css).toMatch(/html\.light \[data-da="wakfu"\]\[data-block="emeraude"\]/);
+        const globals = readFileSync("src/app/globals.css", "utf8");
+        expect(globals).toMatch(/html\.light \[data-da="wakfu"\]\.rush-guide/);
+        expect(globals).toMatch(/html\.light \[data-da="wakfu"\]\.rush-overlay/);
+        expect(globals).toMatch(/html\.light \[data-da="wakfu"\]\.da-portal/);
     });
 
     it("la matière de la modale reste sous 12 px, sans ombre molle ni filtre", () => {

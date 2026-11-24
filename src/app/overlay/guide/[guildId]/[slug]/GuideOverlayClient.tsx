@@ -290,10 +290,10 @@ export default function GuideOverlayClient({
   // 22/11/2026 (elle seule connaissait le repli par titre).
 
   // ─── Thème ────────────────────────────────────────────────────────────────
-  // L'overlay est **sombre uniquement** (décision du 18/11/2026) : le bouton de
-  // bascule clair/sombre et sa préférence persistée en `localStorage` ont été
-  // retirés. La DA « Gouache Wakfu » est peinte pour un fond sombre ; un thème
-  // clair la dénaturait et ajoutait un état à synchroniser pour rien.
+  // Le bouton de bascule clair/sombre et sa préférence persistée ont été retirés
+  // (décision du 18/11/2026). L'overlay **suit maintenant le thème du site** via
+  // `html.light` (sélecteurs CSS de `da-wakfu.css`/`globals.css`) ; `data-theme="dark"`
+  // reste le repli SSR et de la route overlay directe.
 
   const [showResources, setShowResources] = useState<boolean>(false);
   const [showOcre, setShowOcre] = useState<boolean>(false);
@@ -1785,9 +1785,8 @@ export default function GuideOverlayClient({
   // épingler / réduire) diffèrent selon le contexte.
 
   return (
-    // L'overlay est **sombre uniquement** : `data-theme="dark"` est posé une seule fois,
-    // et le fournisseur expose la même vérité aux portails (popover de donjon, prérequis)
-    // sans prop-drilling.
+    // `data-theme="dark"` reste le repli SSR / route directe ; la CSS bascule les
+    // jetons en clair dès que `<html>` porte `.light` (mode blanc du guide).
     <DaThemeProvider value={daThemeValue}>
     <div
       ref={rootRef}

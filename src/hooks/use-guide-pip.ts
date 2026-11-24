@@ -23,7 +23,6 @@ export function preparePipDocument(win: Window): Document {
     doc.documentElement.style.margin = "0";
     doc.documentElement.style.padding = "0";
     doc.documentElement.style.overflow = "hidden";
-    doc.documentElement.classList.add("dark");
     if (document.documentElement.className) {
       document.documentElement.classList.forEach((cls) => {
         doc.documentElement.classList.add(cls);
@@ -34,8 +33,10 @@ export function preparePipDocument(win: Window): Document {
   doc.body.style.margin = "0";
   doc.body.style.padding = "0";
   doc.body.style.overflow = "hidden";
-  doc.body.style.backgroundColor = "#0b0c10";
-  doc.body.style.color = "#f4f4f5";
+  // Thème réel de la page hôte : le guide doit suivre le mode clair/sombre.
+  const isDark = !document.documentElement.classList.contains("light");
+  doc.body.style.backgroundColor = isDark ? "#0b0c10" : "#f3f1e5";
+  doc.body.style.color = isDark ? "#f4f4f5" : "#2a3123";
 
   // Copie des feuilles de style via <style>
   for (const sheet of Array.from(document.styleSheets)) {

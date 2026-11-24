@@ -29,6 +29,8 @@ export type RushCombatMonster = {
 export type RushCombat = {
   mode: RushCombatMode;
   monsters: RushCombatMonster[];
+  /** Précision libre du guide (« pas d'infos », stratégie) — jamais une règle. */
+  detail?: string;
 };
 
 /** Un donjon proposé au choix (le joueur en fait un) — nom et visuel dénormalisés. */
@@ -54,13 +56,14 @@ export type RushBashMob = {
 
 export type RushQuestConstraints = {
   /** Version du format — permet une évolution sans casser les données existantes. */
-  version: 1;
+  version: 2;
   hours?: RushConstraintSchedule | null;
   players?: { count?: number; roles: RushConstraintRole[] } | null;
   jobs: Array<{ job: string; level?: number }>;
   spells: string[];
   notes: string[];
-  combat?: RushCombat | null;
+  /** Combats **dans l'ordre du guide** — une quête peut en enchaîner jusqu'à 14. */
+  combats?: RushCombat[];
   dungeonChoice?: RushDungeonChoice | null;
   bashMobs?: RushBashMob[];
 };

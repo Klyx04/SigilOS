@@ -14,6 +14,7 @@ import { RushOverlayTagSection } from "./RushOverlayTagSection";
 import type { RushTagViewer } from "@/components/dofus-quests/rush/RushTagBadge";
 import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
 import { RushTipLines } from "@/components/dofus-quests/rush/RushTipLines";
+import { hasRushHints } from "@/lib/rush-constraints";
 import { classifyTags, getDungeons, getItemTags, getSequenceCoord, type DungeonInfo, type TagClassification } from "./overlay-utils";
 import { resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, getSequenceSuccesses, type RushGuideQuestRef } from "@/lib/rush-guide-utils";
 import { NpcBadge } from "@/components/dofus-quests/rush/NpcBadge";
@@ -311,7 +312,7 @@ export function RushOverlayQuestDetailModal({
 
             {/* Conseils AVANT les listes (succès, ressources, badges) : c'est ce qu'on lit
                 pour agir, le reste est de la donnée de référence. */}
-            {(seq.tips || seq.note) && (
+            {hasRushHints({ tips: seq.tips, note: seq.note, constraints: seq.constraints }) && (
               <section className="py-3">
                 <p className={sectionLabel}>Conseils</p>
                 <div className="space-y-2">

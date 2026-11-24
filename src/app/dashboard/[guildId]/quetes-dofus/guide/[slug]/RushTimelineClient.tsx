@@ -116,6 +116,7 @@ import { RushQuestDungeonsPanel } from "@/components/dofus-quests/rush/RushQuest
 import { OCRE_TOTAL_STEPS, toOcrePanelData } from "@/lib/ocre-soul-stones";
 import type { RushUIConfig } from "@/lib/rush-ui-config";
 import { safeImageUrl } from "@/lib/security";
+import { hasRushHints } from "@/lib/rush-constraints";
 import { RUSH_DOFUS_META } from "@/lib/rush-dofus-meta";
 import { RushSeparatorBanner } from "@/components/dofus-quests/rush/RushSeparatorBanner";
 import { RushInfoBanner } from "@/components/dofus-quests/rush/RushInfoBanner";
@@ -787,7 +788,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
           let tipsText = String(seq.tips || "");
           const hasPosTag = Array.isArray(seq.activityTags) && seq.activityTags.some((t: any) => t.type === "pos_tags");
           if (hasPosTag) tipsText = tipsText.replace(/[^\n]*position de lancement[^\n]*/gi, "").trim();
-          if (!tipsText && !seq.note) return null;
+          if (!hasRushHints({ tips: tipsText, note: seq.note, constraints: seq.constraints })) return null;
           return <CollapsibleHints tipsText={tipsText} note={seq.note || null} constraints={seq.constraints ?? null} />;
         })()}
         </div>
@@ -939,6 +940,9 @@ function CollapsibleHints({ tipsText, note, constraints }: { tipsText: string; n
         <div className="space-y-1.5 pt-2">
           {tipsText && (
             <RushDofusDexTip text={tipsText} constraints={constraints} className="text-xs leading-relaxed text-muted-foreground" />
+          )}
+          {!tipsText && constraints && hasRushHints({ constraints }) && (
+            <RushTipLines text="" constraints={constraints} className="text-xs leading-relaxed text-muted-foreground" />
           )}
           {note && (
             <p className="text-[11px] leading-relaxed text-muted-foreground">Note : {note}</p>

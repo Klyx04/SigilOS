@@ -135,7 +135,7 @@ import { DofusObtainedBanner } from "@/components/dofus-quests/rush/DofusObtaine
 import { isRushCombatBlock, isRushNonQuestBlock, rushCombatSequenceType } from "@/lib/rush-block-types";
 import { RushRichText } from "@/components/dofus-quests/rush/RushRichText";
 import { RushQuestConstraints } from "@/components/dofus-quests/rush/RushQuestConstraints";
-import { constraintsToInfos, isEmptyConstraints, parseRushConstraints } from "@/lib/rush-constraints";
+import { constraintsToInfos, hasRushHints, isEmptyConstraints, parseRushConstraints } from "@/lib/rush-constraints";
 import { RushInfoSequenceBanner } from "@/components/dofus-quests/rush/RushInfoSequenceBanner";
 // Pense-bête : MÊME modale que le guide interne, alimentée par la config GOD
 // (`rushUIConfig.penseBete`) avec repli sur le contenu statique du module.
@@ -3511,7 +3511,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                                   let tipsText = String(seq.tips || "");
                                   const hasPosTag = Array.isArray(seq.activityTags) && seq.activityTags.some((tag: any) => tag.type === "pos_tags");
                                   if (hasPosTag) tipsText = tipsText.replace(/[^\n]*position de lancement[^\n]*/gi, "").trim();
-                                  if (!tipsText && !seq.note) return null;
+                                  if (!hasRushHints({ tips: tipsText, note: seq.note, constraints: seq.constraints })) return null;
                                   const isHintsOpen = expandedHintsSteps.has(seq.id);
                                   const toggleHints = () => {
                                     setExpandedHintsSteps((prev) => {

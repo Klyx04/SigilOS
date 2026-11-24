@@ -18,6 +18,7 @@ import { searchMonstersForDefi } from "@/server/actions/defi-admin-actions";
 import { searchDungeonsLocal } from "@/server/actions/dofus-search-actions";
 import type {
   RushBashMob,
+  RushCombat,
   RushCombatMode,
   RushCombatMonster,
   RushConstraintRole,
@@ -115,34 +116,58 @@ export function RushConditionsEditor({
     setRole(index, { ...role, level: raw ? Number(raw) : undefined });
   };
 
-  const combat = value.combat;
+  const combats = value.combats ?? [];
   const dungeonChoice = value.dungeonChoice;
   const bashMobs = value.bashMobs ?? [];
 
-  const setCombatMode = (mode: RushCombatMode) => {
-    const current = value.combat ?? { mode, monsters: [] };
-    update({ combat: { ...current, mode } });
-  };
-  const addCombatMonster = (monster: RushCombatMonster) => {
-    const current = value.combat ?? { mode: "solo" as const, monsters: [] };
-    update({ combat: { ...current, monsters: [...current.monsters, monster] } });
-  };
-  const updateCombatMonster = (index: number, patch: Partial<RushCombatMonster>) => {
-    if (!value.combat) return;
-    const monsters = value.combat.monsters.map((monster, monsterIndex) =>
-      monsterIndex === index ? { ...monster, ...patch } : monster,
+  const updateCombats = (next: RushCombat[]) => update({ combats: next });
+  const addCombat = () => updateCombats([...combats, { mode: "solo", monsters: [] }]);
+  const removeCombat = (combatIndex: number) =>
+    updateCombats(combats.filter((_, index) => index !== combatIndex));
+  const setCombatMode = (combatIndex: number, mode: RushCombatMode) =>
+    updateCombats(
+      combats.map((combat, index) => (index === combatIndex ? { ...combat, mode } : combat)),
     );
-    update({ combat: { ...value.combat, monsters } });
-  };
-  const removeCombatMonster = (index: number) => {
-    if (!value.combat) return;
-    update({
-      combat: {
-        ...value.combat,
-        monsters: value.combat.monsters.filter((_, monsterIndex) => monsterIndex !== index),
-      },
-    });
-  };
+  const setCombatDetail = (combatIndex: number, detail: string) =>
+    updateCombats(
+      combats.map((combat, index) => (index === combatIndex ? { ...combat, detail } : combat)),
+    );
+  const addCombatMonster = (combatIndex: number, monster: RushCombatMonster) =>
+    updateCombats(
+      combats.map((combat, index) =>
+        index === combatIndex
+          ? { ...combat, monsters: [...combat.monsters, monster] }
+          : combat,
+      ),
+    );
+  const updateCombatMonster = (
+    combatIndex: number,
+    monsterIndex: number,
+    patch: Partial<RushCombatMonster>,
+  ) =>
+    updateCombats(
+      combats.map((combat, index) =>
+        index === combatIndex
+          ? {
+              ...combat,
+              monsters: combat.monsters.map((monster, current) =>
+                current === monsterIndex ? { ...monster, ...patch } : monster,
+              ),
+            }
+          : combat,
+      ),
+    );
+  const removeCombatMonster = (combatIndex: number, monsterIndex: number) =>
+    updateCombats(
+      combats.map((combat, index) =>
+        index === combatIndex
+          ? {
+              ...combat,
+              monsters: combat.monsters.filter((_, current) => current !== monsterIndex),
+            }
+          : combat,
+      ),
+    );
   const setDungeonNote = (note: string) => {
     const current = value.dungeonChoice ?? { dungeons: [] };
     update({ dungeonChoice: { ...current, note } });
@@ -428,102 +453,142 @@ export function RushConditionsEditor({
         )}
       </div>
 
-      {/* ── Combat ── */}
+      {/* ── Combats ── */}
       <div className="rounded-lg border border-border bg-surface/60 p-2.5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className={cn(LABEL, "flex items-center gap-1.5")}>
             <GameIcon src="/assets/dofus/game-icons/crossed-swords.png" className={ICON} />
-            Combat
+            Combats
           </span>
-          <div className="flex flex-wrap items-center gap-1">
-            <select
-              value={combat?.mode ?? "solo"}
-              onChange={(event) => setCombatMode(event.target.value as RushCombatMode)}
-              className={cn(FIELD, "w-44")}
-              aria-label="Mode de combat"
-            >
-              {RUSH_COMBAT_MODES.map((mode) => (
-                <option key={mode.id} value={mode.id}>
-                  {mode.label}
-                </option>
-              ))}
-            </select>
-            {combat && (
-              <button type="button" onClick={() => update({ combat: null })} className={ACTION}>
-                <X className={ICON} /> Retirer
-              </button>
-            )}
-          </div>
+          <button type="button" onClick={addCombat} className={ACTION}>
+            <Plus className={ICON} /> Combat
+          </button>
         </div>
 
-        <div className="mt-2 space-y-1.5">
-          <MonsterSearch
-            placeholder="Ajouter un monstre au combat…"
-            onPick={(result) =>
-              addCombatMonster({
-                name: result.label,
-                count: 1,
-                level: monsterLevel(result.subLabel),
-                imageUrl: result.imageUrl ?? undefined,
-              })
-            }
-          />
-          {combat?.monsters.map((monster, index) => (
-            <div key={`${monster.name}-${index}`} className="flex flex-wrap items-center gap-1.5">
-              <RushPortrait src={monster.imageUrl} alt={monster.name} className="h-7 w-7" />
-              <span className="min-w-0 flex-1 truncate text-[11px] text-foreground">
-                {monster.name}
-              </span>
-              <input
-                type="number"
-                min={1}
-                max={20}
-                value={monster.count}
-                onChange={(event) =>
-                  updateCombatMonster(index, { count: Number(event.target.value) || 1 })
-                }
-                className={cn(FIELD, "w-14")}
-                aria-label="Nombre de monstres"
-              />
-              <input
-                type="number"
-                min={1}
-                max={200}
-                value={monster.level ?? ""}
-                placeholder="Niv."
-                onChange={(event) =>
-                  updateCombatMonster(index, {
-                    level: event.target.value ? Number(event.target.value) : undefined,
-                  })
-                }
-                className={cn(FIELD, "w-16")}
-                aria-label="Niveau du monstre"
-              />
-              <input
-                type="number"
-                min={1}
-                max={999999}
-                value={monster.health ?? ""}
-                placeholder="PV"
-                onChange={(event) =>
-                  updateCombatMonster(index, {
-                    health: event.target.value ? Number(event.target.value) : undefined,
-                  })
-                }
-                className={cn(FIELD, "w-20")}
-                aria-label="Points de vie du monstre"
-              />
-              <button
-                type="button"
-                aria-label="Supprimer ce monstre"
-                onClick={() => removeCombatMonster(index)}
-                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:text-foreground"
+        {combats.length === 0 ? (
+          <p className="mt-2 text-[11px] text-muted-foreground">Aucun combat saisi.</p>
+        ) : (
+          <div className="mt-2 space-y-2">
+            {combats.map((combat, combatIndex) => (
+              <div
+                key={combatIndex}
+                className="rounded-lg border border-border/70 bg-elevated/30 p-2"
               >
-                <X className={ICON} />
-              </button>
-            </div>
-          ))}
-        </div>
+                <div className="flex flex-wrap items-center justify-between gap-1.5">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Combat {combatIndex + 1}
+                    </span>
+                    <select
+                      value={combat.mode}
+                      onChange={(event) =>
+                        setCombatMode(combatIndex, event.target.value as RushCombatMode)
+                      }
+                      className={cn(FIELD, "w-44")}
+                      aria-label={`Mode du combat ${combatIndex + 1}`}
+                    >
+                      {RUSH_COMBAT_MODES.map((mode) => (
+                        <option key={mode.id} value={mode.id}>
+                          {mode.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label={`Supprimer le combat ${combatIndex + 1}`}
+                    onClick={() => removeCombat(combatIndex)}
+                    className={ACTION}
+                  >
+                    <X className={ICON} /> Retirer
+                  </button>
+                </div>
+
+                <div className="mt-2 space-y-1.5">
+                  <MonsterSearch
+                    placeholder="Ajouter un monstre à ce combat…"
+                    onPick={(result) =>
+                      addCombatMonster(combatIndex, {
+                        name: result.label,
+                        count: 1,
+                        level: monsterLevel(result.subLabel),
+                        imageUrl: result.imageUrl ?? undefined,
+                      })
+                    }
+                  />
+                  {combat.monsters.map((monster, monsterIndex) => (
+                    <div
+                      key={`${monster.name}-${monsterIndex}`}
+                      className="flex flex-wrap items-center gap-1.5"
+                    >
+                      <RushPortrait src={monster.imageUrl} alt={monster.name} className="h-7 w-7" />
+                      <span className="min-w-0 flex-1 truncate text-[11px] text-foreground">
+                        {monster.name}
+                      </span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={20}
+                        value={monster.count}
+                        onChange={(event) =>
+                          updateCombatMonster(combatIndex, monsterIndex, {
+                            count: Number(event.target.value) || 1,
+                          })
+                        }
+                        className={cn(FIELD, "w-14")}
+                        aria-label={`Nombre de monstres du combat ${combatIndex + 1}`}
+                      />
+                      <input
+                        type="number"
+                        min={1}
+                        max={200}
+                        value={monster.level ?? ""}
+                        placeholder="Niv."
+                        onChange={(event) =>
+                          updateCombatMonster(combatIndex, monsterIndex, {
+                            level: event.target.value ? Number(event.target.value) : undefined,
+                          })
+                        }
+                        className={cn(FIELD, "w-16")}
+                        aria-label={`Niveau du monstre du combat ${combatIndex + 1}`}
+                      />
+                      <input
+                        type="number"
+                        min={1}
+                        max={999999}
+                        value={monster.health ?? ""}
+                        placeholder="PV"
+                        onChange={(event) =>
+                          updateCombatMonster(combatIndex, monsterIndex, {
+                            health: event.target.value ? Number(event.target.value) : undefined,
+                          })
+                        }
+                        className={cn(FIELD, "w-20")}
+                        aria-label={`Points de vie du monstre du combat ${combatIndex + 1}`}
+                      />
+                      <button
+                        type="button"
+                        aria-label={`Supprimer le monstre du combat ${combatIndex + 1}`}
+                        onClick={() => removeCombatMonster(combatIndex, monsterIndex)}
+                        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:text-foreground"
+                      >
+                        <X className={ICON} />
+                      </button>
+                    </div>
+                  ))}
+                  <input
+                    value={combat.detail ?? ""}
+                    onChange={(event) => setCombatDetail(combatIndex, event.target.value)}
+                    placeholder="Détail du combat (facultatif)"
+                    maxLength={300}
+                    className={cn(FIELD, "w-full")}
+                    aria-label={`Détail du combat ${combatIndex + 1}`}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── Donjon au choix ── */}

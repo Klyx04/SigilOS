@@ -153,6 +153,8 @@ export function successPossessionItems(input: {
   successId: number;
   catalog: RushSuccessCatalog;
   milestones: readonly RushMilestone[];
+  /** Quêtes du guide : un `PO=` d'une quête DU guide vit dans sa fiche, pas ici. */
+  guideQuests?: readonly RushGuideQuestRef[];
   questCriteria?: RushQuestCriteriaMap;
   overrides?: Readonly<Record<string, readonly number[]>>;
   itemNames?: Readonly<Record<number, string>>;
@@ -162,6 +164,7 @@ export function successPossessionItems(input: {
   coveredCount: number;
 } {
   const index = collectGuideResourceIndex(input.milestones);
+  const guideQuestIds = new Set((input.guideQuests ?? []).map((quest) => quest.id));
   const ids = new Set<number>();
   const closure = successClosure(input.successId, input.catalog, {
     questCriteria: input.questCriteria,
@@ -169,7 +172,15 @@ export function successPossessionItems(input: {
   });
   for (const successId of closure.ids) {
     const row = input.catalog.get(successId);
-    for (const itemId of row?.itemIds ?? []) ids.add(itemId);
+    if (!row) continue;
+    for (const itemId of row.itemIds ?? []) ids.add(itemId);
+    // `PO=` d'une quête HORS guide : aucun détail de quête ne l'affiche, on le garde.
+    for (const questId of row.questIds) {
+      if (guideQuestIds.has(questId)) continue;
+      for (const itemId of input.questCriteria?.get(questId)?.itemIds ?? []) {
+        ids.add(itemId);
+      }
+    }
   }
   const items: RushSuccessPossession[] = [...ids].map((id) => {
     const name = input.itemNames?.[id] ?? `Objet ${id}`;
@@ -326,6 +337,7 @@ export function planSuccessValidation(
     successId: input.successId,
     catalog: input.catalog,
     milestones: input.milestones,
+    guideQuests: input.guideQuests,
     questCriteria: input.questCriteria,
     overrides: input.overrides,
     itemNames: input.itemNames,

@@ -205,6 +205,38 @@ describe("planSuccessValidation — aperçu avant écriture", () => {
     ]);
   });
 
+  it("garde le PO d'une quête HORS guide (aucun détail ne l'affiche)", () => {
+    const catalog: RushSuccessCatalog = new Map([
+      [600, { id: 600, name: "Hors guide", questIds: [5], successIds: [] }],
+    ]);
+    const questCriteria = new Map([
+      [
+        5,
+        {
+          id: 5,
+          name: "Quête hors guide",
+          level: null,
+          questIds: [],
+          successIds: [],
+          itemIds: [999],
+          criterion: "PO=999",
+        },
+      ],
+    ]);
+    const plan = planSuccessValidation({
+      successId: 600,
+      catalog,
+      questCriteria,
+      guideQuests: GUIDE,
+      milestones: MILESTONES,
+      itemNames: { 999: "Objet hors guide" },
+    });
+    expect(plan?.targetCount).toBe(0);
+    expect(plan?.outsideQuestNames).toEqual(["Quête 5"]);
+    expect(plan?.possessionNames).toEqual(["Objet hors guide"]);
+    expect(plan?.coveredPossessionCount).toBe(0);
+  });
+
   it("ne répète pas les ressources déjà listées dans le détail d'une quête", () => {
     const catalog: RushSuccessCatalog = new Map([
       [

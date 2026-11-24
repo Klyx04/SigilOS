@@ -358,11 +358,12 @@ function SuccessSheet({
       successId: entry.id,
       catalog,
       milestones,
+      guideQuests: quests,
       questCriteria: questCriteria ?? undefined,
       overrides,
       itemNames,
     });
-  }, [catalog, entry, milestones, questCriteria, overrides, itemNames]);
+  }, [catalog, entry, milestones, quests, questCriteria, overrides, itemNames]);
   const possessionNames = possessions?.extras.map((item) => item.name) ?? [];
   const coveredPossessionCount = possessions?.coveredCount ?? 0;
 

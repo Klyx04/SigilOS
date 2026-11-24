@@ -118,10 +118,10 @@ O10 (3 densités `wide/normal/tight`, mesurées sur le conteneur) · O12 (bulles
 > donjons non renseignés affichés **« À faire » par défaut** (affichage seul), clignotement des donjons
 > manquants sur les 3 surfaces, portrait 1×1 remplacé par le repli, `requestWindow` catché + message popup.
 >
-> **Décision du 24/11 (livrée #1534)** : valider une **quête seule** coche ses donjons requis en « Fait »
-> (comme le bloc) ; une **dévalidation de quête** efface ses états → retour à « À faire » ; un **reset**
-> de bloc ou de guide les efface ; la modale **Progression Donjons** se rafraîchit après le geste.
-> Le verrou de **prérequis** reste intact ; un donjon optionnel n'est jamais coché.
+> **Décision du 24/11 (livrée #1534)** : la validation **unitaire** d'une quête **reste verrouillée** par
+> ses donjons requis ; seule la validation **par bloc** bypass ce verrou (décision 20/11). Les donjons non
+> renseignés s'affichent **« À faire » par défaut** ; une **quête dévalidée** efface ses états (retour
+> « À faire ») ; la modale **Progression Donjons** se rafraîchit. Un donjon optionnel n'est jamais coché.
 > Lot suivant : liens monstres → fiche + overlay compact (icônes en haut, clic quête → DPLN/DofusDB/info).
 
 > **Revue #1531 → #1532 (24/11/2026)** : bloc « Conseils » vide corrigé (conditions seules), v1

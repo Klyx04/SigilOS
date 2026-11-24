@@ -208,15 +208,14 @@ describe("Câblage — le panneau et la carte disent le choix", () => {
     expect(card).toContain("startsChoiceGroup");
   });
 
-  it("le SERVEUR coche les groupes : il charge les tags et les donjons optionnels", () => {
-    // Sans ces tags, le plan de coche ne voyait que les donjons résolus et exigeait
-    // les 11 donjons de Maïmane au lieu des 6 totems (« 8 donjon(s)… » mesuré).
+  it("le SERVEUR vérifie les groupes : il charge et transmet `activityTags`", () => {
+    // Sans ces tags, `sequenceDungeonProgress` ne voyait que les donjons résolus et
+    // exigeait les 11 donjons de Maïmane au lieu des 6 totems (« 8 donjon(s)… » mesuré).
     const ACTIONS = "src/server/actions/optimized-guide-actions.ts";
     const actions = readFileSync(ACTIONS, "utf8");
     expect(actions).toContain("activityTags: true");
-    expect(actions).toContain("dungeonOptionalIds: true");
-    expect(actions).toContain("missingRequiredDungeons(entry.sequence, doneKeys)");
-    expect(actions).toContain("applyDungeonChecks(");
+    expect(actions).toContain("activityTags: Array.isArray(row.activityTags)");
+    expect(actions).toContain("missingRequiredDungeons(seqLike, doneKeys)");
   });
 
   it("les compteurs des trois surfaces annoncent les EXIGENCES", () => {

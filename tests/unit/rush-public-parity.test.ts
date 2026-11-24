@@ -507,36 +507,40 @@ describe("Donjons cochables — même coquille, même règle, verrou dans les é
     expect(codeOf("src/hooks/use-rush-dungeon-states.ts")).toMatch(/dungeonOccurrenceKey/);
   });
 
-  it("valider une quête coche ses donjons dans les TROIS chemins d'écriture du public", () => {
-    // étape · chapitre entier · lot de quêtes
-    expect(PUB).toMatch(/applyDungeonChecksForSequence\(seqId, !was\)/);
-    expect(PUB).toMatch(/applyDungeonChecksForSequence\(s\.id, current\.has\(s\.id\)\)/);
-    expect(PUB).toMatch(/applyDungeonChecksForSequence\(id, completeAll\)/);
-    expect(PUB).not.toContain("isSeqBlockedByDungeon");
+  it("le verrou donjon ne vise que la quête UNITAIRE ; le bloc bypass", () => {
+    // Étape seule : le verrou est appliqué.
+    expect(PUB).toMatch(/if \(!was && isSeqBlockedByDungeon\(seqId\)\)/);
+    // Chapitre entier et lot de quêtes : la validation par bloc bypass le verrou.
+    expect(PUB).not.toMatch(
+      /if \(completeAll && !current\.has\(s\.id\) && isSeqBlockedByDungeon\(s\.id\)\) return;/
+    );
+    expect(PUB).not.toMatch(/!isSeqBlockedByDungeon\(id\)/);
   });
 
-  it("le public garde la pastille compacte et le panneau de la quête", () => {
+  it("le public ouvre le panneau du donjon de CETTE quête (pastille compacte, comme l'interne)", () => {
+    expect(PUB).toMatch(/Donjon requis non fait — coche-le sur la pastille Donjon de cette quête\./);
     expect(PUB).toContain('"À terminer avant :"');
     // Plus de gros bloc « Donjon requis à faire » : la pastille compacte Donjon ×N
     // de la barre d'actions porte le geste, exactement comme le guide interne.
     expect(PUB).toContain("Donjon ×{seqDungeonCount}");
-    // Le panneau reste accessible pour cocher/décocher.
+    // Le refus n'est pas muet : il mène au panneau de la quête concernée.
     expect(PUB).toContain("setOpenDungeonPanel");
     expect(PUB).toContain("cur === seq.id ? null : seq.id");
     expect(PUB).toMatch(/openDungeonPanel === seq\.id/);
   });
 
-  it("la validation serveur coche les donjons requis de la quête (plus de verrou)", () => {
-    // `setRushSequenceProgress` ne refuse plus pour un donjon : il coche les requis.
-    expect(ACTIONS_CODE).toMatch(/applyDungeonChecks\(/);
-    expect(ACTIONS_CODE).toMatch(/missingRequiredDungeons\(entry\.sequence, doneKeys\)/);
-    expect(ACTIONS_CODE).not.toContain("findSequenceBlockedByMissingDungeon");
+  it("le verrou de DONJONS reste SERVEUR sur la quête seule (le bloc est un confort)", () => {
+    // Quête par quête (`setRushSequenceProgress`) : la garde est appelée.
+    expect(ACTIONS_CODE).toMatch(/findSequenceBlockedByMissingDungeon/);
+    expect(ACTIONS_CODE).toMatch(/blockedSequenceId: blocked\.id/);
     // Le bloc entier (`toggleMilestoneProgress`) ne consulte AUCUN verrou :
     // décision user du 20/11/2026 (500+ coches sinon).
     const start = ACTIONS_CODE.indexOf("export async function toggleMilestoneProgress");
     const end = ACTIONS_CODE.indexOf("\n/**", start + 10);
     const blockBody = ACTIONS_CODE.slice(start, end > start ? end : start + 6000);
     expect(blockBody).not.toContain("findSequenceBlockedByMissingDungeon");
+    const calls = ACTIONS_CODE.match(/findSequenceBlockedByMissingDungeon\(/g)?.length ?? 0;
+    expect(calls).toBeGreaterThanOrEqual(2); // définition + appel quête
   });
 
   it("le verrou de PRÉREQUIS reste SERVEUR sur la quête seule", () => {
@@ -550,11 +554,11 @@ describe("Donjons cochables — même coquille, même règle, verrou dans les é
     expect(blockBody).not.toContain("findSequenceBlockedByPrereq");
   });
 
-  it("le dashboard charge l'état au montage et ne bloque plus sur un donjon", () => {
+  it("le dashboard bloque AVANT l'aller-retour et charge l'état au montage", () => {
     expect(DASH).toMatch(
       /useRushDungeonStates\(\{guildId,slug:guide\.slug,altPseudo:effectiveAltPseudo\}\)/
     );
-    expect(DASH).not.toMatch(/sequenceDungeonProgress\(seqObj as any,doneKeys\)\.blocked/);
+    expect(DASH).toMatch(/if\(sequenceDungeonProgress\(seqObj as any,doneKeys\)\.blocked\)/);
     // Un refus serveur ne doit pas laisser un bloc marqué « terminé ».
     expect(DASH).not.toMatch(/allChecked\?n\.delete\(ms\.id\):n\.add\(ms\.id\)/);
     expect(DASH).toMatch(/wasMilestoneCompleted\?n\.add\(ms\.id\):n\.delete\(ms\.id\)/);

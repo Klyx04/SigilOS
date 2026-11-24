@@ -6,7 +6,7 @@ type DocumentPip = {
   requestWindow: (options?: { width?: number; height?: number }) => Promise<Window>;
 };
 
-/** Vrai si le navigateur supporte Document Picture-in-Picture (Chrome/Edge). */
+/** Vrai si le navigateur expose Document Picture-in-Picture (Chrome/Edge/Opera 102+/Firefox 151+). */
 export function isDocumentPipSupported(): boolean {
   return typeof window !== "undefined" && "documentPictureInPicture" in window;
 }
@@ -67,9 +67,16 @@ export function preparePipDocument(win: Window): Document {
 export async function openPipWindow(options?: { width?: number; height?: number }): Promise<Window | null> {
   const pip = (window as unknown as { documentPictureInPicture?: DocumentPip }).documentPictureInPicture;
   if (!pip) return null;
-  const win = await pip.requestWindow(options);
-  preparePipDocument(win);
-  return win;
+  try {
+    const win = await pip.requestWindow(options);
+    preparePipDocument(win);
+    return win;
+  } catch {
+    // Certains navigateurs exposent l'API mais refusent `requestWindow` : on rend
+    // `null` pour que l'appelant bascule sur la popup de secours, au lieu de laisser
+    // une promesse rejetée tuer le clic.
+    return null;
+  }
 }
 
 /**

@@ -65,15 +65,19 @@ const render = ({
   );
 
 const activeCount = (out: string) => out.split('aria-pressed="true"').length - 1;
+const activeDoneCount = (out: string) =>
+  (out.match(/aria-pressed="true" aria-label="[^"]*comme fait [^"]*"/g) ?? []).length;
 
 describe("RushQuestDungeonsPanel — les deux coches, par quête", () => {
   it("affiche chaque donjon de la quête avec Fait / À faire", () => {
     const out = render();
     expect(out).toContain("Bouftou Royal");
     expect(out).toContain("Larve Saignante");
-    // Deux donjons × deux états = quatre boutons, aucun actif au départ.
-    expect(out.match(/aria-pressed="false"/g)?.length).toBe(4);
-    expect(activeCount(out)).toBe(0);
+    // Deux donjons × deux états = quatre boutons. Les deux « À faire » sont actifs
+    // par défaut (demande 24/11/2026), aucun « Fait ».
+    expect(out.match(/aria-pressed="false"/g)?.length).toBe(2);
+    expect(activeCount(out)).toBe(2);
+    expect(activeDoneCount(out)).toBe(0);
   });
 
   it("dit où en est la quête (compteur) et signale l'optionnel", () => {
@@ -87,9 +91,10 @@ describe("RushQuestDungeonsPanel — les deux coches, par quête", () => {
   });
 
   it("l'état d'une AUTRE quête n'allume rien ici (par occurrence)", () => {
-    // Le même donjon coché dans la quête s2 ne vaut pas pour s1.
-    expect(activeCount(render({ states: { "s2::dj-1": "done" } }))).toBe(0);
-    expect(activeCount(render({ states: { "s1::dj-1": "done" } }))).toBe(1);
+    // Le même donjon coché dans la quête s2 ne vaut pas pour s1 : seul le « Fait »
+    // compte, et les « À faire » par défaut ne disent rien de l'autre quête.
+    expect(activeDoneCount(render({ states: { "s2::dj-1": "done" } }))).toBe(0);
+    expect(activeDoneCount(render({ states: { "s1::dj-1": "done" } }))).toBe(1);
   });
 
   it("« à faire » ne cite que les membres de CETTE quête", () => {

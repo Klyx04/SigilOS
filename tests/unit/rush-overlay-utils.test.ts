@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { aggregateRushResources } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
+import {
+  aggregateRushResources,
+  classifyTags,
+} from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
 import type { RushMilestone } from "@/types/rush-guide-types";
 
 const mkSeq = (id: string, itemName: string, itemId: number): unknown => ({
@@ -20,8 +23,7 @@ const mkMs = (id: string, seqs: unknown[]): unknown => ({
   sequences: seqs,
 });
 
-describe("aggregateRushResources (modale ressources)", () => {
-  const milestones = [
+describe("aggregateRushResources (modale ressources)", () => {  const milestones = [
     mkMs("ms1", [mkSeq("s1", "Pépite", 14635), mkSeq("s2", "Riz", 7018)]),
     mkMs("ms2", [mkSeq("s3", "Eau Potable", 311)]),
   ] as unknown as RushMilestone[];
@@ -45,5 +47,31 @@ describe("aggregateRushResources (modale ressources)", () => {
     expect(all.length).toBe(1);
     expect(all[0].count).toBe(6);
     expect(all[0].chapters).toEqual([1]);
+  });
+});
+
+describe("classifyTags (tiroirs de l'overlay)", () => {
+  it("ne compte pas les prérequis comme conditions — le tiroir restait vide", () => {
+    const tags = classifyTags([
+      { type: "prereq_text", name: "Bricole Girl" },
+      { type: "prereq_text", name: "La fonte des glaces" },
+      { type: "combat_plusieurs", name: "groupe · Smilomouth ×3" },
+    ] as never);
+    expect(tags.condition).toEqual([]);
+    expect(tags.tool).toEqual([]);
+    expect(tags.nature.map((tag) => tag.type)).toEqual(["combat_plusieurs"]);
+  });
+
+  it("garde les vraies conditions (métier, horaire, sort)", () => {
+    const tags = classifyTags([
+      { type: "metier", name: "Alchimiste" },
+      { type: "contrainte_horaire", name: "Entre 20h et 8h" },
+      { type: "sort", name: "Capture d'âmes" },
+    ] as never);
+    expect(tags.condition.map((tag) => tag.type)).toEqual([
+      "metier",
+      "contrainte_horaire",
+      "sort",
+    ]);
   });
 });

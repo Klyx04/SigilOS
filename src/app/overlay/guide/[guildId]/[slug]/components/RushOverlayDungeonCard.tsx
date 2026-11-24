@@ -10,6 +10,7 @@ import { isPublicOverlay } from "./overlay-utils";
 import { dungeonFicheHref } from "@/lib/dungeon-fiche";
 import { ocreDungeonCapture, type OcreDungeonCaptureState } from "@/lib/ocre-dungeons";
 import {
+  dungeonDisplayState,
   dungeonKeyOf,
   occurrenceState,
   type RushDungeonMemberState,
@@ -117,6 +118,7 @@ export function RushOverlayDungeonCard({
           const href = dungeonFicheHref(isPublic ? "public" : guildId, dj);
           const key = sequenceId ? dungeonKeyOf(dj) : null;
           const state = key && sequenceId ? occurrenceState(states, sequenceId, key) : null;
+          const displayState = dungeonDisplayState(state);
           // Groupe « au choix » : un seul donjon du groupe suffit (règle de
           // `rush-dungeons`). L'en-tête est posé AVANT la première alternative.
           const previousGroup = i > 0 ? dungeons[i - 1]?.choiceGroup ?? null : null;
@@ -133,6 +135,7 @@ export function RushOverlayDungeonCard({
                 href={href}
                 isPublic={isPublic}
                 state={state}
+                displayState={displayState}
                 busy={!!key && busyKey === `${sequenceId}::${key}`}
                 todo={key ? todoByKey.get(key) ?? [] : []}
                 highlighted={!!key && key === highlightKey}
@@ -159,6 +162,7 @@ function DungeonRow({
   href,
   isPublic,
   state,
+  displayState,
   busy,
   todo,
   highlighted = false,
@@ -171,6 +175,7 @@ function DungeonRow({
   href: string | null;
   isPublic: boolean;
   state: RushDungeonState | null;
+  displayState: RushDungeonState;
   busy: boolean;
   todo: string[];
   onSet?: (state: RushDungeonState | null) => void;
@@ -198,12 +203,11 @@ function DungeonRow({
       <span
         className={cn(
           "relative grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-[5px] border bg-elevated",
-          // Le liseré dit l'état sans lire le texte : vert = fait, ambre = à faire.
-          state === "done"
+          // Le liseré dit l'état sans lire le texte : vert = fait, ambre = à faire
+          // (l'absence de décision s'affiche « à faire » par défaut).
+          displayState === "done"
             ? "border-emerald-500/70"
-            : state === "todo"
-              ? "border-amber-500/70"
-              : "border-border"
+            : "border-amber-500/70"
         )}
       >
         {dj.imageUrl && !imgError ? (
@@ -218,7 +222,7 @@ function DungeonRow({
         ) : (
           <DoorOpen className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
         )}
-        {state === "done" && (
+        {displayState === "done" && (
           <span className="absolute right-0 bottom-0 grid h-3.5 w-3.5 place-items-center rounded-tl-[4px] bg-emerald-500 text-white">
             <Check className="h-2.5 w-2.5 stroke-[3]" aria-hidden="true" />
           </span>
@@ -268,7 +272,7 @@ function DungeonRow({
       ref={rowRef}
       className={cn(
         "flex items-center gap-2 rounded-[5px] px-2 py-2 transition-colors",
-        state === "done" ? "bg-emerald-500/5" : "hover:bg-elevated",
+        displayState === "done" ? "bg-emerald-500/5" : "hover:bg-elevated",
         highlighted && "ring-2 ring-danger/50"
       )}
     >
@@ -343,11 +347,12 @@ function DungeonRow({
       ) : null}
 
       {/* Les DEUX états : « fait » débloque la quête, « à faire » dit aux autres
-          qu'on compte le faire. Aucune case binaire : l'absence = pas décidé. */}
+          qu'on compte le faire. L'absence s'affiche « À faire » mais n'écrit qu'au
+          premier clic (le verrou ne lit que les états `done`). */}
       {onSet && (
         <div className="flex shrink-0 items-center gap-1">
           <DungeonStateButton
-            active={state === "done"}
+            active={displayState === "done"}
             tone="emerald"
             label="Fait"
             ariaLabel={`Marquer ${bossDisplayName} comme fait dans cette quête`}
@@ -355,7 +360,7 @@ function DungeonRow({
             onClick={() => onSet(state === "done" ? null : "done")}
           />
           <DungeonStateButton
-            active={state === "todo"}
+            active={displayState === "todo"}
             tone="amber"
             label="À faire"
             ariaLabel={`Marquer ${bossDisplayName} comme à faire dans cette quête`}

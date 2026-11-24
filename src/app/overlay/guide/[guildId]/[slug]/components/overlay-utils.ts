@@ -111,7 +111,6 @@ export const TAG_CONDITION_TYPES = [
   "sort",
   "alignReq",
   "alignOrderReq",
-  "prereq_text",
 ] as const;
 
 /** Tags « succès lié » — un succès officiel, ni une condition ni un outil. */
@@ -120,6 +119,7 @@ export const TAG_SUCCESS_TYPES = ["succes"] as const;
 /** Tags cachés / techniques — jamais affichés (`npc` a son affichage dédié `NpcBadge`). */
 export const TAG_HIDDEN_TYPES = [
   "pos_tags",
+  "prereq_text",
   "tougli_box",
   "info_sequence",
   // Marqueur d'un bandeau de séquence Combat (22/11/2026) : il pilote le rendu du

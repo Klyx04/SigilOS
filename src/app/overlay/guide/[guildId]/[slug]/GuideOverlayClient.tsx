@@ -150,7 +150,7 @@ type Props = {
   guestStoragePrefix?: string;
   /**
    * Faux quand la fenêtre est la popup `about:blank` de secours (navigateur sans
-   * Document PiP, ex. Opera GX) → bandeau "fenêtre non épinglée". Vrai par défaut
+   * Document PiP) → bandeau "fenêtre non épinglée". Vrai par défaut
    * (vraie PiP toujours-au-dessus, ou page overlay directe).
    */
   pinned?: boolean;

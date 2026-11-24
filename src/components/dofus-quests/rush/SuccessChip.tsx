@@ -555,8 +555,10 @@ function SuccessSheet({
                   {coveredPossessionCount > 0 && (
                     <p className="m-0 mt-1 text-[9px] text-muted-foreground">
                       {coveredPossessionCount} autre{coveredPossessionCount > 1 ? "s" : ""} objet
-                      {coveredPossessionCount > 1 ? "s" : ""} requis sont des ressources de quête,
-                      déjà listées dans le détail de leur quête.
+                      {coveredPossessionCount > 1 ? "s" : ""} requis{" "}
+                      {coveredPossessionCount > 1 ? "sont des ressources" : "est une ressource"} de
+                      quête, déjà {coveredPossessionCount > 1 ? "listées" : "listée"} dans le détail
+                      de {coveredPossessionCount > 1 ? "leur quête" : "sa quête"}.
                     </p>
                   )}
                 </section>
@@ -655,9 +657,13 @@ function SuccessSheet({
                         <p className="m-0 text-[9px] text-muted-foreground">
                           {validationPlan.coveredPossessionCount} objet
                           {validationPlan.coveredPossessionCount > 1 ? "s" : ""} requis{" "}
-                          {validationPlan.coveredPossessionCount > 1 ? "sont" : "est"} déjà des
-                          ressources de quête : pas de doublon, ils restent dans le détail de leur
-                          quête.
+                          {validationPlan.coveredPossessionCount > 1
+                            ? "sont déjà des ressources"
+                            : "est déjà une ressource"}{" "}
+                          de quête : pas de doublon,{" "}
+                          {validationPlan.coveredPossessionCount > 1 ? "ils restent" : "il reste"}{" "}
+                          dans le détail de{" "}
+                          {validationPlan.coveredPossessionCount > 1 ? "leur quête" : "sa quête"}.
                         </p>
                       )}
                       <div className="flex items-center gap-1.5 pt-0.5">

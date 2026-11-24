@@ -11,6 +11,11 @@
  * DRY-RUN par défaut. `--apply` écrit ; `--overwrite` remplace une saisie God existante
  * (sans lui, une séquence qui a déjà des `constraints` est laissée intacte).
  *
+ * `DATABASE_URL` est **obligatoire** : le script affiche la cible (host/base) et refuse
+ * tout repli silencieux vers une base locale/bêta. L'écriture n'est pas transactionnelle :
+ * en cas d'échec, relancer le même `--apply` (idempotent) ; un dump préalable reste la
+ * règle ops (`vps-ops`).
+ *
  *   npx -y tsx scripts/backfill-rush-constraints.ts
  *   npx -y tsx scripts/backfill-rush-constraints.ts --source src/temp/.../tougli-guide-details.json
  *   npx -y tsx scripts/backfill-rush-constraints.ts --apply
@@ -49,14 +54,23 @@ const cleanEnv = (value: string | undefined) =>
   value ? value.replace(/^['"]|['"]$/g, "").trim() : "";
 
 function connectionString(): string {
-  if (process.env.DATABASE_URL) return cleanEnv(process.env.DATABASE_URL);
-  const user = cleanEnv(process.env.POSTGRES_USER) || "sigiluser";
-  const password = encodeURIComponent(cleanEnv(process.env.POSTGRES_PASSWORD));
-  const database = cleanEnv(process.env.POSTGRES_DB) || "sigilos";
-  const host = process.env.DB_HOST || (process.env.NODE_ENV === "production" ? "db-beta" : "localhost");
-  const port = process.env.DB_PORT || "5432";
-  const scheme = "postgres" + "ql://";
-  return `${scheme}${encodeURIComponent(user)}:${password}@${host}:${port}/${database}?schema=public`;
+  const value = cleanEnv(process.env.DATABASE_URL);
+  if (!value) {
+    throw new Error(
+      "DATABASE_URL est requis — refus d'un repli silencieux vers une base locale ou bêta (fail-closed).",
+    );
+  }
+  return value;
+}
+
+/** Cible lisible (host/base), jamais le mot de passe. */
+function describeDatabase(url: string): string {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.hostname}:${parsed.port || "5432"}/${parsed.pathname.replace(/^\//, "")}`;
+  } catch {
+    return "URL illisible";
+  }
 }
 
 async function loadTougli(): Promise<unknown> {
@@ -67,6 +81,7 @@ async function loadTougli(): Promise<unknown> {
   const response = await fetch(API, {
     headers: { "User-Agent": "SigilOS/1.0 (+https://sigilos.fr)" },
     cache: "no-store",
+    signal: AbortSignal.timeout(15_000),
   });
   if (!response.ok) throw new Error(`Tougli a répondu ${response.status} — arrêt (fail-closed)`);
   return response.json();
@@ -136,7 +151,8 @@ async function main(): Promise<void> {
   const quests = readRoot(raw);
   const typeCounts = countObjectives(quests);
 
-  const pool = new Pool({ connectionString: connectionString() });
+  const dbUrl = connectionString();
+  const pool = new Pool({ connectionString: dbUrl });
   const db = new PrismaClient({ adapter: new PrismaPg(pool) });
 
   try {
@@ -170,14 +186,23 @@ async function main(): Promise<void> {
     }> = [];
     const issues = new Map<string, string[]>();
     let withoutQuest = 0;
+    let multipleQuestRefs = 0;
     let missingQuest = 0;
     let empty = 0;
     let existing = 0;
 
     for (const sequence of sequences) {
       const questIds = Array.isArray(sequence.questDbIds) ? sequence.questDbIds : [];
-      if (questIds.length !== 1) {
+      if (questIds.length === 0) {
         withoutQuest += 1;
+        continue;
+      }
+      if (questIds.length > 1) {
+        multipleQuestRefs += 1;
+        issues.set(
+          `séquence à plusieurs quêtes : ${sequence.subGuideName}`,
+          [...(issues.get(`séquence à plusieurs quêtes : ${sequence.subGuideName}`) ?? []), sequence.subGuideName],
+        );
         continue;
       }
       const quest = quests[String(questIds[0])];
@@ -228,6 +253,7 @@ async function main(): Promise<void> {
     const totalCombats = updates.reduce((sum, update) => sum + update.combats, 0);
 
     console.log(`[${apply ? "APPLY" : "DRY-RUN"}] Guide « ${guide.name} » — ${sequences.length} séquence(s)`);
+    console.log(`cible DB : ${describeDatabase(dbUrl)}`);
     console.log(`source : ${sourceArg ? path.resolve(sourceArg) : API}`);
     console.log(
       `type(s) Tougli : ${[...typeCounts.entries()]
@@ -236,7 +262,7 @@ async function main(): Promise<void> {
         .join(" · ")}`,
     );
     console.log(
-      `séquences : ${sequences.length} · avec une quête : ${sequences.length - withoutQuest} · sans quête : ${withoutQuest}`,
+      `séquences : ${sequences.length} · avec une quête : ${sequences.length - withoutQuest - multipleQuestRefs} · sans quête : ${withoutQuest} · plusieurs quêtes : ${multipleQuestRefs}`,
     );
     console.log(
       `résultat : ${updates.length} à écrire · ${multiCombats} multi-combats · ${totalCombats} combats · ${empty} vides · ${existing} déjà saisies · ${missingQuest} quêtes absentes`,
@@ -284,7 +310,7 @@ async function main(): Promise<void> {
                 ],
               }),
         },
-        data: { constraints: update.constraints as never },
+        data: { constraints: update.constraints as unknown as Prisma.InputJsonValue },
       });
       written += result.count;
     }

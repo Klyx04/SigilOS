@@ -99,8 +99,8 @@ function clip(value: string, max: number): string {
 
 function positiveInt(value: unknown, max: number): number | undefined {
   const number = Math.floor(Number(value));
-  if (!Number.isSafeInteger(number) || number <= 0) return undefined;
-  return Math.min(number, max);
+  if (!Number.isSafeInteger(number) || number <= 0 || number > max) return undefined;
+  return number;
 }
 
 function monsterImageUrl(id: unknown): string | undefined {
@@ -113,7 +113,7 @@ function mapMonster(raw: unknown, count: unknown): RushCombat["monsters"][number
   if (!isRecord(raw)) return null;
   const name = clip(readFrench(raw.name), 120);
   if (!name) return null;
-  const level = positiveInt(raw.level, 200);
+  const level = positiveInt(raw.level, 10_000);
   const health = positiveInt(raw.health, 999_999);
   return {
     name,
@@ -139,14 +139,6 @@ function mapCombat(raw: unknown): { combat: RushCombat | null; issue?: string } 
   return { combat: { mode, monsters } };
 }
 
-function combatSignature(combat: RushCombat): string {
-  return [
-    combat.mode,
-    combat.detail ?? "",
-    ...combat.monsters.map((monster) => `${monster.name}|${monster.count}|${monster.level ?? ""}`),
-  ].join("~");
-}
-
 /** « Entre 20h00 et 08h00 », « >20h00 (Contournable) », « Attendre 3 minutes ». */
 export function parseTougliHours(
   raw: string,
@@ -158,14 +150,23 @@ export function parseTougliHours(
     const minutes = Math.min(1440, Math.max(1, Number(wait[1])));
     return { schedule: { kind: "wait", minutes, npc: /pnj/i.test(text) } };
   }
-  const times = [...text.matchAll(/(\d{1,2})\s*h\s*(\d{2})/gi)]
+  const tokens = [...text.matchAll(/(\d{1,2})\s*h\s*(\d{2})?/gi)];
+  const times = tokens
     .map((match) => {
       const hours = Number(match[1]);
-      const minutes = Number(match[2]);
+      const minutes = match[2] === undefined ? 0 : Number(match[2]);
       if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
       return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
     })
     .filter((value): value is string => value !== null);
+  if (times.length !== tokens.length) {
+    // Un jeton `h` invalide (ex. 25h) ne doit pas produire une fenêtre partielle.
+    return { schedule: null, issue: `horaire ambigu « ${text} »` };
+  }
+  if (/entre/i.test(text) && times.length < 2) {
+    // « Entre 20h et … » sans second horaire lisible : le texte reste la vérité.
+    return { schedule: null, issue: `horaire incomplet « ${text} »` };
+  }
   if (times.length === 0) {
     // Jamais de faux « 1 minute » : le texte reste la vérité, en note.
     return { schedule: null, issue: `horaire non reconnu « ${text} »` };
@@ -181,9 +182,10 @@ export function parseTougliHours(
 }
 
 function jobLevel(detail: string): number | undefined {
+  // Seule une **égalité explicite** (« niveau 100 », « niv. 100 ») est fiable :
+  // « >80 » n'est pas « 80 » et ne doit pas être affiché comme tel.
   const explicit = detail.match(/(?:niveau|niv\.?)\s*(\d{1,3})/i);
-  const greater = detail.match(/>\s*(\d{1,3})/);
-  return positiveInt(explicit?.[1] ?? greater?.[1], 200);
+  return positiveInt(explicit?.[1], 200);
 }
 
 function playerCount(text: string): number | undefined {
@@ -245,7 +247,7 @@ function mapDungeonChoice(
         (isRecord(firstBoss) ? readFrench(firstBoss.name) : ""),
       120,
     );
-    const level = positiveInt(resolved?.level ?? row.level, 200);
+    const level = positiveInt(resolved?.level ?? row.level, 10_000);
     dungeons.push({
       ...(resolved?.id ? { id: resolved.id } : {}),
       name,
@@ -288,6 +290,9 @@ function addPlayerRole(
     issues.push(`rôle joueur ignoré (plafond ${MAX_ROLES}) : ${text}`);
     return previous ?? null;
   }
+  if (previous?.count !== undefined && count !== undefined && previous.count !== count) {
+    issues.push(`effectifs joueurs différents : ${previous.count} et ${count}`);
+  }
   roles.push({ kind: "free", text });
   const existingCount = previous?.count;
   return {
@@ -310,7 +315,6 @@ export function mapTougliQuestConstraints(
 ): TougliMappingResult {
   const issues: string[] = [];
   const combats: RushCombat[] = [];
-  const combatSeen = new Set<string>();
   const jobs: RushQuestConstraints["jobs"] = [];
   const jobSeen = new Set<string>();
   const spells: string[] = [];
@@ -354,13 +358,12 @@ export function mapTougliQuestConstraints(
           300,
         );
         const next: RushCombat = { ...combat, ...(detail ? { detail } : {}) };
-        const signature = combatSignature(next);
-        if (combatSeen.has(signature)) break;
+        // Aucune déduplication : deux combats identiques peuvent être deux étapes
+        // volontaires (le modèle v2 est « dans l'ordre du guide »).
         if (combats.length >= MAX_COMBATS) {
           issues.push(`combat ignoré (plafond ${MAX_COMBATS})`);
           break;
         }
-        combatSeen.add(signature);
         combats.push(next);
         break;
       }
@@ -376,7 +379,7 @@ export function mapTougliQuestConstraints(
             break;
           }
           bashSeen.add(key);
-          const level = positiveInt(isRecord(row) ? row.level : null, 200);
+          const level = positiveInt(isRecord(row) ? row.level : null, 10_000);
           bashMobs.push({
             name,
             ...(level !== undefined ? { level } : {}),
@@ -455,7 +458,10 @@ export function mapTougliQuestConstraints(
         const label = readFrench(payload.text) || "Outil";
         const url = typeof payload.url === "string" ? payload.url.trim() : "";
         if (!url) break;
-        pushUniqueNote(notes, `Outil : ${label} — ${url}`, issues);
+        const full = `Outil : ${label} — ${url}`;
+        // Une URL tronquée serait un lien cassé : on garde l'URL seule si le libellé
+        // fait dépasser la borne de 200 caractères.
+        pushUniqueNote(notes, full.length <= 200 ? full : url, issues);
         break;
       }
       case "dungeonChoice": {
@@ -492,6 +498,7 @@ export function mapTougliQuestConstraints(
         break;
       }
       default:
+        if (type) issues.push(`objectif non modélisé : ${type}`);
         break;
     }
   }

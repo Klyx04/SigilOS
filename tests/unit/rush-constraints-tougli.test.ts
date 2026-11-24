@@ -50,6 +50,24 @@ describe("parseTougliHours", () => {
     });
   });
 
+  it("accepte les heures sans minutes", () => {
+    expect(parseTougliHours("Entre 20h et 08h00")).toEqual({
+      schedule: { kind: "window", from: "20:00", to: "08:00" },
+    });
+    expect(parseTougliHours("12h30 – 13h")).toEqual({
+      schedule: { kind: "window", from: "12:30", to: "13:00" },
+    });
+  });
+
+  it("refuse une fenêtre incomplète ou invalide au lieu de l'inventer", () => {
+    const incomplete = parseTougliHours("Entre 20h et plus tard");
+    expect(incomplete?.schedule).toBeNull();
+    expect(incomplete?.issue).toContain("incomplet");
+    const invalid = parseTougliHours("Entre 25h00 et 08h00");
+    expect(invalid?.schedule).toBeNull();
+    expect(invalid?.issue).toContain("ambigu");
+  });
+
   it("structure une attente en minutes", () => {
     expect(parseTougliHours("Attendre 3 minutes")).toEqual({
       schedule: { kind: "wait", minutes: 3, npc: false },
@@ -204,7 +222,29 @@ describe("mapTougliQuestConstraints", () => {
     expect(issues.join(" ")).toContain("Maïmane");
   });
 
-  it("dédoublonne combats, notes, sorts et monstres", () => {
+  it("conserve deux combats identiques dans l'ordre, sans les fusionner", () => {
+    const { constraints } = mapTougliQuestConstraints({
+      objectives: [combat("solo", [monster()]), combat("solo", [monster()])],
+    });
+    expect(constraints.combats).toHaveLength(2);
+  });
+
+  it("conserve un niveau de monstre au-delà de 200", () => {
+    const { constraints } = mapTougliQuestConstraints({
+      objectives: [
+        combat("solo", [
+          { count: 1, monster: monster({ name: { fr: "Gros Med" }, level: 800, health: 200000 }) },
+        ]),
+      ],
+    });
+    expect(constraints.combats?.[0]?.monsters[0]).toMatchObject({
+      name: "Gros Med",
+      level: 800,
+      health: 200000,
+    });
+  });
+
+  it("dédoublonne notes, sorts et monstres (mais pas les combats)", () => {
     const { constraints } = mapTougliQuestConstraints({
       objectives: [
         combat("solo", [monster()]),
@@ -216,7 +256,7 @@ describe("mapTougliQuestConstraints", () => {
         { type: "bashMobs", payload: [monster(), monster()] },
       ],
     });
-    expect(constraints.combats).toHaveLength(1);
+    expect(constraints.combats).toHaveLength(2);
     expect(constraints.notes).toEqual(["Note unique"]);
     expect(constraints.spells).toEqual(["Capture d'âmes"]);
     expect(constraints.bashMobs).toHaveLength(1);

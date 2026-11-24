@@ -92,8 +92,9 @@ export function RushOverlayDungeonPopover({
     },
     [openProp, onOpenChange]
   );
-  const [position, setPosition] = useState({ top: 0, left: 0 });
+  const [position, setPosition] = useState({ top: 0, left: 0, maxHeight: 320 });
   const triggerRef = useRef<HTMLSpanElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   // Document (et fenêtre) du nœud : ceux de la PiP quand l'overlay y tourne.
   const portalDoc = triggerRef.current?.ownerDocument ?? null;
   const portalWin = portalDoc?.defaultView ?? null;
@@ -104,12 +105,20 @@ export function RushOverlayDungeonPopover({
     const win = el.ownerDocument.defaultView ?? window;
     const rect = el.getBoundingClientRect();
     const width = 320;
-    // En-tête + une ligne par donjon (vignette 36 px + marges).
-    const height = 92 + dungeons.length * 56;
-    const below = rect.bottom + 8;
-    const top = below + height > win.innerHeight ? Math.max(8, rect.top - height - 8) : below;
-    const left = Math.max(8, Math.min(rect.left, win.innerWidth - width - 8));
-    setPosition({ top, left });
+    const margin = 8;
+    // En-tête + une ligne par donjon (vignette 36 px + marges). La hauteur est
+    // PLAFONNÉE au viewport : « Les totems de Maïmane » liste ~30 donjons et le
+    // panneau sortait de la PiP sans aucune barre de défilement (mesure 24/11/2026).
+    const estimated = 92 + dungeons.length * 56;
+    const maxHeight = Math.max(180, win.innerHeight - margin * 2);
+    const height = Math.min(estimated, maxHeight);
+    const below = rect.bottom + margin;
+    const top =
+      below + height > win.innerHeight - margin
+        ? Math.max(margin, Math.min(rect.top - height - margin, win.innerHeight - height - margin))
+        : below;
+    const left = Math.max(margin, Math.min(rect.left, win.innerWidth - width - margin));
+    setPosition({ top, left, maxHeight });
   }, [dungeons.length]);
 
   const open = useCallback(() => {
@@ -132,7 +141,14 @@ export function RushOverlayDungeonPopover({
 
   useEffect(() => {
     if (!isOpen) return;
-    const handler = () => updatePosition();
+    // Le défilement INTERNE de la liste ne doit pas recalculer la position : sinon
+    // chaque pixel de scroll re-rend les ~30 lignes de Maïmane (mesure 24/11/2026).
+    const handler = (event?: Event) => {
+      const target = event?.target as Node | null;
+      // `resize` a pour cible `window` (pas un Node) : `nodeType` évite un TypeError.
+      if (target && target.nodeType && panelRef.current?.contains(target)) return;
+      updatePosition();
+    };
     const win = portalWin ?? window;
     win.addEventListener("scroll", handler, true);
     win.addEventListener("resize", handler);
@@ -159,11 +175,20 @@ export function RushOverlayDungeonPopover({
 
       {isOpen && portalDoc && createPortal(
         <div
+          ref={panelRef}
           className={cn("rush-carnet-theme fixed z-[999999] pointer-events-auto", theme === "light" && "light")}
           data-theme={theme}
-          style={{ top: position.top, left: position.left, width: 320 }}
+          style={{
+            top: position.top,
+            left: position.left,
+            width: 320,
+            maxHeight: position.maxHeight,
+          }}
         >
-          <div className="rush-carnet rounded-[6px] bg-elevated p-1.5">
+          <div
+            className="rush-carnet overlay-scroll overflow-y-auto overscroll-contain rounded-[6px] bg-elevated p-1.5"
+            style={{ maxHeight: position.maxHeight }}
+          >
             <RushQuestDungeonsPanel
               seq={seq}
               guildId={guildId}

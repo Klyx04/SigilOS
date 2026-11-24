@@ -6,7 +6,10 @@ import { X, MapPin, ExternalLink } from "lucide-react";
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
 import { RushOverlayDungeonCard } from "./RushOverlayDungeonCard";
 import { QuestItemResourceGrid } from "@/components/dofus-quests/rush/QuestItemResourceGrid";
-import { SuccessChip } from "@/components/dofus-quests/rush/SuccessChip";
+import {
+  SuccessChip,
+  type SuccessValidationContext,
+} from "@/components/dofus-quests/rush/SuccessChip";
 import { RushOverlayTagSection } from "./RushOverlayTagSection";
 import type { RushTagViewer } from "@/components/dofus-quests/rush/RushTagBadge";
 import { RushCoordinateChip } from "@/components/dofus-quests/rush/RushCoordinateChip";
@@ -64,6 +67,12 @@ interface RushOverlayQuestDetailModalProps {
   viewer?: RushTagViewer;
   /** Quêtes du guide (id → nom + état) pour la fiche d'un succès. */
   guideQuests?: RushGuideQuestRef[];
+  /** Blocs du guide : aperçu de la cascade « Valider les prérequis ». */
+  guideMilestones?: RushMilestone[];
+  /** Contexte d'écriture du succès ; absent ⇒ lecture seule (invité / aperçu). */
+  successValidation?: SuccessValidationContext;
+  /** Saut + surbrillance vers une quête du guide (fourni par la surface). */
+  onGoToQuest?: (sequenceId: string) => void;
 }
 
 /**
@@ -100,6 +109,9 @@ export function RushOverlayQuestDetailModal({
   onOpenAchievements,
   viewer = "preview",
   guideQuests = [],
+  guideMilestones = [],
+  successValidation,
+  onGoToQuest,
 }: RushOverlayQuestDetailModalProps) {
   const tags = useMemo(() => classifyTags(seq.activityTags), [seq.activityTags]);
   const successes = useMemo(() => getSequenceSuccesses(seq), [seq]);
@@ -338,6 +350,9 @@ export function RushOverlayQuestDetailModal({
                       key={success.id ?? success.name}
                       successes={[success]}
                       quests={guideQuests}
+                      milestones={guideMilestones}
+                      validation={successValidation}
+                      onGoToQuest={onGoToQuest}
                     />
                   ))}
                 </div>

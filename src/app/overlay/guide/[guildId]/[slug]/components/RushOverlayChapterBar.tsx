@@ -163,7 +163,7 @@ export function RushOverlayChapterBar({
                 : "Réinitialiser ce bloc"
             }
             className={cn(
-              "grid h-7 w-7 shrink-0 place-items-center rounded-[4px] border transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent",
+              "da-dock-reset grid h-7 w-7 shrink-0 place-items-center rounded-[4px] border transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent",
               resetArmed
                 ? "border-danger/60 text-danger"
                 : "border-border text-muted-foreground hover:border-danger/40 hover:text-danger",

@@ -849,6 +849,14 @@ details.da-conseil[open] .da-conseil-body {
   padding: .4rem .1rem .55rem .25rem;
 }
 
+/* Réinitialiser est une ICÔNE de 28 px, pas un déclencheur : sans `flex: none`,
+   `.da-dock button { flex: 1 }` l'étirait et poussait le titre au milieu de la
+   barre, en laissant un grand vide à droite (retour user du 24/11/2026). */
+.da-dock button.da-dock-reset {
+  flex: none;
+  padding: 0;
+}
+
 /* Compteur + chevron : un seul bloc collé à droite, insensible au passage du titre
    sur deux lignes (sinon le compteur glissait au milieu de la barre). */
 .da-dock .da-dock-trail {

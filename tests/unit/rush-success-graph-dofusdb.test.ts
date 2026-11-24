@@ -42,6 +42,7 @@ const payload = JSON.parse(
     criterion: string;
     level: number | null;
   }>;
+  items: Array<{ id: number; name: string; iconId: number | null }>;
 };
 
 const catalog: RushSuccessCatalog = new Map<number, RushSuccessCatalogRow>(
@@ -86,12 +87,27 @@ const input = {
 };
 
 describe("DofusDB — graphe réel", () => {
-  it("a bien les 2 777 succès et 1 984 quêtes, avec L'héritage 5933", () => {
+  it("a bien les 2 777 succès, 1 984 quêtes et 478 objets nommés", () => {
     expect(payload.achievements.length).toBe(2777);
     expect(payload.quests.length).toBe(1984);
+    expect(payload.items.length).toBe(478);
     const heritage = payload.achievements.find((row) => row.id === 5933);
     expect(heritage?.name).toBe("L'héritage de l'île brisée");
     expect(heritage?.successIds).toEqual([5925, 5928, 5931, 5932]);
+  });
+
+  it("nomme les possessions : les six Dofus et le Dom de Pin", () => {
+    const items = new Map(payload.items.map((row) => [row.id, row.name]));
+    expect(items.get(27803)).toBe("Dom de Pin");
+    const six = payload.achievements.find((row) => row.id === 1705);
+    expect((six?.itemIds ?? []).map((id) => items.get(id))).toEqual([
+      "Dofus Émeraude",
+      "Dofus Pourpre",
+      "Dofus Turquoise",
+      "Dofus Ocre",
+      "Dofus Ivoire",
+      "Dofus Ébène",
+    ]);
   });
 
   it("Six sur six garde ses 11 OA et ses 6 possessions", () => {

@@ -1104,6 +1104,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
             id,
             name: sequence.subGuideName || `Quête ${id}`,
             done: completedSeqIds.has(sequence.id),
+            sequenceId: sequence.id,
           });
         }
       }
@@ -3355,7 +3356,13 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                                       {/* Pastille Succès : le MÊME composant que le dashboard et
                                           l'overlay, dans le groupe des favicons comme l'interne. */}
                                       {!prereqLocked && (
-                                        <SuccessChip successes={getSequenceSuccesses(seq)} quests={guideQuests} compact />
+                                        <SuccessChip
+                                          successes={getSequenceSuccesses(seq)}
+                                          quests={guideQuests}
+                                          milestones={milestones}
+                                          onGoToQuest={scrollToStep}
+                                          compact
+                                        />
                                       )}
                                       {/* Soluce DofusPourLesNoobs — logo servi en local, aucune requête vers google.com/s2/favicons */}
                                       {!prereqLocked && (() => {

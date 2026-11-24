@@ -87,25 +87,24 @@ describe("missingRequiredDungeons — ce qui bloque vraiment", () => {
   });
 });
 
-describe("Overlay — verrou composé (prérequis ET donjons requis)", () => {
-  it("le verrou appelle la règle partagée des donjons manquants", () => {
+describe("Overlay — donjons manquants (affichage et pulse)", () => {
+  it("lit la règle partagée des donjons manquants, sans verrouiller la validation", () => {
     expect(codeOf(OVERLAY)).toMatch(/missingRequiredDungeons\(/);
   });
 
-  it("le verrou combine la règle PARTAGÉE des prérequis et les donjons manquants", () => {
+  it("le verrou ne combine QUE les prérequis ; les donjons restent un affichage", () => {
     // 18/11/2026 : le verrou ne recopie plus `refs.some(...)` — cette liste ne porte que
     // les tags ET et la chaîne des rangs, donc elle ignorait le **palier de cité** et les
     // groupes **« au choix »** (`prereq_expr`). On appelle la règle du serveur.
-    expect(codeOf(OVERLAY)).toMatch(
-      /locked:\s*isSequenceBlockedByPrereqs\([\s\S]{0,120}missingDungeons\.length > 0/
-    );
+    expect(codeOf(OVERLAY)).toMatch(/locked:\s*isSequenceBlockedByPrereqs\(/);
+    expect(codeOf(OVERLAY)).not.toMatch(/locked:[\s\S]{0,160}missingDungeons\.length > 0/);
   });
 
   it("les états de donjons sont chargés dès l'ouverture (pas de `lazy`)", () => {
     expect(codeOf(OVERLAY)).toMatch(/lazy:\s*false/);
   });
 
-  it("la ligne de quête nomme les donjons manquants et garde la coche désactivée", () => {
+  it("la ligne de quête nomme les donjons manquants (le verrou reste aux prérequis)", () => {
     const item = codeOf(ITEM);
     expect(item).toMatch(/missingDungeons/);
     expect(item).toMatch(/Donjons requis/);

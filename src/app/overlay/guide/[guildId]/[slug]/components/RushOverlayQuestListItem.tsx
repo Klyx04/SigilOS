@@ -49,7 +49,7 @@ function MissingDungeonThumb({
       onClick={onOpen}
       title={`Cocher : ${name}`}
       aria-label={`Ouvrir ${name} dans les donjons de cette quête`}
-      className="rounded-[3px] border border-danger/40 p-0.5 transition-colors hover:bg-danger/10 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-danger"
+      className="rounded-[3px] border border-danger/40 p-0.5 ring-2 ring-danger/50 transition-colors animate-pulse motion-reduce:animate-none hover:bg-danger/10 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-danger"
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
@@ -387,7 +387,15 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
                       : undefined
                   }
                 >
-                  <span className={cn(chip, "border-warning/40 text-warning")} title="Donjon requis — cliquer pour cocher fait / à faire">
+                  <span
+                    className={cn(
+                      chip,
+                      "border-warning/40 text-warning",
+                      missingDungeons.length > 0 &&
+                        "ring-2 ring-danger/60 animate-pulse motion-reduce:animate-none",
+                    )}
+                    title="Donjon requis — cliquer pour cocher fait / à faire"
+                  >
                     {/* Picto du donjon : l'asset du jeu, pas un glyphe d'interface. Le
                         compteur dit combien de donjons la quête demande (×1, ×2…). */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}

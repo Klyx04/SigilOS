@@ -637,7 +637,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
                 aria-expanded={dungeonsOpen}
                 aria-label={`Donjons de cette quête (${doneDungeonBlocks}/${dungeonBlocks} exigences faites)`}
                 title="Donjons de cette quête — cliquer pour cocher fait / à faire"
-                className="inline-flex shrink-0 items-center gap-1 rounded-[3px] px-1 py-0.5 text-[11px] font-semibold text-warning transition-colors hover:bg-warning/10"
+                className={`inline-flex shrink-0 items-center gap-1 rounded-[3px] px-1 py-0.5 text-[11px] font-semibold text-warning transition-colors hover:bg-warning/10 ${doneDungeonBlocks < dungeonBlocks ? "ring-2 ring-danger/60 animate-pulse motion-reduce:animate-none" : ""}`}
               >
                 {/* Picto RÉEL du jeu (même asset que le tag « Donjon requis »). */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1620,8 +1620,8 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
       closeOverlay();
       return;
     }
-    // Document Picture-in-Picture (Chrome/Edge/Brave/Firefox 151+), sinon popup
-    // vierge (ex. Opera GX, qui n'expose pas l'API malgré son Chromium récent).
+    // Document Picture-in-Picture (Chrome/Edge/Opera 102+/Firefox 151+), sinon popup
+    // vierge (navigateur sans API ou `requestWindow` refusé).
     let win: Window | null = null;
     let pinned = false;
     if (isDocumentPipSupported()) {
@@ -1633,7 +1633,10 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
       }
     }
     if (!win) win = openFallbackPopup({ width: 470, height: 640 });
-    if (!win) return;
+    if (!win) {
+      toast.error("Impossible d'ouvrir l'overlay. Autorise les popups pour ce site.");
+      return;
+    }
     // Fermeture native de la fenêtre (bouton PiP / croix) → on nettoie l'état.
     win.addEventListener("pagehide", () => useRushOverlayStore.getState().onWindowGone());
     openOverlay(win, { ...overlayData, pinned });

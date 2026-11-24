@@ -93,7 +93,6 @@ import { RushOverlayAlignmentModal } from "./components/RushOverlayAlignmentModa
 import type { AlignmentMember } from "@/components/dofus-quests/rush/GuildAlignmentPanel";
 import { buildOcrePlan, type OcrePanelData } from "@/lib/ocre-soul-stones";
 import { RushOverlayTutorialModal } from "./components/RushOverlayTutorialModal";
-import { OverlayPinNotice } from "@/components/overlay-pin-notice";
 import { dofusMetaIndex, type RushDofusMeta } from "@/lib/rush-dofus-meta";
 
 // Dofus defs pour récupération des visuels d'œufs — SOURCE UNIQUE
@@ -150,7 +149,7 @@ type Props = {
   guestStoragePrefix?: string;
   /**
    * Faux quand la fenêtre est la popup `about:blank` de secours (navigateur sans
-   * Document PiP, ex. Opera GX) → bandeau "fenêtre non épinglée". Vrai par défaut
+   * Document PiP) → bandeau "fenêtre non épinglée". Vrai par défaut
    * (vraie PiP toujours-au-dessus, ou page overlay directe).
    */
   pinned?: boolean;
@@ -1800,6 +1799,7 @@ export default function GuideOverlayClient({
       /* La PiP est la surface « pip » : la compression verticale et les règles
          de fenêtre s'y accrochent sans dépendre de la qualité. */
       data-host="pip"
+      data-pinned={pinned ? "true" : "false"}
       /* F7 (chantier 4) — la PiP flotte AU-DESSUS du jeu : `data-quality="low"` coupe le grain
          et les bords « rough » (règle `[data-quality="low"]` de `da-wakfu.css`, déjà écrite
          mais jamais appliquée ici). Le guide plein écran garde `high` : la gouache reste sa
@@ -1818,7 +1818,8 @@ export default function GuideOverlayClient({
       <span aria-hidden="true" className="rush-carnet-frame pointer-events-none absolute inset-0 border border-border-strong/60" />
 
       {/* Navigateur sans Document PiP (ex. Opera GX) : la fenêtre n'est pas épinglée */}
-      {!pinned && <OverlayPinNotice />}
+      {/* Le bandeau « non épinglée » n'est plus affiché dans le guide Rush : il reste
+          dans les overlays Raid/Boss. La fenêtre simple est signalée par `data-pinned`. */}
 
           {/* ══ HEADER FIXE ══ */}
           <RushOverlayHeader

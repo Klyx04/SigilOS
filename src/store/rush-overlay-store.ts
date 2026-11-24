@@ -25,8 +25,8 @@ export interface RushOverlayPayload {
   character: { pseudo: string; classe: string | null; isMain: boolean };
   /**
    * Vrai si la fenêtre est une vraie Document PiP (toujours-au-dessus).
-   * Faux si on est tombé sur la popup `about:blank` de secours (ex. Opera GX,
-   * qui n'expose pas l'API) → l'overlay affiche un bandeau d'avertissement.
+   * Faux si on est tombé sur la popup `about:blank` de secours (navigateur sans
+   * Document PiP) → l'overlay affiche un bandeau d'avertissement.
    */
   pinned: boolean;
   /**

@@ -43,8 +43,8 @@ export function useBossOverlay(guildId: string) {
       let newWin: Window | null = null;
       let pinned = false;
 
-      // Document PiP si supporté (Chrome/Edge/Brave/Firefox 151+), sinon popup
-      // vierge (ex. Opera GX, qui n'expose pas l'API malgré son Chromium récent).
+      // Document PiP si supporté (Chrome/Edge/Opera 102+/Firefox 151+), sinon popup
+      // vierge (certains navigateurs n'exposent pas l'API).
       if (isDocumentPipSupported()) {
         try {
           newWin = await openPipWindow({

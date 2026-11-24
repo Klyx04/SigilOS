@@ -36,6 +36,12 @@ export function RushPortrait({
       alt={alt ?? ""}
       loading="lazy"
       onError={() => setFailed(true)}
+      onLoad={(event) => {
+        // Le proxy renvoie un PNG transparent 1×1 quand l'asset est introuvable :
+        // il « charge » sans erreur et laisse un cadre vide. Un vrai portrait fait
+        // au moins quelques pixels — sinon on bascule sur le picto de repli.
+        if (event.currentTarget.naturalWidth <= 2) setFailed(true);
+      }}
       className={cn("h-8 w-8 shrink-0 object-contain", className)}
     />
   );

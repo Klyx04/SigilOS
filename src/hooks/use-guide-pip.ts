@@ -6,7 +6,7 @@ type DocumentPip = {
   requestWindow: (options?: { width?: number; height?: number }) => Promise<Window>;
 };
 
-/** Vrai si le navigateur supporte Document Picture-in-Picture (Chrome/Edge). */
+/** Vrai si le navigateur expose Document Picture-in-Picture (Chrome/Edge/Opera 102+/Firefox 151+). */
 export function isDocumentPipSupported(): boolean {
   return typeof window !== "undefined" && "documentPictureInPicture" in window;
 }
@@ -18,6 +18,7 @@ export function isDocumentPipSupported(): boolean {
 export function preparePipDocument(win: Window): Document {
   const doc = win.document as Document;
   if (doc.documentElement) {
+    doc.title = "SigilOS — Overlay";
     doc.documentElement.style.height = "100%";
     doc.documentElement.style.margin = "0";
     doc.documentElement.style.padding = "0";
@@ -66,9 +67,28 @@ export function preparePipDocument(win: Window): Document {
 /** Ouvre une fenêtre PiP via `requestWindow` et la prépare. Retourne null si non supporté. */
 export async function openPipWindow(options?: { width?: number; height?: number }): Promise<Window | null> {
   const pip = (window as unknown as { documentPictureInPicture?: DocumentPip }).documentPictureInPicture;
-  if (!pip) return null;
-  const win = await pip.requestWindow(options);
-  preparePipDocument(win);
+  if (!pip) {
+    console.info("[SigilOS] Document PiP indisponible — ouverture en fenêtre simple.");
+    return null;
+  }
+  let win: Window;
+  try {
+    win = await pip.requestWindow(options);
+  } catch (error) {
+    // Certains navigateurs exposent l'API mais refusent `requestWindow` : on rend
+    // `null` pour que l'appelant bascule sur la popup de secours, au lieu de laisser
+    // une promesse rejetée tuer le clic. Le log permet de diagnostiquer (DevTools).
+    console.warn("[SigilOS] Document PiP refusé — fenêtre simple.", error);
+    return null;
+  }
+  // La fenêtre PiP est OUVERTE : une erreur de préparation (styles, head) ne doit pas
+  // la jeter et déclencher un fallback popup. On garde la PiP, quitte à ce qu'elle
+  // soit moins habillée.
+  try {
+    preparePipDocument(win);
+  } catch (error) {
+    console.warn("[SigilOS] Préparation de la fenêtre PiP incomplète.", error);
+  }
   return win;
 }
 

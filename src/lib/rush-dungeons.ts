@@ -283,6 +283,17 @@ export function occurrenceState(
 }
 
 /**
+ * État **affiché** d'un donjon : l'absence de décision se lit « À faire ».
+ * Ce n'est jamais une écriture — `doneDungeonKeysForSequence` ne compte que `done`,
+ * donc le verrou de validation reste inchangé.
+ */
+export function dungeonDisplayState(
+  state: RushDungeonState | null | undefined,
+): RushDungeonState {
+  return state === "done" ? "done" : "todo";
+}
+
+/**
  * Clés des donjons **faits** pour UNE quête — c'est ce que le verrou de validation
  * consomme (`isSequenceBlockedByDungeons`).
  */

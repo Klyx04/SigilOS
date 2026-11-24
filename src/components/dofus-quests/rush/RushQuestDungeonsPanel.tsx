@@ -84,6 +84,8 @@ export function RushQuestDungeonsPanel({
       aria-label="Donjons de cette quête"
       className={cn(
         "rounded-[4px] border border-border bg-surface p-2.5",
+        progress.missingBlocks > 0 &&
+          "ring-2 ring-danger/60 animate-pulse motion-reduce:animate-none",
         className
       )}
     >

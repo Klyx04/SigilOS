@@ -131,6 +131,8 @@ describe("Badge donjon — compteur, picto du jeu, popover branchée", () => {
     expect(pop).toMatch(/win\.innerHeight - margin \* 2/);
     expect(pop).toMatch(/overflow-y-auto/);
     expect(pop).toMatch(/overscroll-contain/);
+    // Scrollbar visible dans la PiP (le défaut peut être invisible au survol).
+    expect(pop).toMatch(/overlay-scroll/);
   });
 
   it("la popover se monte dans le document DU NŒUD (fenêtre PiP), jamais dans la page principale", () => {

@@ -186,7 +186,7 @@ export function RushOverlayDungeonPopover({
           }}
         >
           <div
-            className="rush-carnet overflow-y-auto overscroll-contain rounded-[6px] bg-elevated p-1.5"
+            className="rush-carnet overlay-scroll overflow-y-auto overscroll-contain rounded-[6px] bg-elevated p-1.5"
             style={{ maxHeight: position.maxHeight }}
           >
             <RushQuestDungeonsPanel

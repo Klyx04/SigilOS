@@ -10,13 +10,16 @@ import { RushOverlayMemberBubbles, type OverlayBubbleMember } from "./RushOverla
 import { RushOverlayDungeonPopover } from "./RushOverlayDungeonPopover";
 import { safeExternalUrl, safeImageUrl } from "@/lib/security";
 import { resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, getAlignmentSet, getSequenceSuccesses, type RushGuideQuestRef } from "@/lib/rush-guide-utils";
-import { SuccessChip } from "@/components/dofus-quests/rush/SuccessChip";
+import {
+  SuccessChip,
+  type SuccessValidationContext,
+} from "@/components/dofus-quests/rush/SuccessChip";
 import { NpcBadge } from "@/components/dofus-quests/rush/NpcBadge";
 import { RushAlignmentBadge } from "@/components/dofus-quests/rush/RushAlignmentBadge";
 import { RushPrereqChoiceHint } from "@/components/dofus-quests/rush/RushPrereqChoiceHint";
 import type { RushPrereqChoiceGroup } from "@/lib/rush-prereq-expr";
 import type { OverlayJumpOrigin } from "@/lib/rush-overlay-jump";
-import type { RushSequence } from "@/types/rush-guide-types";
+import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
 import type {
   RushDungeonMemberState,
   RushDungeonState,
@@ -87,6 +90,12 @@ interface RushOverlayQuestListItemProps {
   isLocked?: boolean;
   /** Les quêtes du guide (id → nom + état) : la fiche d'un succès les liste. */
   guideQuests?: RushGuideQuestRef[];
+  /** Blocs du guide : aperçu de la cascade « Valider les prérequis ». */
+  guideMilestones?: RushMilestone[];
+  /** Contexte d'écriture du succès ; absent ⇒ lecture seule (invité). */
+  successValidation?: SuccessValidationContext;
+  /** Saut + surbrillance vers une quête du guide (fourni par la surface). */
+  onGoToQuest?: (sequenceId: string) => void;
   /** Bloc de la ligne : origine du retour après un saut vers un prérequis. */
   milestoneId?: string;
   /** Quêtes prérequis (cliquables pour y sauter) */
@@ -148,6 +157,9 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
   bookmarkers = [],
   isLocked = false,
   guideQuests = [],
+  guideMilestones = [],
+  successValidation,
+  onGoToQuest,
   milestoneId: blockId,
   prereqs = [],
   missingDungeons = [],
@@ -318,7 +330,15 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
           {/* 2e ligne : indicateurs (chips harmonisés) — toute la largeur de la ligne */}
           {(parsedCoord || hasDungeon || bookmarkers.length > 0 || alignmentSet || successes.length > 0) && (
             <div className="flex flex-wrap items-center gap-1">
-              {successes.length > 0 && <SuccessChip successes={successes} quests={guideQuests} />}
+              {successes.length > 0 && (
+                <SuccessChip
+                  successes={successes}
+                  quests={guideQuests}
+                  milestones={guideMilestones}
+                  validation={successValidation}
+                  onGoToQuest={onGoToQuest}
+                />
+              )}
               {alignmentSet && alignLabel && (
                 <span className={chip} title={`Quête d'alignement → ${alignLabel}`}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}

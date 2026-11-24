@@ -6,6 +6,15 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 24/11/2026 (suite 68) — **Rush : graphe 2c-2 (cascade, quêtes cliquables, possessions, overlay)** — branche `feat/rush-success-graph-2c2-2026-11-24`
+
+> **Demande user (verbatim)** : « enchaine 2c2 » · « ça veut dire quoi Possessions : 10 objets à avoir » · « les quêtes pourraient être cliquables vers leur quête non ? » · « l'overlay pk on casse le bloc de droite et on laisse un gros vide avec le cercle de validation d'un bloc et son bouton reset ? » · « 0 scroll dans le détail des dj de Totem de Maimane côté overlay » · « enchaine tout ».
+> **Mesuré** : DofusDB nomme **478 objets** (`need.items`/`PO=`) : Six sur six = les **six Dofus**, Dom de Pin = **Dom de Pin** (27803) ; le libellé « 10 objets » ne disait rien. L'overlay étirait le bouton **Réinitialiser** (`.da-dock button { flex: 1 }` → 28 px devenus une zone vide). La popover donjons calculait `92 + N × 56` **sans plafond** : ~30 donjons de Maïmane sortaient de la PiP, aucun scroll.
+> **Fait** : `rush-success-validation` (règle pure) : blocs, quêtes cibles du guide, **prérequis de route** ajoutés par la cascade, quêtes hors guide, possessions · fiche `SuccessChip` : **objets à posséder nommés** et **dédupliqués** (un `need.items` déjà listé dans les ressources d'une quête n'est pas répété — retour user sur 5932), bouton **« Valider les prérequis »** avec **aperçu** puis écriture **serveur** par bloc (`toggleMilestoneProgress`, périmètre `scopeSeqIds`, donjons/ressources/cascade) · quêtes du guide **cliquables** (saut + anneau) sur dashboard / overlay / public, hors-guide sans cible · overlay : Réinitialiser non étiré (`da-dock-reset`), popover donjons plafonnée au viewport avec `overflow-y-auto` (scroll interne ignoré par le recalcul de position) · 478 noms d'objets dans `success-graph.json` (`--check` couvre `items`) · aucune migration.
+> **Preuves** : **8 432 tests ✅** · `tsc` 0 · `lint` 0 erreur · 13 tests `rush-success-validation` (dont seed réel : les 3 Qf de 1705, les six Dofus, déduplication des ressources de quête, périmètre même bloc et cascade inter-blocs) · `--check` = aucun écart · tests source : reset non étiré, popover plafonnée.
+> **Reste** : contrôle hebdo VPS (`--check` + alerte Discord ops/Sentry + changelog membres) en phase 4 · phases 3/4/5 · redéployer la bêta et vérifier les fiches (Six sur six, Dom de Pin, Maïmane).
+> **Rotation** : bloc « suite 62 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
 ## 📝 Session 24/11/2026 (suite 67) — **Rush : graphe DofusDB 2c-1 (données + fiche)** — branche `feat/rush-success-graph-2c-2026-11-24`
 
 > **Demande user (verbatim)** : « et dofusdb peut aider ? » puis « vulgarise un peu stp voir comment on peut faire le mieux possible » et « reprend ».
@@ -53,18 +62,3 @@
 > **Preuves** : PR **#1517** mergée et PR **#1518** (correctifs de revue + noms/classes) · **8 372 tests** · `tsc` 0 · `lint` 0 erreur (7 795 warnings préexistants) · aucune migration.
 > **Reste** : **prod** : import Tougli puis scripts (6 quêtes + 37 arêtes + 626), release `main` pour les nouvelles fiches UI · **contrôle visuel bêta** · positions 894/710/711/1939/626 · perf T-6/G6.
 > **Rotation** : bloc « suite 57 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-## 📝 Session 23/11/2026 (suite 62) — **Harnais : sortie de Cline terminée** — branche `refactor/harnais-sortie-cline-2026-11-23`
-
-> **Demande user (verbatim)** : « PR 1 puis PR 2 d'affilée » puis « feu vert ».
-> **Mesuré** : la jonction `.cline/skills` de la PR 1 a cassé un `git switch` vers un commit antérieur — git a restauré `.cline/skills/*` sous la jonction en supprimant la nouvelle source ; réparé par `git restore`. Les 3 hooks `.ps1` coûtaient 22 s de `harness-config` pour une politique déjà exprimable par `opencode.json`.
-> **Fait** : PR 1 **#1510** (source `.agents/skills`, `harness:links` idempotent + `--check`, CI, 4 tests repointés) · PR 2 (règles → `docs/agents/rules`, hooks supprimés, `.clineignore` supprimé, lien `.cline/skills` retiré, écriture `.env` par commande et `git push --force`/`-f` en `deny`) · test des garde-fous par **matrice de commandes** (dernière règle gagnante) · script `harness:links` testé (dossier vide/plein, `--check`).
-> **Preuves** : **809 fichiers / 8 346 tests ✅** · `harness-config` 16/16 · `harness:links` 1/1 + `--check` · export sans lien → recréé, 12 skills · `tsc` 0 · `lint` 0 erreur · CI #1510 verte · relecture `reviewer` : 1 bloquant + 3 importants corrigés.
-> **Reste** : Cline désinstallé et `~/.cline` supprimé (1,27 Go libérés) · permissions rechargées **sans redémarrage** (config à chaud ; vérifié : écriture `.env` refusée).
-> **Suite (même session) — PR #1512** : `.github/pull_request_template.md` (6 sections) · règle « réussi si » dans `git-push.md` §8 et `AGENTS.md` §7.6 · garde `harness-config` 17/17.
-> **Suite 2 (même session) — PR #1513** : mutation testing Stryker **9.6** (pilote `rush-overlay-layout`, **18/18 mutants tués**, 23 s, hors CI) · `reviewer` borné (`node_modules` interdit, ~40 appels) après une revue à 6 min / 145 k tokens.
-> **Rotation** : bloc « suite 56 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-
-

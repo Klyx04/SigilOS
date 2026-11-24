@@ -68,7 +68,7 @@ describe("Succès — la MÊME pastille que le guide interne", () => {
         /import \{ SuccessChip \} from "@\/components\/dofus-quests\/rush\/SuccessChip"/
       );
       expect(code, `${name} ne la rend pas sur la quête`).toMatch(
-        /<SuccessChip successes=\{getSequenceSuccesses\(seq\)\} quests=\{guideQuests\}/
+        /<SuccessChip[\s\S]{0,220}?successes=\{getSequenceSuccesses\(seq\)\}[\s\S]{0,220}?quests=\{guideQuests\}/
       );
     }
   });

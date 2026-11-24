@@ -12,6 +12,8 @@ export type RushSuccessQuestRow = {
   name: string;
   done: boolean;
   inGuide: boolean;
+  /** Séquence du guide qui porte la quête (clic + validation) ; absente hors guide. */
+  sequenceId?: string;
 };
 
 function isNameMap(
@@ -83,6 +85,7 @@ export function buildSuccessQuestRows(
       name: ref?.name || nameOf(raw) || `Quête ${raw}`,
       done: ref?.done ?? false,
       inGuide: !!ref,
+      ...(ref?.sequenceId ? { sequenceId: ref.sequenceId } : {}),
     });
   }
   return rows;

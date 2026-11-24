@@ -2,7 +2,8 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Check, X } from "lucide-react";
+import { Check, ChevronRight, ShieldCheck, X } from "lucide-react";
+import { toast } from "sonner";
 import { useDaTheme } from "@/components/da/da-theme";
 import { daScopeProps } from "@/lib/da-scope";
 import type { RushGuideQuestRef, RushSuccessRef } from "@/lib/rush-guide-utils";
@@ -17,8 +18,14 @@ import {
   type RushSuccessMeta,
   type RushSuccessPrerequisite,
 } from "@/lib/rush-success-graph";
+import {
+  planSuccessValidation,
+  planSuccessValidationWrites,
+  successPossessionItems,
+} from "@/lib/rush-success-validation";
 import { questTypeIconPath } from "@/lib/quest-type-icon";
 import { cn } from "@/lib/utils";
+import type { RushMilestone } from "@/types/rush-guide-types";
 
 /**
  * Succès attaché à une quête — **pastille** dans la rangée de chips + **fiche** au clic.
@@ -27,8 +34,11 @@ import { cn } from "@/lib/utils";
  * fiche les liste avec leur état (« nom + état »). Coût en hauteur : **zéro** (une chip de plus,
  * à côté des coordonnées et des donjons).
  *
- * Les quêtes du succès sont lues dans `public/game-data/achievements.json` (chargé une fois,
- * mis en cache par le navigateur) puis nommées avec `quests` (la map de la surface).
+ * Les quêtes et possessions sont lues dans `public/game-data/success-graph.json` (instantané
+ * DofusDB, chargé une fois, mis en cache par le navigateur) puis nommées avec `quests` (la map
+ * de la surface). L'aperçu « Valider les prérequis » est calculé avec les règles **pures** du
+ * guide (`planPrerequisiteCascade`) ; l'écriture reste **serveur** (`toggleMilestoneProgress`,
+ * auth + RBAC + périmètre de bloc + donjons + ressources).
  */
 
 const ACHIEVEMENTS_URL = "/game-data/success-graph.json";
@@ -36,6 +46,7 @@ const SUCCESS_META_URL = "/game-data/rush-success-meta.json";
 const QUEST_NAMES_URL = "/game-data/quest-names.json";
 
 type QuestNames = Record<number, string>;
+type ItemNames = Record<number, string>;
 let questNamesPromise: Promise<QuestNames> | null = null;
 
 function loadQuestNames(): Promise<QuestNames> {
@@ -71,6 +82,7 @@ type AchievementCatalogIndex = {
   rows: Map<number, AchievementCatalogRow>;
   questCriteria: RushQuestCriteriaMap;
   questNames: Record<number, string>;
+  itemNames: ItemNames;
   generatedAt: string | null;
   meta: RushSuccessMeta;
   ok: boolean;
@@ -113,7 +125,8 @@ function loadAchievementQuests(): Promise<AchievementCatalogIndex> {
             itemIds?: number[];
             criterion?: string;
           }>;
-        } = ok ? await response.json() : { achievements: [], quests: [] };
+          items?: Array<{ id?: number; name?: string }>;
+        } = ok ? await response.json() : { achievements: [], quests: [], items: [] };
         const metaRaw = metaResponse?.ok ? await metaResponse.json().catch(() => null) : null;
         const meta = parseRushSuccessMeta(metaRaw);
 
@@ -152,12 +165,19 @@ function loadAchievementQuests(): Promise<AchievementCatalogIndex> {
           if (entry.name) questNames[row.id] = entry.name;
         }
 
+        const itemNames: ItemNames = {};
+        for (const row of data.items ?? []) {
+          if (row?.id == null || typeof row.name !== "string" || !row.name.trim()) continue;
+          itemNames[row.id] = row.name.trim();
+        }
+
         return {
           byId,
           byName,
           rows,
           questCriteria,
           questNames,
+          itemNames,
           generatedAt: typeof data.generatedAt === "string" ? data.generatedAt : null,
           meta,
           ok,
@@ -170,6 +190,7 @@ function loadAchievementQuests(): Promise<AchievementCatalogIndex> {
           rows: new Map<number, AchievementCatalogRow>(),
           questCriteria: new Map<number, RushQuestCriteria>(),
           questNames: {} as Record<number, string>,
+          itemNames: {} as ItemNames,
           generatedAt: null,
           meta: { overrides: {}, notes: {} },
           ok: false,
@@ -179,14 +200,36 @@ function loadAchievementQuests(): Promise<AchievementCatalogIndex> {
   return achievementsPromise;
 }
 
+/** Mise à jour locale après une validation réussie (une entrée par bloc). */
+export type SuccessValidationUpdate = {
+  milestoneId: string;
+  sequenceIds: string[];
+};
+
+/**
+ * Contexte d'écriture : absent ⇒ la fiche reste en **lecture seule** (guide public,
+ * invité). Le serveur re-vérifie tout ; ce contexte ne fait que rendre le bouton visible.
+ */
+export type SuccessValidationContext = {
+  guildId: string;
+  altPseudo?: string;
+  onValidated?: (updates: SuccessValidationUpdate[]) => void;
+};
+
 function SuccessSheet({
   success,
   quests,
+  milestones,
+  validation,
+  onGoToQuest,
   iconSrc,
   onClose,
 }: {
   success: RushSuccessRef;
   quests: RushGuideQuestRef[];
+  milestones: RushMilestone[];
+  validation?: SuccessValidationContext;
+  onGoToQuest?: (sequenceId: string) => void;
   iconSrc: string;
   onClose: () => void;
 }) {
@@ -198,6 +241,9 @@ function SuccessSheet({
   const [generatedAt, setGeneratedAt] = useState<string | null>(null);
   const [catalogOk, setCatalogOk] = useState<boolean | null>(null);
   const [names, setNames] = useState<QuestNames>({});
+  const [itemNames, setItemNames] = useState<ItemNames>({});
+  const [confirming, setConfirming] = useState(false);
+  const [validating, setValidating] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -249,6 +295,7 @@ function SuccessSheet({
         setQuestCriteria(map.questCriteria);
         setOverrides(map.meta.overrides);
         setNotes(map.meta.notes);
+        setItemNames(map.itemNames);
         setGeneratedAt(map.generatedAt);
         setEntry(
           map.byId.get(String(success.id)) ??
@@ -298,9 +345,115 @@ function SuccessSheet({
     }
     return out;
   }, [catalog, prerequisites, questCriteria, overrides, quests, names]);
-  const possessionCount = evaluation?.requiredItemIds.length ?? 0;
+
+  /**
+   * Possessions du succès **et de sa fermeture**, vérifiées contre les ressources de
+   * quête : « Chanvre », « Sauge »… sont déjà dans le détail de leur quête, pas répétés.
+   * Seuls les objets qui ne sont **pas** des ressources du guide restent ici
+   * (Dofus, Dom de Pin…).
+   */
+  const possessions = useMemo(() => {
+    if (!catalog || !entry) return null;
+    return successPossessionItems({
+      successId: entry.id,
+      catalog,
+      milestones,
+      questCriteria: questCriteria ?? undefined,
+      overrides,
+      itemNames,
+    });
+  }, [catalog, entry, milestones, questCriteria, overrides, itemNames]);
+  const possessionNames = possessions?.extras.map((item) => item.name) ?? [];
+  const coveredPossessionCount = possessions?.coveredCount ?? 0;
+
+  /** Aperçu pur : blocs, quêtes cibles, cascade de route, hors guide, possessions. */
+  const validationPlan = useMemo(() => {
+    if (!entry || !catalog || !validation) return null;
+    return planSuccessValidation({
+      successId: entry.id,
+      catalog,
+      questCriteria: questCriteria ?? undefined,
+      overrides,
+      guideQuests: quests,
+      milestones,
+      questNames: names,
+      itemNames,
+    });
+  }, [entry, catalog, validation, questCriteria, overrides, quests, milestones, names, itemNames]);
+
+  /** Écritures serveur : périmètre par bloc + séquences rangées sous leur propriétaire. */
+  const validationWrites = useMemo(
+    () => (validationPlan ? planSuccessValidationWrites(validationPlan, milestones) : []),
+    [validationPlan, milestones]
+  );
+
+  const runValidation = useCallback(async () => {
+    if (!validation || validationWrites.length === 0 || validating) return;
+    setValidating(true);
+    const applied: SuccessValidationUpdate[] = [];
+    const failures: string[] = [];
+    try {
+      const { toggleMilestoneProgress } = await import(
+        "@/server/actions/optimized-guide-actions"
+      );
+      for (const write of validationWrites) {
+        try {
+          const result = await toggleMilestoneProgress(
+            validation.guildId,
+            write.milestoneId,
+            true,
+            validation.altPseudo,
+            write.scopeSequenceIds
+          );
+          if (!result || !("success" in result) || !result.success) {
+            failures.push(`${write.title} : ${result && "error" in result ? result.error : "refus serveur"}`);
+            continue;
+          }
+          applied.push(...write.updates);
+        } catch {
+          failures.push(`${write.title} : erreur réseau`);
+        }
+      }
+    } finally {
+      setValidating(false);
+    }
+
+    if (applied.length > 0) {
+      // Un même bloc peut être écrit par sa propre cible ET par la cascade d'un autre :
+      // on fusionne avant de rendre la main à la surface (pas de doublon de compteur).
+      const merged = new Map<string, string[]>();
+      for (const update of applied) {
+        const set = new Set(merged.get(update.milestoneId) ?? []);
+        for (const id of update.sequenceIds) set.add(id);
+        merged.set(update.milestoneId, [...set]);
+      }
+      const updates = [...merged].map(([milestoneId, sequenceIds]) => ({
+        milestoneId,
+        sequenceIds,
+      }));
+      const count = updates.reduce((sum, update) => sum + update.sequenceIds.length, 0);
+      validation.onValidated?.(updates);
+      toast.success(
+        `${count} quête${count > 1 ? "s" : ""} validée${count > 1 ? "s" : ""} dans ${updates.length} bloc${updates.length > 1 ? "s" : ""}`,
+        { duration: 2200 }
+      );
+    }
+    if (failures.length > 0) {
+      toast.error(`Validation partielle : ${failures[0]}`, { duration: 4000 });
+      return;
+    }
+    setConfirming(false);
+    onClose();
+  }, [validation, validationWrites, validating, onClose]);
+
   const editorialNote = entry ? notes[String(entry.id)] : "";
   const dataDate = generatedAt ? generatedAt.slice(0, 10) : null;
+  const canValidate =
+    !!validation &&
+    !!entry &&
+    evaluation?.state !== "done" &&
+    (validationPlan?.targetCount ?? 0) > 0;
+  const nestedQuestCount = validationPlan?.targetCount ?? 0;
 
   return (
     <div
@@ -340,7 +493,7 @@ function SuccessSheet({
         <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
           {!entry ? (
             <p className="px-2 py-6 text-center text-[11px] text-muted-foreground">Chargement…</p>
-          ) : rows.length === 0 && prerequisites.length === 0 ? (
+          ) : rows.length === 0 && prerequisites.length === 0 && possessionNames.length === 0 ? (
             <p className="px-2 py-6 text-center text-[11px] text-muted-foreground">
               {catalogOk === false
                 ? "Catalogue des succès indisponible."
@@ -374,10 +527,47 @@ function SuccessSheet({
                   </span>
                 </div>
               )}
-              {possessionCount > 0 && (
-                <p className="mb-2 px-1 text-[10px] text-muted-foreground">
-                  Possessions : {possessionCount} objet{possessionCount > 1 ? "s" : ""} à avoir
-                  — différent des ressources de quête.
+
+              {possessionNames.length > 0 && (
+                <section className="mb-2 px-1">
+                  <p className="m-0 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Objets à posséder
+                  </p>
+                  <p className="m-0 mt-0.5 text-[10px] leading-snug text-muted-foreground">
+                    À avoir en poche ou à obtenir pour valider le succès — ce ne sont pas des
+                    ressources de quête à préparer.
+                  </p>
+                  <ul className="mt-1 flex flex-wrap gap-1">
+                    {possessionNames.slice(0, 8).map((name, index) => (
+                      <li
+                        key={`${name}-${index}`}
+                        className="rounded-[3px] border border-border bg-surface px-1.5 py-0.5 text-[10px] text-foreground"
+                      >
+                        {name}
+                      </li>
+                    ))}
+                    {possessionNames.length > 8 && (
+                      <li className="rounded-[3px] border border-dashed border-border px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                        +{possessionNames.length - 8} autre{possessionNames.length - 8 > 1 ? "s" : ""}
+                      </li>
+                    )}
+                  </ul>
+                  {coveredPossessionCount > 0 && (
+                    <p className="m-0 mt-1 text-[9px] text-muted-foreground">
+                      {coveredPossessionCount} autre{coveredPossessionCount > 1 ? "s" : ""} objet
+                      {coveredPossessionCount > 1 ? "s" : ""} requis sont des ressources de quête,
+                      déjà listées dans le détail de leur quête.
+                    </p>
+                  )}
+                </section>
+              )}
+
+              {possessionNames.length === 0 && coveredPossessionCount > 0 && (
+                <p className="mb-2 px-1 text-[10px] leading-snug text-muted-foreground">
+                  {coveredPossessionCount} objet{coveredPossessionCount > 1 ? "s" : ""} requis par
+                  le succès {coveredPossessionCount > 1 ? "sont" : "est"} déjà listé
+                  {coveredPossessionCount > 1 ? "s" : ""} dans les ressources des quêtes — aucun
+                  doublon ici.
                 </p>
               )}
               {editorialNote && (
@@ -385,50 +575,191 @@ function SuccessSheet({
                   Règle du guide : {editorialNote}
                 </p>
               )}
+
+              {canValidate && (
+                <section className="mb-2 rounded-[4px] border border-gold/40 bg-gold/5 px-2 py-2">
+                  <div className="flex items-center gap-1.5">
+                    <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-gold" aria-hidden="true" />
+                    <p className="m-0 text-[10px] font-semibold uppercase tracking-wide text-foreground">
+                      Valider les prérequis
+                    </p>
+                  </div>
+                  <p className="m-0 mt-1 text-[10px] leading-snug text-muted-foreground">
+                    {nestedQuestCount} quête{nestedQuestCount > 1 ? "s" : ""} du guide encore à
+                    faire. L&apos;aperçu montre les blocs et les quêtes avant toute écriture.
+                  </p>
+                  {!confirming ? (
+                    <button
+                      type="button"
+                      onClick={() => setConfirming(true)}
+                      className="mt-1.5 inline-flex cursor-pointer items-center gap-1 rounded-[4px] border border-gold/50 bg-gold/10 px-2 py-1 text-[11px] font-semibold text-foreground transition-colors hover:bg-gold/20"
+                    >
+                      Aperçu et validation
+                      <ChevronRight className="h-3 w-3" aria-hidden="true" />
+                    </button>
+                  ) : !validationPlan ? (
+                    <p className="mt-1.5 text-[10px] text-muted-foreground">Calcul de l&apos;aperçu…</p>
+                  ) : (
+                    <div className="mt-1.5 space-y-1.5">
+                      <div className="max-h-36 space-y-1 overflow-y-auto overscroll-contain pr-0.5">
+                        {validationPlan.blocks.map((block) => (
+                          <div
+                            key={block.milestoneId}
+                            className="rounded-[3px] border border-border bg-surface px-2 py-1.5"
+                          >
+                            <p className="m-0 text-[10px] font-semibold text-foreground">
+                              {block.title} · {block.targetSequenceIds.length} quête
+                              {block.targetSequenceIds.length > 1 ? "s" : ""}
+                            </p>
+                            <ul className="m-0 mt-0.5 list-inside list-disc text-[10px] text-muted-foreground">
+                              {block.targetNames.slice(0, 6).map((name) => (
+                                <li key={name} className="truncate">
+                                  {name}
+                                </li>
+                              ))}
+                              {block.targetNames.length > 6 && (
+                                <li>+{block.targetNames.length - 6} autre(s)</li>
+                              )}
+                            </ul>
+                            {block.cascadedSequenceIds.length > 0 && (
+                              <p className="m-0 mt-0.5 text-[9px] text-muted-foreground">
+                                Prérequis de route :{" "}
+                                {block.cascadedNames.slice(0, 4).join(", ")}
+                                {block.cascadedNames.length > 4
+                                  ? ` +${block.cascadedNames.length - 4}`
+                                  : ""}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      {validationPlan.outsideQuestNames.length > 0 && (
+                        <p className="m-0 text-[9px] text-muted-foreground">
+                          {validationPlan.outsideQuestNames.length} quête
+                          {validationPlan.outsideQuestNames.length > 1 ? "s" : ""} hors guide ne
+                          peu{validationPlan.outsideQuestNames.length > 1 ? "vent" : "t"} pas être
+                          validée{validationPlan.outsideQuestNames.length > 1 ? "s" : ""} ici :{" "}
+                          {validationPlan.outsideQuestNames.slice(0, 5).join(", ")}
+                          {validationPlan.outsideQuestNames.length > 5 ? "…" : ""}
+                        </p>
+                      )}
+                      {validationPlan.possessionNames.length > 0 && (
+                        <p className="m-0 text-[9px] text-muted-foreground">
+                          Les {validationPlan.possessionNames.length} objet
+                          {validationPlan.possessionNames.length > 1 ? "s" : ""} à posséder (hors
+                          ressources de quête) restent à obtenir : ils ne se valident pas depuis le
+                          guide.
+                        </p>
+                      )}
+                      {validationPlan.coveredPossessionCount > 0 && (
+                        <p className="m-0 text-[9px] text-muted-foreground">
+                          {validationPlan.coveredPossessionCount} objet
+                          {validationPlan.coveredPossessionCount > 1 ? "s" : ""} requis{" "}
+                          {validationPlan.coveredPossessionCount > 1 ? "sont" : "est"} déjà des
+                          ressources de quête : pas de doublon, ils restent dans le détail de leur
+                          quête.
+                        </p>
+                      )}
+                      <div className="flex items-center gap-1.5 pt-0.5">
+                        <button
+                          type="button"
+                          onClick={() => void runValidation()}
+                          disabled={validating || validationPlan.targetCount === 0}
+                          className="inline-flex cursor-pointer items-center gap-1 rounded-[4px] border border-success/50 bg-success/15 px-2 py-1 text-[11px] font-semibold text-success transition-colors hover:bg-success/25 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {validating ? "Validation…" : "Confirmer"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirming(false)}
+                          disabled={validating}
+                          className="inline-flex cursor-pointer items-center rounded-[4px] border border-border px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-surface hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Annuler
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </section>
+              )}
+
               {rows.length > 0 && (
                 <ul className="space-y-1">
-              {rows.map((row) => (
-                <li
-                  key={row.id}
-                  className={cn(
-                    "flex items-center gap-2 rounded-[4px] border border-border bg-surface px-2 py-1.5 text-[12px]",
-                    row.inGuide ? "" : "border-dashed",
-                    row.done ? "text-muted-foreground" : "text-foreground"
-                  )}
-                >
-                  {/* L'asset de quête (sprite de type), jamais un carré générique : le
-                      seed ne porte aucune icône de séquence (0/536 mesuré le 20/11/2026). */}
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={questTypeIconPath("secondaire")}
-                    alt=""
-                    aria-hidden="true"
-                    loading="lazy"
-                    className="h-4 w-4 shrink-0 object-contain"
-                  />
-                  <span
-                    className={cn(
-                      "grid h-4 w-4 shrink-0 place-items-center rounded-[3px] border",
-                      row.done ? "border-success/60 bg-success/15 text-success" : "border-border"
-                    )}
-                    aria-hidden="true"
-                  >
-                    {row.done ? <Check className="h-3 w-3 stroke-[3]" /> : null}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate">{row.name}</span>
-                  {!row.inGuide && (
-                    <span
-                      aria-hidden="true"
-                      className="shrink-0 rounded-[3px] border border-border px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground"
-                    >
-                      Hors guide
-                    </span>
-                  )}
-                  <span className="sr-only">{row.done ? "Validée" : row.inGuide ? "À faire" : "Hors guide"}</span>
-                </li>
-              ))}
-            </ul>
+                  {rows.map((row) => {
+                    const canJump = !!row.sequenceId && !!onGoToQuest;
+                    const inner = (
+                      <>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={questTypeIconPath("secondaire")}
+                          alt=""
+                          aria-hidden="true"
+                          loading="lazy"
+                          className="h-4 w-4 shrink-0 object-contain"
+                        />
+                        <span
+                          className={cn(
+                            "grid h-4 w-4 shrink-0 place-items-center rounded-[3px] border",
+                            row.done ? "border-success/60 bg-success/15 text-success" : "border-border"
+                          )}
+                          aria-hidden="true"
+                        >
+                          {row.done ? <Check className="h-3 w-3 stroke-[3]" /> : null}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate">{row.name}</span>
+                        {!row.inGuide && (
+                          <span
+                            aria-hidden="true"
+                            className="shrink-0 rounded-[3px] border border-border px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground"
+                          >
+                            Hors guide
+                          </span>
+                        )}
+                        {canJump && (
+                          <ChevronRight
+                            className="h-3 w-3 shrink-0 text-muted-foreground"
+                            aria-hidden="true"
+                          />
+                        )}
+                      </>
+                    );
+                    return (
+                      <li key={row.id}>
+                        {canJump ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onClose();
+                              onGoToQuest?.(row.sequenceId!);
+                            }}
+                            title={`Aller à la quête ${row.name}`}
+                            className={cn(
+                              "flex w-full cursor-pointer items-center gap-2 rounded-[4px] border border-border bg-surface px-2 py-1.5 text-left text-[12px] transition-colors hover:border-accent/50 hover:bg-elevated",
+                              row.done ? "text-muted-foreground" : "text-foreground"
+                            )}
+                          >
+                            {inner}
+                          </button>
+                        ) : (
+                          <div
+                            className={cn(
+                              "flex items-center gap-2 rounded-[4px] border border-border bg-surface px-2 py-1.5 text-[12px]",
+                              row.done ? "text-muted-foreground" : "text-foreground",
+                              !row.inGuide && "border-dashed"
+                            )}
+                          >
+                            {inner}
+                          </div>
+                        )}
+                        <span className="sr-only">
+                          {row.done ? "Validée" : row.inGuide ? "À faire" : "Hors guide"}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
               )}
+
               {prerequisites.length > 0 && (
                 <section className="mt-3 border-t border-border pt-2">
                   <div className="flex items-center justify-between px-1 pb-1">
@@ -475,7 +806,7 @@ function SuccessSheet({
                             </span>
                           </div>
                           {children.length > 0 && (
-                            <ul className="ml-6 border-l border-border pl-2 pb-1.5 space-y-0.5">
+                            <ul className="ml-6 space-y-0.5 border-l border-border pb-1.5 pl-2">
                               {children.slice(0, 8).map((child) => (
                                 <li
                                   key={child.id}
@@ -538,12 +869,21 @@ function SuccessSheet({
 export function SuccessChip({
   successes,
   quests,
+  milestones = [],
+  validation,
+  onGoToQuest,
   className,
   compact = false,
   iconSrc = "/assets/icons/icone-succes.png",
 }: {
   successes: RushSuccessRef[];
   quests: RushGuideQuestRef[];
+  /** Blocs du guide : indispensables à l'aperçu de la cascade. */
+  milestones?: RushMilestone[];
+  /** Contexte d'écriture ; absent ⇒ lecture seule (guide public, invité). */
+  validation?: SuccessValidationContext;
+  /** Saut + surbrillance fournis par la surface (dashboard, overlay, public). */
+  onGoToQuest?: (sequenceId: string) => void;
   className?: string;
   /** Dashboard : icône seule, le nom complet reste en infobulle. */
   compact?: boolean;
@@ -597,7 +937,15 @@ export function SuccessChip({
       {open && portalRoot
         ? createPortal(
             <div className="da-portal" {...daScope}>
-              <SuccessSheet success={open} quests={quests} iconSrc={iconSrc} onClose={closeSheet} />
+              <SuccessSheet
+                success={open}
+                quests={quests}
+                milestones={milestones}
+                validation={validation}
+                onGoToQuest={onGoToQuest}
+                iconSrc={iconSrc}
+                onClose={closeSheet}
+              />
             </div>,
             portalRoot
           )

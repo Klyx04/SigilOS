@@ -878,7 +878,12 @@ export default function GuideOverlayClient({
       const doneSet = completedStepsByMs.get(ms.id);
       for (const seq of ms.sequences) {
         for (const questId of (seq as { questDbIds?: number[] }).questDbIds ?? []) {
-          out.push({ id: questId, name: seq.subGuideName || `Quête ${questId}`, done: doneSet?.has(seq.id) ?? false });
+          out.push({
+            id: questId,
+            name: seq.subGuideName || `Quête ${questId}`,
+            done: doneSet?.has(seq.id) ?? false,
+            sequenceId: seq.id,
+          });
         }
       }
     }
@@ -1036,6 +1041,67 @@ export default function GuideOverlayClient({
       jumpToQuest({ seqId, milestoneId: milestone?.id ?? "" });
     },
     [milestones, jumpToQuest]
+  );
+
+  /**
+   * « Valider les prérequis » d'un succès : l'action serveur renvoie un succès par bloc,
+   * mais l'overlay ne relit pas les props (il vit dans une PiP, souvent hors du routeur).
+   * On applique donc **exactement les séquences validées** au state local, ressources et
+   * donjons compris — le serveur reste seul juge (auth, périmètre, donjons, verrous).
+   */
+  const handleSuccessValidated = useCallback(
+    (updates: Array<{ milestoneId: string; sequenceIds: string[] }>) => {
+      const validated = new Set(updates.flatMap((update) => update.sequenceIds));
+      const nextSteps = new Map(completedStepsByMs);
+      for (const update of updates) {
+        const set = new Set(nextSteps.get(update.milestoneId) ?? []);
+        for (const id of update.sequenceIds) set.add(id);
+        nextSteps.set(update.milestoneId, set);
+      }
+      setCompletedStepsByMs(nextSteps);
+      setCompletedIds((prev) => {
+        const next = new Set(prev);
+        for (const ms of milestones) {
+          const content = (ms.sequences ?? []).filter((seq) => !isInfoSequence(seq));
+          if (content.length === 0) continue;
+          const done = nextSteps.get(ms.id) ?? new Set<string>();
+          if (content.every((seq) => done.has(seq.id))) next.add(ms.id);
+        }
+        return next;
+      });
+      let nextResources = resourceChecks;
+      for (const ms of milestones) {
+        for (const seq of ms.sequences ?? []) {
+          if (!validated.has(seq.id)) continue;
+          nextResources = applyQuestResourceChecks(nextResources, seq.activityTags, true);
+        }
+      }
+      setResourceChecks(nextResources);
+      if (isGuest) persistGuestResourceChecks(nextResources);
+      void guildDungeons.refresh();
+    },
+    [
+      completedStepsByMs,
+      milestones,
+      resourceChecks,
+      isGuest,
+      persistGuestResourceChecks,
+      guildDungeons.refresh,
+    ]
+  );
+
+  // Objet STABLE : `RushOverlayQuestListItem` est `memo`, un contexte recréé à chaque
+  // rendu re-rendrait les ~500 lignes de quête à chaque frappe de recherche.
+  const successValidation = useMemo(
+    () =>
+      isGuest
+        ? undefined
+        : {
+            guildId,
+            altPseudo: effectiveAltPseudo,
+            onValidated: handleSuccessValidated,
+          },
+    [isGuest, guildId, effectiveAltPseudo, handleSuccessValidated]
   );
 
   // ─── Présence communauté : membres ayant un repère sur ce chapitre ─────────
@@ -1939,6 +2005,9 @@ export default function GuideOverlayClient({
                         prereqs={gate.prereqs}
                         missingDungeons={gate.missingDungeons}
                         guideQuests={guideQuests}
+                        guideMilestones={milestones}
+                        successValidation={successValidation}
+                        onGoToQuest={handleGoToDungeonStep}
                         onGoToPrereq={handleGoToPrereq}
                         onToggle={() => handleToggleSeq(ms, seq.id)}
                         onBookmark={() => handleBookmark(ms, seq.id)}
@@ -2026,6 +2095,10 @@ export default function GuideOverlayClient({
                       isLocked={gate.locked}
                       prereqs={gate.prereqs}
                       missingDungeons={gate.missingDungeons}
+                      guideQuests={guideQuests}
+                      guideMilestones={milestones}
+                      successValidation={successValidation}
+                      onGoToQuest={handleGoToDungeonStep}
                       onGoToPrereq={handleGoToPrereq}
                       onToggle={() => handleToggleSeq(currentMs, seq.id)}
                       onBookmark={() => handleBookmark(currentMs, seq.id)}
@@ -2110,6 +2183,9 @@ export default function GuideOverlayClient({
           }
           viewer={isGuest ? "visitor" : "member"}
           guideQuests={guideQuests}
+          guideMilestones={milestones}
+          successValidation={successValidation}
+          onGoToQuest={handleGoToDungeonStep}
           onClose={() => setDetailSeq(null)}
         />
       )}

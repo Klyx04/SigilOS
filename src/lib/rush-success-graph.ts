@@ -81,7 +81,11 @@ export type RushSuccessEvaluation = {
   missingSuccessIds: number[];
   /** OA directs hors catalogue / hors guide / cycle. */
   outsideGuideSuccessIds: number[];
-  /** Possessions (succès + Qf) — jamais les ressources de quête. */
+  /**
+   * Objets bruts : `need.items` du succès + `PO=` de ses Qf. L'UI **déduplique** :
+   * un objet déjà listé comme ressource d'une quête n'est pas une possession à part
+   * (`successPossessionItems`, source unique du tri).
+   */
   requiredItemIds: number[];
 };
 

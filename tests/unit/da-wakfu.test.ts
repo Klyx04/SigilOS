@@ -342,6 +342,13 @@ describe("DA Gouache Wakfu — dock (E1e)", () => {
         expect(readFileSync(DOCK, "utf8")).toMatch(/"da-node-btn shrink-0/);
     });
 
+    it("le bouton Réinitialiser ne s'étire pas (retour user du 24/11/2026)", () => {
+        // `.da-dock button { flex: 1 }` s'appliquait aussi à l'icône de 28 px :
+        // elle poussait le titre au milieu et laissait un grand vide à droite.
+        expect(css).toMatch(/\.da-dock button\.da-dock-reset\s*\{\s*flex:\s*none/);
+        expect(readFileSync(DOCK, "utf8")).toMatch(/da-dock-reset/);
+    });
+
     it("les ressources du bouton sont celles du BLOC, pas les 482 du guide", () => {
         const shell = readFileSync(SHELL, "utf8");
         expect(shell).toMatch(/aggregateRushResources\(\[currentMs\]\)/);
@@ -772,8 +779,8 @@ describe("DA Gouache Wakfu — retouches UI/UX 19/11/2026", () => {
 
     it("le dashboard regroupe les pastilles dans le bloc d'actions", () => {
         const src = readFileSync(DASHBOARD, "utf8");
-        expect(src).toContain(
-            "<SuccessChip successes={getSequenceSuccesses(seq)} quests={guideQuests} compact />"
+        expect(src).toMatch(
+            /<SuccessChip[\s\S]{0,500}?successes=\{getSequenceSuccesses\(seq\)\}[\s\S]{0,500}?quests=\{guideQuests\}[\s\S]{0,500}?compact/
         );
         // 20/11/2026 — la position est sortie dans un wrapper à droite (gap-2),
         // DEVANT le bloc segmenté des pastilles : même anatomie que le public.

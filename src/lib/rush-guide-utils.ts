@@ -600,8 +600,17 @@ export function getSequenceSuccesses(
   return out;
 }
 
-/** Une quête du guide, telle que la fiche d'un succès la liste. */
-export type RushGuideQuestRef = { id: number; name: string; done: boolean };
+/**
+ * Une quête du guide, telle que la fiche d'un succès la liste.
+ * `sequenceId` permet de **sauter** vers la quête (la fiche la rend cliquable) et
+ * de rattacher la validation d'un succès aux séquences réelles du guide.
+ */
+export type RushGuideQuestRef = {
+  id: number;
+  name: string;
+  done: boolean;
+  sequenceId?: string;
+};
 
 /**
  * Résout UN tag `prereq_text` vers sa séquence cible.

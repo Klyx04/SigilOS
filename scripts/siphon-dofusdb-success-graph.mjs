@@ -11,7 +11,9 @@
  *
  * Sortie **statique** : `public/game-data/success-graph.json` (aucun appel DofusDB
  * à l'exécution, conforme `dofusdb-zero`). Les règles purement éditoriales
- * (ex. Dom de Pin → L'héritage) vivent dans `rush-success-meta.json`.
+ * (ex. Dom de Pin → L'héritage) vivent dans `rush-success-meta.json`. Les objets
+ * référencés par `need.items` / `PO=` sont nommés dans le même instantané : la fiche
+ * peut dire « Dom de Pin », pas « objet 27803 ».
  *
  * Usage : `node scripts/siphon-dofusdb-success-graph.mjs`
  */
@@ -109,18 +111,63 @@ const questRows = quests
   })
   .filter(Boolean);
 
+// ─── Noms des possessions (`need.items`, `PO=`) ───────────────────────────────
+// La fiche affichait « 10 objets » sans dire lesquels : un identifiant ne se lit pas.
+// On ne télécharge QUE les objets référencés par une arête (478 au 24/11/2026).
+const itemIds = new Set();
+for (const row of achievementRows) for (const id of row.itemIds) itemIds.add(id);
+for (const row of questRows) for (const id of row.itemIds) itemIds.add(id);
+
+async function getJsonWithRetry(url, attempts = 3) {
+  let lastError;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await getJson(url);
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, 400 * attempt));
+    }
+  }
+  throw lastError;
+}
+
+const itemRows = [];
+const itemQueue = [...itemIds].sort((a, b) => a - b);
+let itemCursor = 0;
+let itemDone = 0;
+async function itemWorker() {
+  while (itemCursor < itemQueue.length) {
+    const id = itemQueue[itemCursor];
+    itemCursor += 1;
+    const data = await getJsonWithRetry(`${BASE}/items/${id}?lang=${LANG}`);
+    itemRows.push({
+      id,
+      name: data?.name?.fr || `Objet ${id}`,
+      iconId: Number.isFinite(Number(data?.iconId)) ? Number(data.iconId) : null,
+    });
+    itemDone += 1;
+    if (itemDone % 50 === 0 || itemDone === itemQueue.length) {
+      process.stdout.write(`\r  items: ${itemDone}/${itemQueue.length}`);
+    }
+  }
+}
+await Promise.all(Array.from({ length: 8 }, itemWorker));
+process.stdout.write("\n");
+
 const payload = {
   generatedAt: new Date().toISOString(),
   source: "dofusdb",
   achievementCount: achievementRows.length,
   questCount: questRows.length,
+  itemCount: itemRows.length,
   achievements: achievementRows.sort((a, b) => a.id - b.id),
   quests: questRows.sort((a, b) => a.id - b.id),
+  items: itemRows.sort((a, b) => a.id - b.id),
 };
 
 function diffGraph(previous, next) {
   const report = { added: [], removed: [], changed: [] };
-  for (const key of ["achievements", "quests"]) {
+  for (const key of ["achievements", "quests", "items"]) {
     const before = new Map((previous?.[key] ?? []).map((row) => [row.id, row]));
     const after = new Map((next?.[key] ?? []).map((row) => [row.id, row]));
     for (const [id, row] of after) {
@@ -163,7 +210,7 @@ if (process.argv.includes("--check")) {
 
 writeFileSync(OUT, `${JSON.stringify(payload)}\n`, "utf8");
 console.log(
-  `OK ${OUT} — ${achievementRows.length} succès, ${questRows.length} quêtes, ${(
+  `OK ${OUT} — ${achievementRows.length} succès, ${questRows.length} quêtes, ${itemRows.length} objets, ${(
     Buffer.byteLength(JSON.stringify(payload)) / 1024
   ).toFixed(0)} Ko`
 );

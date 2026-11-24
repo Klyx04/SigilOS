@@ -84,7 +84,7 @@ import { RushOverlayQuestDetailModal } from "@/app/overlay/guide/[guildId]/[slug
 // l'overlay et la page publique (mêmes clés de coche des deux côtés).
 import { RushOverlayResourcesModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayResourcesModal";
 import { aggregateRushResources, getDungeons } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
-import { isSequenceBlockedByPrereqs, alignmentCountForCamp, getPrereqRefs, resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, resolvePrereqTarget, RUSH_RESOURCES_PICTO, RUSH_ACTIVITY_TAG_CONFIG, getSequenceCoord, blockHeaderCoord, getAlignmentSet, collectCascadeUncheck, rushChapterNumbers, getSequenceSuccesses, type RushPrereqRef } from "@/lib/rush-guide-utils";
+import { isSequenceBlockedByPrereqs, alignmentCountForCamp, getPrereqRefs, resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, resolvePrereqTarget, RUSH_RESOURCES_PICTO, RUSH_ACTIVITY_TAG_CONFIG, getSequenceCoord, blockHeaderCoord, getAlignmentSet, collectCascadeUncheck, rushChapterNumbers, getSequenceSuccesses, type RushGuideQuestRef, type RushPrereqRef } from "@/lib/rush-guide-utils";
 // Verrou de DONJONS : la MÊME règle que le serveur et le guide public (`rush-dungeons`).
 import { doneDungeonKeysForSequence, missingRequiredDungeons, occurrenceState, sequenceDungeonProgress, type RushDungeonMemberState, type RushDungeonState } from "@/lib/rush-dungeons";
 import type { DungeonAchievementDungeon, DungeonAchievementPanelLoadInput, DungeonAchievementToggleInput } from "@/lib/rush-dungeon-achievements";
@@ -300,16 +300,22 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
   const achievementCharacter = React.useContext(AchievementCharacterCtx);
   const resourceChecks = React.useContext(ResourceChecksCtx);
   const onToggleResourceCheck = React.useContext(OnToggleResourceCheckCtx);
+  const router = useRouter();
   /**
    * Quêtes du guide (id → nom + état) pour la fiche d'un succès. Construite par ligne
    * (53 entrées) : aucune requête, aucun état partagé de plus.
    */
   const guideQuests = useMemo(() => {
-    const out: Array<{ id: number; name: string; done: boolean }> = [];
+    const out: RushGuideQuestRef[] = [];
     for (const milestone of allMilestones) {
       for (const sequence of milestone.sequences ?? []) {
         for (const id of (sequence as { questDbIds?: number[] }).questDbIds ?? []) {
-          out.push({ id, name: sequence.subGuideName || `Quête ${id}`, done: allCompletedSeqIds.has(sequence.id) });
+          out.push({
+            id,
+            name: sequence.subGuideName || `Quête ${id}`,
+            done: allCompletedSeqIds.has(sequence.id),
+            sequenceId: sequence.id,
+          });
         }
       }
     }
@@ -641,7 +647,21 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
                 )}
               </button>
             )}
-            <SuccessChip successes={getSequenceSuccesses(seq)} quests={guideQuests} compact />
+            <SuccessChip
+              successes={getSequenceSuccesses(seq)}
+              quests={guideQuests}
+              milestones={allMilestones as Milestone[]}
+              validation={{
+                guildId,
+                altPseudo: achievementCharacter,
+                onValidated: () => {
+                  router.refresh();
+                  dungeonActions.refresh?.();
+                },
+              }}
+              onGoToQuest={(sequenceId) => scrollToPrereq(seq.subGuideName, sequenceId)}
+              compact
+            />
             {!isSeqCompleted && seqMembers.length > 0 && (
               <button
                 type="button"
@@ -1274,6 +1294,8 @@ type RushDungeonActions = {
   busyKey: string | null;
   others: RushDungeonMemberState[];
   onSet: (sequenceId: string, dungeonKey: string, state: RushDungeonState | null) => void;
+  /** Relit les états serveur après une validation de succès (cascade + donjons). */
+  refresh?: () => void;
 };
 const RushDungeonActionsCtx=React.createContext<RushDungeonActions>({states:{},busyKey:null,others:[],onSet:()=>{}});
 const ContextualHelpCtx=React.createContext<boolean>(true);
@@ -1839,7 +1861,7 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
     toast.info("Donjon décoché : la quête a été dévalidée.");
   },[dungeonsState.setState,milestones]);
   // Une seule valeur pour toute la timeline : pastilles ET panneaux de quête lisent ici.
-  const dungeonActionsValue=useMemo(()=>({states:dungeonsState.states,busyKey:dungeonsState.busyKey,others:dungeonsState.others,onSet:handleSetDungeon}),[dungeonsState.states,dungeonsState.busyKey,dungeonsState.others,handleSetDungeon]);
+  const dungeonActionsValue=useMemo(()=>({states:dungeonsState.states,busyKey:dungeonsState.busyKey,others:dungeonsState.others,onSet:handleSetDungeon,refresh:dungeonsState.refresh}),[dungeonsState.states,dungeonsState.busyKey,dungeonsState.others,handleSetDungeon,dungeonsState.refresh]);
   // Alignement de la guilde : `guildProgress` porte DÉJÀ alignment / ordre / tranche
   // (shape `GuideProgressRow`) — une ligne par jalon, donc on déduplique par membre.
   const alignmentMembers=useMemo<AlignmentMember[]>(()=>{

@@ -122,6 +122,17 @@ describe("Badge donjon — compteur, picto du jeu, popover branchée", () => {
     expect(pop).toMatch(/createPortal/);
   });
 
+  it("la popover plafonne sa hauteur et défile (Maïmane : ~30 donjons)", () => {
+    // Mesure du 24/11/2026 : « détail des dj dans Totem de Maïmane côté overlay,
+    // 0 scroll ». Le panneau calculait sa hauteur (92 + N × 56) sans la borner au
+    // viewport : il sortait de la PiP, aucune barre de défilement n'existait.
+    const pop = codeOf(POPOVER);
+    expect(pop).toMatch(/maxHeight/);
+    expect(pop).toMatch(/win\.innerHeight - margin \* 2/);
+    expect(pop).toMatch(/overflow-y-auto/);
+    expect(pop).toMatch(/overscroll-contain/);
+  });
+
   it("la popover se monte dans le document DU NŒUD (fenêtre PiP), jamais dans la page principale", () => {
     const pop = codeOf(POPOVER);
     // Dans un bundle JS, `document` reste celui de la page principale même quand le nœud vit

@@ -7,7 +7,16 @@ import { useDaTheme } from "@/components/da/da-theme";
 import { daScopeProps } from "@/lib/da-scope";
 import type { RushGuideQuestRef, RushSuccessRef } from "@/lib/rush-guide-utils";
 import { buildSuccessQuestRows } from "@/lib/rush-success-quests";
-import { evaluateSuccess, type RushSuccessCatalog, type RushSuccessEvaluation } from "@/lib/rush-success-graph";
+import {
+  evaluateSuccess,
+  parseRushSuccessMeta,
+  type RushQuestCriteria,
+  type RushQuestCriteriaMap,
+  type RushSuccessCatalog,
+  type RushSuccessEvaluation,
+  type RushSuccessMeta,
+  type RushSuccessPrerequisite,
+} from "@/lib/rush-success-graph";
 import { questTypeIconPath } from "@/lib/quest-type-icon";
 import { cn } from "@/lib/utils";
 
@@ -22,7 +31,8 @@ import { cn } from "@/lib/utils";
  * mis en cache par le navigateur) puis nommées avec `quests` (la map de la surface).
  */
 
-const ACHIEVEMENTS_URL = "/game-data/achievements.json";
+const ACHIEVEMENTS_URL = "/game-data/success-graph.json";
+const SUCCESS_META_URL = "/game-data/rush-success-meta.json";
 const QUEST_NAMES_URL = "/game-data/quest-names.json";
 
 type QuestNames = Record<number, string>;
@@ -53,11 +63,16 @@ type AchievementCatalogRow = {
   name: string;
   questIds: number[];
   successIds: number[];
+  itemIds: number[];
 };
 type AchievementCatalogIndex = {
   byId: Map<string, AchievementCatalogRow>;
   byName: Map<string, AchievementCatalogRow>;
   rows: Map<number, AchievementCatalogRow>;
+  questCriteria: RushQuestCriteriaMap;
+  questNames: Record<number, string>;
+  generatedAt: string | null;
+  meta: RushSuccessMeta;
   ok: boolean;
 };
 let achievementsPromise: Promise<AchievementCatalogIndex> | null = null;
@@ -74,17 +89,34 @@ function normalizeAchievementName(value: string | null | undefined): string {
 
 function loadAchievementQuests(): Promise<AchievementCatalogIndex> {
   if (!achievementsPromise) {
-    achievementsPromise = fetch(ACHIEVEMENTS_URL)
-      .then(async (response) => {
+    achievementsPromise = Promise.all([
+      fetch(ACHIEVEMENTS_URL),
+      fetch(SUCCESS_META_URL).catch(() => null),
+    ])
+      .then(async ([response, metaResponse]) => {
         const ok = response.ok;
         const data: {
+          generatedAt?: string;
           achievements?: Array<{
             id?: number;
             name?: string;
             questIds?: number[];
             successIds?: number[];
+            itemIds?: number[];
           }>;
-        } = ok ? await response.json() : { achievements: [] };
+          quests?: Array<{
+            id?: number;
+            name?: string;
+            level?: number | null;
+            questIds?: number[];
+            successIds?: number[];
+            itemIds?: number[];
+            criterion?: string;
+          }>;
+        } = ok ? await response.json() : { achievements: [], quests: [] };
+        const metaRaw = metaResponse?.ok ? await metaResponse.json().catch(() => null) : null;
+        const meta = parseRushSuccessMeta(metaRaw);
+
         const byId = new Map<string, AchievementCatalogRow>();
         const byName = new Map<string, AchievementCatalogRow>();
         const rows = new Map<number, AchievementCatalogRow>();
@@ -95,19 +127,51 @@ function loadAchievementQuests(): Promise<AchievementCatalogIndex> {
             name: row.name ?? `Succès ${row.id}`,
             questIds: Array.isArray(row.questIds) ? row.questIds : [],
             successIds: Array.isArray(row.successIds) ? row.successIds : [],
+            itemIds: Array.isArray(row.itemIds) ? row.itemIds : [],
           };
           byId.set(String(row.id), entry);
           rows.set(row.id, entry);
           const name = normalizeAchievementName(entry.name);
           if (name) byName.set(name, entry);
         }
-        return { byId, byName, rows, ok };
+
+        const questCriteria = new Map<number, RushQuestCriteria>();
+        const questNames: Record<number, string> = {};
+        for (const row of data.quests ?? []) {
+          if (row?.id == null) continue;
+          const entry: RushQuestCriteria = {
+            id: row.id,
+            name: row.name ?? undefined,
+            level: Number.isFinite(Number(row.level)) ? Number(row.level) : null,
+            questIds: Array.isArray(row.questIds) ? row.questIds : [],
+            successIds: Array.isArray(row.successIds) ? row.successIds : [],
+            itemIds: Array.isArray(row.itemIds) ? row.itemIds : [],
+            criterion: typeof row.criterion === "string" ? row.criterion : "",
+          };
+          questCriteria.set(row.id, entry);
+          if (entry.name) questNames[row.id] = entry.name;
+        }
+
+        return {
+          byId,
+          byName,
+          rows,
+          questCriteria,
+          questNames,
+          generatedAt: typeof data.generatedAt === "string" ? data.generatedAt : null,
+          meta,
+          ok,
+        };
       })
       .catch(
         () => ({
           byId: new Map<string, AchievementCatalogRow>(),
           byName: new Map<string, AchievementCatalogRow>(),
           rows: new Map<number, AchievementCatalogRow>(),
+          questCriteria: new Map<number, RushQuestCriteria>(),
+          questNames: {} as Record<number, string>,
+          generatedAt: null,
+          meta: { overrides: {}, notes: {} },
           ok: false,
         })
       );
@@ -128,6 +192,10 @@ function SuccessSheet({
 }) {
   const [entry, setEntry] = useState<AchievementCatalogRow | null>(null);
   const [catalog, setCatalog] = useState<RushSuccessCatalog | null>(null);
+  const [questCriteria, setQuestCriteria] = useState<RushQuestCriteriaMap | null>(null);
+  const [overrides, setOverrides] = useState<Record<string, readonly number[]>>({});
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  const [generatedAt, setGeneratedAt] = useState<string | null>(null);
   const [catalogOk, setCatalogOk] = useState<boolean | null>(null);
   const [names, setNames] = useState<QuestNames>({});
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -175,8 +243,13 @@ function SuccessSheet({
     Promise.all([loadAchievementQuests(), loadQuestNames()]).then(([map, questNames]) => {
       if (alive) {
         setCatalogOk(map.ok);
-        setNames(questNames);
+        // Les noms du guide priment ; DofusDB nomme les quêtes hors guide.
+        setNames({ ...map.questNames, ...questNames });
         setCatalog(map.rows);
+        setQuestCriteria(map.questCriteria);
+        setOverrides(map.meta.overrides);
+        setNotes(map.meta.notes);
+        setGeneratedAt(map.generatedAt);
         setEntry(
           map.byId.get(String(success.id)) ??
             map.byName.get(normalizeAchievementName(success.name)) ??
@@ -196,14 +269,38 @@ function SuccessSheet({
   const evaluation = useMemo<RushSuccessEvaluation | null>(
     () =>
       entry && catalog
-        ? evaluateSuccess(entry.id, { catalog, guideQuests: quests, questNames: names })
+        ? evaluateSuccess(entry.id, {
+            catalog,
+            guideQuests: quests,
+            questNames: names,
+            questCriteria: questCriteria ?? undefined,
+            overrides,
+          })
         : null,
-    [entry, catalog, quests, names]
+    [entry, catalog, questCriteria, overrides, quests, names]
   );
 
   const done = rows.filter((row) => row.done).length;
   const prerequisites = evaluation?.prerequisites ?? [];
   const prerequisitesDone = prerequisites.filter((row) => row.state === "done").length;
+  const nestedPrerequisites = useMemo(() => {
+    const out = new Map<number, RushSuccessPrerequisite[]>();
+    if (!catalog || !questCriteria) return out;
+    for (const prereq of prerequisites) {
+      const nested = evaluateSuccess(prereq.id, {
+        catalog,
+        guideQuests: quests,
+        questNames: names,
+        questCriteria,
+        overrides,
+      });
+      if (nested.prerequisites.length > 0) out.set(prereq.id, nested.prerequisites);
+    }
+    return out;
+  }, [catalog, prerequisites, questCriteria, overrides, quests, names]);
+  const possessionCount = evaluation?.requiredItemIds.length ?? 0;
+  const editorialNote = entry ? notes[String(entry.id)] : "";
+  const dataDate = generatedAt ? generatedAt.slice(0, 10) : null;
 
   return (
     <div
@@ -277,6 +374,17 @@ function SuccessSheet({
                   </span>
                 </div>
               )}
+              {possessionCount > 0 && (
+                <p className="mb-2 px-1 text-[10px] text-muted-foreground">
+                  Possessions : {possessionCount} objet{possessionCount > 1 ? "s" : ""} à avoir
+                  — différent des ressources de quête.
+                </p>
+              )}
+              {editorialNote && (
+                <p className="mb-2 px-1 text-[10px] italic text-muted-foreground">
+                  Règle du guide : {editorialNote}
+                </p>
+              )}
               {rows.length > 0 && (
                 <ul className="space-y-1">
               {rows.map((row) => (
@@ -332,38 +440,78 @@ function SuccessSheet({
                     </span>
                   </div>
                   <ul className="space-y-1">
-                    {prerequisites.map((prereq) => (
-                      <li
-                        key={prereq.id}
-                        className="flex items-center gap-2 rounded-[4px] border border-border bg-surface px-2 py-1.5 text-[12px]"
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={iconSrc}
-                          alt=""
-                          aria-hidden="true"
-                          loading="lazy"
-                          className="h-4 w-4 shrink-0 object-contain"
-                        />
-                        <span className="min-w-0 flex-1 truncate">{prereq.name}</span>
-                        <span
-                          className={cn(
-                            "shrink-0 rounded-[3px] border px-1 py-0.5 text-[9px] font-semibold",
-                            prereq.state === "done"
-                              ? "border-success/40 bg-success/10 text-success"
-                              : prereq.state === "pending"
-                                ? "border-warning/40 bg-warning/10 text-warning"
-                                : "border-dashed border-border text-muted-foreground"
-                          )}
+                    {prerequisites.map((prereq) => {
+                      const children = nestedPrerequisites.get(prereq.id) ?? [];
+                      return (
+                        <li
+                          key={prereq.id}
+                          className="rounded-[4px] border border-border bg-surface"
                         >
-                          {prereq.state === "done"
-                            ? "Fait"
-                            : prereq.state === "pending"
-                              ? "À faire"
-                              : "Hors guide"}
-                        </span>
-                      </li>
-                    ))}
+                          <div className="flex items-center gap-2 px-2 py-1.5 text-[12px]">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={iconSrc}
+                              alt=""
+                              aria-hidden="true"
+                              loading="lazy"
+                              className="h-4 w-4 shrink-0 object-contain"
+                            />
+                            <span className="min-w-0 flex-1 truncate">{prereq.name}</span>
+                            <span
+                              className={cn(
+                                "shrink-0 rounded-[3px] border px-1 py-0.5 text-[9px] font-semibold",
+                                prereq.state === "done"
+                                  ? "border-success/40 bg-success/10 text-success"
+                                  : prereq.state === "pending"
+                                    ? "border-warning/40 bg-warning/10 text-warning"
+                                    : "border-dashed border-border text-muted-foreground"
+                              )}
+                            >
+                              {prereq.state === "done"
+                                ? "Fait"
+                                : prereq.state === "pending"
+                                  ? "À faire"
+                                  : "Hors guide"}
+                            </span>
+                          </div>
+                          {children.length > 0 && (
+                            <ul className="ml-6 border-l border-border pl-2 pb-1.5 space-y-0.5">
+                              {children.slice(0, 8).map((child) => (
+                                <li
+                                  key={child.id}
+                                  className="flex items-center gap-1.5 text-[10px] text-muted-foreground"
+                                >
+                                  <span
+                                    className={cn(
+                                      "h-1.5 w-1.5 shrink-0 rounded-full",
+                                      child.state === "done"
+                                        ? "bg-success"
+                                        : child.state === "pending"
+                                          ? "bg-warning"
+                                          : "bg-border"
+                                    )}
+                                    aria-hidden="true"
+                                  />
+                                  <span className="min-w-0 truncate">{child.name}</span>
+                                  <span className="sr-only">
+                                    {child.state === "done"
+                                      ? "Fait"
+                                      : child.state === "pending"
+                                        ? "À faire"
+                                        : "Hors guide"}
+                                  </span>
+                                </li>
+                              ))}
+                              {children.length > 8 && (
+                                <li className="text-[9px] text-muted-foreground">
+                                  +{children.length - 8} autre(s)
+                                </li>
+                              )}
+                            </ul>
+                          )}
+                        </li>
+                      );
+                    })}
                   </ul>
                   {evaluation &&
                     (evaluation.outsideGuideQuestIds.length > 0 ||
@@ -373,6 +521,11 @@ function SuccessSheet({
                       </p>
                     )}
                 </section>
+              )}
+              {dataDate && (
+                <p className="px-1 pt-2 text-[9px] text-muted-foreground">
+                  Données DofusDB · {dataDate}
+                </p>
               )}
             </>
           )}

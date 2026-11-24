@@ -6,6 +6,15 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 24/11/2026 (suite 67) — **Rush : graphe DofusDB 2c-1 (données + fiche)** — branche `feat/rush-success-graph-2c-2026-11-24`
+
+> **Demande user (verbatim)** : « et dofusdb peut aider ? » puis « vulgarise un peu stp voir comment on peut faire le mieux possible » et « reprend ».
+> **Mesuré** : DofusDB est plus complet que le client pour les arêtes : **2 777** succès (`need`) et **1 984** quêtes (`startCriterion`), dont **5933 L'héritage de l'île brisée** (`need.achievements = 5925/5928/5931/5932`) **absent** de notre `achievements.json` client. Les exemples : **1048 Vert émeraude → 1036** via 1463→1462 ; **5222 Prologue → 1705 Six sur six** via la quête 2409 (`OA=1705`) ; **7761 En attendant le printemps → 5222/7760/5933** (override DPLN Dom de Pin) ; la quête 2489 porte `PO=27803`.
+> **Fait** : `scripts/siphon-dofusdb-success-graph.mjs` (statique, `--check` de diff) · `public/game-data/success-graph.json` (600 Ko) · `rush-success-meta.json` (override 7761→5933) · `rush-success-graph` étendu (`questCriteria`, `successByQuestId`, `effectiveSuccessIds`, possessions, meta) · `SuccessChip` : état, prérequis **dérivés** et sous-prérequis dépliés, possessions séparées des ressources, date DofusDB · aucune migration.
+> **Preuves** : **8 416 tests ✅** · `tsc` 0 · `lint` 0 erreur (7 802 warnings préexistants) · 6 tests DofusDB réels + 6 graphe + verrous `SuccessChip` · `--check` = « aucun écart ».
+> **Reste** : **2c-2** cascade « Valider les prérequis » avec aperçu (écrit les quêtes de la route) · contrôle hebdo VPS (`--check` + Discord ops/Sentry + changelog membres) en phase 4 · phases 3/4/5 prochaine conversation.
+> **Rotation** : bloc « suite 61 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
 ## 📝 Session 24/11/2026 (suite 66) — **Rush : graphe des succès 2b (données + fiche)** — branche `feat/rush-success-graph-2026-11-24`
 
 > **Demande user (verbatim)** : « attention 6/6 est un exemple il n'y a pas que cet exemple à prendre en compte » puis « il y a des quêtes par exemple qui nécessite d'avoir déjà validé tel succès (qui comporte lui même des quêtes) et qui lui même nécessite d'avoir validé tel quêtes ».
@@ -56,13 +65,6 @@
 > **Suite 2 (même session) — PR #1513** : mutation testing Stryker **9.6** (pilote `rush-overlay-layout`, **18/18 mutants tués**, 23 s, hors CI) · `reviewer` borné (`node_modules` interdit, ~40 appels) après une revue à 6 min / 145 k tokens.
 > **Rotation** : bloc « suite 56 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
-## 📝 Session 23/11/2026 (suite 61) — **Harnais : plan de sortie Cline persisté** — branche `docs/harnais-sortie-cline-2026-11-23`
-
-> **Demande user (verbatim)** : « ressors le plan complet si on relance une session elle va etre amnesique non ».
-> **Fait** : plan exact des **2 PR** de sortie Cline écrit dans `docs/agents/harnais.md` §14 (source `.agents/skills`, liens `.cline`/`.claude`, règles, hooks, `.clineignore`, CI, clone neuf) ; scorecard 3/3 déjà remplie ; état : migration **non commencée**.
-> **Preuves** : doc seule, aucun code · `git status` à contrôler avant PR.
-> **Reste** : GO phase 1 · Cline secondaire à confirmer · `harness:links` en CI/installation.
-> **Rotation** : bloc « suite 55 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

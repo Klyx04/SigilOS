@@ -1,0 +1,8 @@
+{
+  "overrides": {
+    "7761": [5933]
+  },
+  "notes": {
+    "7761": "Le Dom de Pin (DPLN) exige aussi L'héritage de l'île brisée (5933), que le need DofusDB de 7761 ne porte pas."
+  }
+}

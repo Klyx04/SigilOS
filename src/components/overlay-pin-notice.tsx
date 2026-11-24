@@ -4,12 +4,13 @@ import { useState } from "react";
 import { PinOff, X } from "lucide-react";
 
 import { useI18n } from "@/lib/i18n/client";
-
 /**
  * Bandeau affiché en haut d'un overlay (guide Rush / fiche Boss) quand la fenêtre
- * N'EST PAS épinglée toujours-au-dessus — i.e. le navigateur ne supporte pas
- * Document Picture-in-Picture (cas constaté : Opera GX, qui n'expose pas l'API
- * malgré son Chromium récent) et on est tombé sur la popup `about:blank` de secours.
+ * N'EST PAS épinglée toujours-au-dessus — i.e. le navigateur n'a pas ouvert de
+ * Document Picture-in-Picture et on est tombé sur la popup `about:blank` de secours.
+ *
+ * Le texte reste **neutre** : on ne nomme plus un navigateur précis (Opera 102+ expose
+ * l'API ; si elle est absente/refusée, c'est le fallback qui parle).
  *
  * Couleurs explicites (pas de tokens alpha) : lisible en mode sombre comme en mode clair.
  */
@@ -30,8 +31,8 @@ export function OverlayPinNotice() {
           {isEn ? "Window not pinned." : "Fenêtre non épinglée."}
         </span>{" "}
         {isEn
-          ? "This browser does not support always-on-top overlays. Tip: Use PowerToys 'Always on Top' (Win + Ctrl + T) to keep it over your game."
-          : "Ce navigateur (ex. Opera GX) ne supporte pas l'overlay toujours-au-dessus. Astuce : PowerToys « Always on Top » (Win + Ctrl + T) pour la garder au-dessus du jeu."}
+          ? "This window is not pinned. Keep it visible next to the game; PowerToys 'Always on Top' (Win + Ctrl + T) can help."
+          : "Fenêtre simple, non épinglée. Gardez-la visible à côté du jeu ; PowerToys « Always on Top » (Win + Ctrl + T) peut aider."}
       </p>
       <button
         type="button"

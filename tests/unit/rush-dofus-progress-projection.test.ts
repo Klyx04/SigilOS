@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  memberCompletedStepKeys,
   projectRushStepKeys,
   questStatusForMembers,
   rushStepKeysBySequenceId,
@@ -47,5 +48,34 @@ describe("projection des étapes Rush", () => {
     const map = rushStepKeysBySequenceId(MILESTONES);
     const partial = { completedSteps: projectRushStepKeys(["seq-b"], map).slice(0, 1), currentStep: null };
     expect(questStatusForMembers([QUEST_B], [partial])[0].done).toBe(false);
+  });
+
+  it("un bloc isCompleted vaut toutes ses séquences, même sans completedSteps", () => {
+    const map = rushStepKeysBySequenceId(MILESTONES);
+    const sequenceIdsByMilestone = new Map([["m", ["seq-a", "seq-b"]]]);
+    const keys = memberCompletedStepKeys({
+      rows: [{ milestoneId: "m", isCompleted: true, completedSteps: [] }],
+      sequenceIdsByMilestone,
+      stepKeysBySequenceId: map,
+    });
+
+    expect(keys).toEqual(["Ali-1-all", "GP7-1", "GP7-2"]);
+    const status = questStatusForMembers(
+      [QUEST_A, QUEST_B],
+      [{ completedSteps: keys, currentStep: null }]
+    );
+    expect(status.every((quest) => quest.done)).toBe(true);
+  });
+
+  it("un bloc incomplet ne vaut que ses completedSteps", () => {
+    const map = rushStepKeysBySequenceId(MILESTONES);
+    const sequenceIdsByMilestone = new Map([["m", ["seq-a", "seq-b"]]]);
+    const keys = memberCompletedStepKeys({
+      rows: [{ milestoneId: "m", isCompleted: false, completedSteps: ["seq-a"] }],
+      sequenceIdsByMilestone,
+      stepKeysBySequenceId: map,
+    });
+
+    expect(keys).toEqual(["Ali-1-all"]);
   });
 });

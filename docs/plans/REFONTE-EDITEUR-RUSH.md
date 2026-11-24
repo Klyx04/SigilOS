@@ -103,6 +103,7 @@
 - **Édition inline du séparateur** : ✅ **livré (E3a)** — l'inspecteur de bloc couvre les 10 types.
 - **Monolithe non découpé** (`SequenceEditForm` 1 552 l., `AddSequenceForm` 451 l., `BlockInspectorForm`, champs) — **E2a-reste abandonné** ; ne pas rouvrir sans mesure.
 - **Tenu par E1 et à ne pas régresser** : aucun formulaire dans la liste, sélection unique, garde de saisie, `Ctrl+K`, seuils 1024/768, `77/77` fichiers God.
+- **Choix exclusifs Brak (étapes 55/66)** : carte de choix claire côté guide (3 options en 55, 2 en 66) + **édition des variantes** dans l'inspecteur ; lot UI/God, cadré dans la fiche unique §H (23/11/2026). Le comptage et l'exclusivité sont déjà portés par `rush-choice-groups`.
 
 ## 4. Contraintes non négociables
 

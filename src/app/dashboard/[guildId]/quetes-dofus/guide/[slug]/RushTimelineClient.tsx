@@ -1643,20 +1643,15 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
     dungeonKey: string;
     dungeon: DungeonAchievementDungeon;
   } | null>(null);
-  // Bloc J — clic sur un donjon : création d'un post donjon / quête (Dungeon Finder).
-  const dungeonsCommunityLoaded = useRef(false);
   const openDungeonsOverview = useCallback(() => {
     setDungeonsOverviewOpen(true);
-    if (dungeonsCommunityLoaded.current) return;
-    dungeonsCommunityLoaded.current = true;
+    // Toujours relire : une coche/décoche de quête, un bloc ou un reset change la liste
+    // « qui a fait quoi ». L'ancien cache (`dungeonsCommunityLoaded`) la figeait.
     void getRushDungeonsCommunity(guildId, guide.slug, effectiveAltPseudo)
       .then((res) => {
         if (res.success) setDungeonsCommunity(res.members);
-        else dungeonsCommunityLoaded.current = false;
       })
-      .catch(() => {
-        dungeonsCommunityLoaded.current = false;
-      });
+      .catch(() => {});
   }, [guildId, guide.slug, effectiveAltPseudo]);
   const dungeonsOverviewMe = useMemo(
     () => ({
@@ -2065,6 +2060,7 @@ const timelineItems=useMemo(()=>{
       if(!(res as any).success){ setResourceChecks(resourceBefore); toast.error((res as any)?.error || "Quête verrouillée par un donjon"); return; }
       if((res as any).success){
         scheduleLiveRefresh();
+        void dungeonsState.refresh();
         // Validation → le repère de cette quête est retiré (soit validée, soit repère).
         if(!was && bookmarksByMs.get(ms.id)===seqId){
           setBookmarksByMs(prev=>{const n=new Map(prev);n.delete(ms.id);return n;});
@@ -2085,7 +2081,7 @@ const timelineItems=useMemo(()=>{
             router.refresh();
           }
         }
-        if(res.isCompleted&&!wasMilestoneCompleted){const _ce=lastMsOfChapterIds.has(ms.id);toast.success("✅ Bloc validé !",{duration:1500});setCelebrate({msId:ms.id,title:_ce?`Chapitre ${ms.chapter} terminé ✓`:ms.title,tint:_ce?"#56d4ad":"#e6b96b"});}
+        if(res.isCompleted&&!wasMilestoneCompleted){const _ce=lastMsOfChapterIds.has(ms.id);toast.success("✅ Bloc validé !",{duration:1500});if(_ce)setCelebrate({msId:ms.id,title:`Chapitre ${ms.chapter} terminé ✓`,tint:"#56d4ad"});}
         else{toast.success(was?"Décocher":"✅ Validée !",{duration:1500});}
       }else{
         setCompletedStepsByMs(prev=>{const n=new Map(prev);was?cur.add(seqId):cur.delete(seqId);n.set(ms.id,cur);return n;});
@@ -2101,9 +2097,9 @@ const timelineItems=useMemo(()=>{
       setCompletedIds(prev=>{const n=new Set(prev);wasMilestoneCompleted?n.add(ms.id):n.delete(ms.id);return n;});
       toast.error("Erreur réseau");
     }finally{setLoading(ms.id,false);}
-  },[completedStepsByMs,completedIds,bookmarksByMs,guildId,effectiveAltPseudo,setLoading,blockedSeqIds,allCompletedSeqIds,milestones,dungeonsState.states,resourceChecks,scheduleLiveRefresh]);
-  const handleToggle=useCallback(async(ms:Milestone)=>{const was=completedIds.has(ms.id);const resourceBefore=resourceChecks;setResourceChecks((ms.sequences||[]).reduce((acc:Set<string>,s:any)=>applyQuestResourceChecks(acc,s.activityTags,!was),resourceChecks));setCompletedIds(prev=>{const n=new Set(prev);was?n.delete(ms.id):n.add(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,was?new Set():new Set(ms.sequences.map(s=>s.id)));return n;});setLoading(ms.id,true);try{const res=await toggleMilestoneProgress(guildId,ms.id,!was,effectiveAltPseudo);if(!(res as any).success){setResourceChecks(resourceBefore);setCompletedIds(prev=>{const n=new Set(prev);was?n.add(ms.id):n.delete(ms.id);return n;});toast.error((res as any)?.error || "Erreur");}else{ if(!was){const isChapterEnd=lastMsOfChapterIds.has(ms.id);setCelebrate({msId:ms.id,title:isChapterEnd?`Chapitre ${ms.chapter} terminé ✓`:ms.title,tint:isChapterEnd?"#56d4ad":"#e6b96b"}); if(bookmarksByMs.get(ms.id)){setBookmarksByMs(prev=>{const n=new Map(prev);n.delete(ms.id);return n;}); setRushBookmark(guildId,ms.id,null,effectiveAltPseudo).catch(()=>{});}} toast.success(was?"Décochée":"✅ Bloc validé !",{duration:1500}); scheduleLiveRefresh(); }}catch{setResourceChecks(resourceBefore);toast.error("Erreur réseau");}finally{setLoading(ms.id,false);}},[completedIds,bookmarksByMs,guildId,effectiveAltPseudo,setLoading,resourceChecks,scheduleLiveRefresh]);
-  const handleReset=useCallback(async(ms:Milestone)=>{setCompletedIds(prev=>{const n=new Set(prev);n.delete(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,new Set);return n;});setLoading(ms.id,true);try{await resetMilestoneProgress(guildId,ms.id,effectiveAltPseudo);toast.success("Réinitialisée");}catch{setCompletedIds(prev=>new Set([...prev,ms.id]));toast.error("Erreur reset");}finally{setLoading(ms.id,false);}},[guildId,effectiveAltPseudo,setLoading]);
+  },[completedStepsByMs,completedIds,bookmarksByMs,guildId,effectiveAltPseudo,setLoading,blockedSeqIds,allCompletedSeqIds,milestones,dungeonsState.states,dungeonsState.refresh,resourceChecks,scheduleLiveRefresh]);
+  const handleToggle=useCallback(async(ms:Milestone)=>{const was=completedIds.has(ms.id);const resourceBefore=resourceChecks;setResourceChecks((ms.sequences||[]).reduce((acc:Set<string>,s:any)=>applyQuestResourceChecks(acc,s.activityTags,!was),resourceChecks));setCompletedIds(prev=>{const n=new Set(prev);was?n.delete(ms.id):n.add(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,was?new Set():new Set(ms.sequences.map(s=>s.id)));return n;});setLoading(ms.id,true);try{const res=await toggleMilestoneProgress(guildId,ms.id,!was,effectiveAltPseudo);if(!(res as any).success){setResourceChecks(resourceBefore);setCompletedIds(prev=>{const n=new Set(prev);was?n.add(ms.id):n.delete(ms.id);return n;});toast.error((res as any)?.error || "Erreur");}else{ if(!was){const isChapterEnd=lastMsOfChapterIds.has(ms.id);if(isChapterEnd)setCelebrate({msId:ms.id,title:`Chapitre ${ms.chapter} terminé ✓`,tint:"#56d4ad"}); if(bookmarksByMs.get(ms.id)){setBookmarksByMs(prev=>{const n=new Map(prev);n.delete(ms.id);return n;}); setRushBookmark(guildId,ms.id,null,effectiveAltPseudo).catch(()=>{});}} toast.success(was?"Décochée":"✅ Bloc validé !",{duration:1500}); scheduleLiveRefresh(); void dungeonsState.refresh(); }}catch{setResourceChecks(resourceBefore);toast.error("Erreur réseau");}finally{setLoading(ms.id,false);}},[completedIds,bookmarksByMs,guildId,effectiveAltPseudo,setLoading,resourceChecks,scheduleLiveRefresh,dungeonsState.refresh]);
+  const handleReset=useCallback(async(ms:Milestone)=>{setCompletedIds(prev=>{const n=new Set(prev);n.delete(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,new Set);return n;});setLoading(ms.id,true);try{await resetMilestoneProgress(guildId,ms.id,effectiveAltPseudo);toast.success("Réinitialisée");scheduleLiveRefresh();void dungeonsState.refresh();}catch{setCompletedIds(prev=>new Set([...prev,ms.id]));toast.error("Erreur reset");}finally{setLoading(ms.id,false);}},[guildId,effectiveAltPseudo,setLoading,scheduleLiveRefresh,dungeonsState.refresh]);
 
   // ─── Bookmark par séquence ─────────────────────────────────────────────
   // 1 max par bloc : bookmarker une quête remplace le repère du même bloc

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, Flag, Plus, Search } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Flag, Plus, Search } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { MemberAvatar } from "@/components/shared/member-avatar";
 import { cn } from "@/lib/utils";
@@ -114,26 +114,74 @@ function DungeonImage({ row }: { row: RushOverviewDungeon }) {
   );
 }
 
-/** Empilement d'avatars (max 3) + « +n », avec les noms en infobulle. */
-function MemberStack({ members }: { members: RushOverviewMember[] }) {
+/** Avatars de tous les membres avec leur état : fait / repère / pas fait. */
+function MemberStatusStack({
+  members,
+  occurrence,
+}: {
+  members: RushOverviewMember[];
+  occurrence: RushOverviewOccurrence;
+}) {
   if (members.length === 0) return null;
-  const shown = members.slice(0, 3);
+  const done = new Set(occurrence.doneBy);
+  const flagged = new Set(occurrence.flaggedBy);
+  const shown = members.slice(0, 6);
   const rest = members.length - shown.length;
   return (
-    <span className="flex items-center" title={members.map((member) => member.name).join(" · ")}>
-      {shown.map((member) => (
-        <span
-          key={member.key}
-          className="-ml-1 grid h-4 w-4 place-items-center overflow-hidden rounded-full border border-border bg-elevated first:ml-0"
-        >
-          <MemberAvatar
-            src={member.avatar}
-            name={member.name}
-            fallbackClassName="text-[8px] font-semibold text-muted-foreground"
-          />
-        </span>
-      ))}
-      {rest > 0 ? <span className="ml-1 text-[10px] tabular-nums text-muted-foreground">+{rest}</span> : null}
+    <span
+      className="flex items-center gap-0.5"
+      title={members
+        .map(
+          (member) =>
+            `${member.name} — ${
+              done.has(member.key) ? "fait" : flagged.has(member.key) ? "repère" : "pas fait"
+            }`
+        )
+        .join(" · ")}
+    >
+      {shown.map((member) => {
+        const state = done.has(member.key)
+          ? "done"
+          : flagged.has(member.key)
+            ? "flag"
+            : "todo";
+        return (
+          <span
+            key={member.key}
+            className={cn(
+              "relative grid h-4 w-4 place-items-center overflow-hidden rounded-full border bg-elevated",
+              state === "done"
+                ? "border-success/60"
+                : state === "flag"
+                  ? "border-warning/60"
+                  : "border-border opacity-60"
+            )}
+          >
+            <MemberAvatar
+              src={member.avatar}
+              name={member.name}
+              fallbackClassName="text-[8px] font-semibold text-muted-foreground"
+            />
+            {state !== "todo" ? (
+              <span
+                className={cn(
+                  "absolute -bottom-1 -right-1 grid h-2.5 w-2.5 place-items-center rounded-full text-background",
+                  state === "done" ? "bg-success" : "bg-warning"
+                )}
+              >
+                {state === "done" ? (
+                  <Check className="h-1.5 w-1.5" aria-hidden="true" />
+                ) : (
+                  <Flag className="h-1.5 w-1.5" aria-hidden="true" />
+                )}
+              </span>
+            ) : null}
+          </span>
+        );
+      })}
+      {rest > 0 ? (
+        <span className="ml-1 text-[10px] tabular-nums text-muted-foreground">+{rest}</span>
+      ) : null}
     </span>
   );
 }
@@ -266,10 +314,9 @@ function DungeonRow({
             <StateChip occurrence={occurrence} labels={labels} />
             {mode === "guest" ? null : (
               <span className="shrink-0">
-                <MemberStack
-                  members={occurrence.doneBy
-                    .map((key) => membersByKey.get(key))
-                    .filter((member): member is RushOverviewMember => Boolean(member))}
+                <MemberStatusStack
+                  members={[...membersByKey.values()]}
+                  occurrence={occurrence}
                 />
               </span>
             )}

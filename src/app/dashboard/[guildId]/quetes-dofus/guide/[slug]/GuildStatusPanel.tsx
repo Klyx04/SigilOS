@@ -2,7 +2,7 @@
 import { useMemo, memo, useState } from "react";
 import { Users, ChevronRight } from "lucide-react";
 import { dofusMetaIndex } from "@/lib/rush-dofus-meta";
-import { memberDofusProgress, projectRushStepKeys, questStatusForMembers, type DofusQuestRef, type MemberDofusProgress } from "@/lib/rush-dofus-progress";
+import { memberCompletedStepKeys, memberDofusProgress, questStatusForMembers, type DofusQuestRef, type MemberDofusProgress } from "@/lib/rush-dofus-progress";
 import { RushDofusDetailModal } from "@/components/dofus-quests/rush/RushDofusDetailModal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -14,6 +14,8 @@ type Milestone = {
   chapterLabel: string;
   accentColor?: string | null;
   dofusId?: string | null;
+  /** Séquences du bloc (pour projeter un bloc `isCompleted` en toutes ses quêtes). */
+  sequences?: Array<{ id: string }>;
 };
 
 type GuildMemberProgress = {
@@ -72,6 +74,18 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
   /** Dofus dont la modale de détail est ouverte (un clic sur un Dofus). */
   const [openDofusId, setOpenDofusId] = useState<string | null>(null);
 
+  /** Ids de séquence par bloc — un bloc `isCompleted` vaut toutes ses quêtes. */
+  const sequenceIdsByMilestone = useMemo(
+    () =>
+      new Map(
+        milestones.map((milestone) => [
+          milestone.id,
+          (milestone.sequences ?? []).map((sequence) => sequence.id),
+        ])
+      ),
+    [milestones]
+  );
+
   const dofusStats = useMemo(() => {
     const map = new Map<string, DofusStat>();
 
@@ -128,8 +142,11 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
           );
           if (!rows.length) return null;
 
-          const completedSteps = new Set<string>();
-          for (const row of rows) for (const step of row.completedSteps ?? []) completedSteps.add(step);
+          const completedSteps = memberCompletedStepKeys({
+            rows,
+            sequenceIdsByMilestone,
+            stepKeysBySequenceId,
+          });
           const currentStep = rows.find((row) => row.currentStep)?.currentStep ?? null;
 
           return {
@@ -144,7 +161,7 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
     });
 
     return Array.from(map.values()).sort((a, b) => b.totalMilestones - a.totalMilestones);
-  }, [milestones, questsByDofus, guildProgress]);
+  }, [milestones, questsByDofus, guildProgress, sequenceIdsByMilestone, stepKeysBySequenceId]);
 
   const totalMembers = useMemo(
     () => new Set(guildProgress.map((p) => p.profileId)).size,
@@ -165,24 +182,29 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
     const dofusMilestoneIds = new Set(
       milestones.filter((milestone) => milestone.dofusId === selected.id).map((milestone) => milestone.id)
     );
-    const byMember = new Map<string, { completedSteps: Set<string>; currentStep: string | null }>();
+    const byMember = new Map<string, { rows: GuildMemberProgress[]; currentStep: string | null }>();
     for (const row of guildProgress) {
       if (!dofusMilestoneIds.has(row.milestoneId)) continue;
-      const entry = byMember.get(row.profileId) ?? { completedSteps: new Set<string>(), currentStep: null };
-      // La base stocke des **ids de séquence** ; les règles de statut attendent des
-      // clés `<subGuideRef>-<n>`. Sans projection, aucune quête n'est jamais
-      // « Validée » (mesure du 20/11/2026 : 4 blocs terminés en base, modale à 0/8).
-      for (const key of projectRushStepKeys(row.completedSteps ?? [], stepKeysBySequenceId)) {
-        entry.completedSteps.add(key);
-      }
+      const entry = byMember.get(row.profileId) ?? { rows: [], currentStep: null };
+      entry.rows.push(row);
       if (row.currentStep) {
         const keys = stepKeysBySequenceId.get(row.currentStep);
         entry.currentStep = keys?.[0] ?? row.currentStep;
       }
       byMember.set(row.profileId, entry);
     }
-    return questStatusForMembers(quests, [...byMember.values()]);
-  }, [selected, questsByDofus, milestones, guildProgress, stepKeysBySequenceId]);
+    return questStatusForMembers(
+      quests,
+      [...byMember.values()].map((entry) => ({
+        completedSteps: memberCompletedStepKeys({
+          rows: entry.rows,
+          sequenceIdsByMilestone,
+          stepKeysBySequenceId,
+        }),
+        currentStep: entry.currentStep,
+      }))
+    );
+  }, [selected, questsByDofus, milestones, guildProgress, stepKeysBySequenceId, sequenceIdsByMilestone]);
 
   if (dofusStats.length === 0) return null;
 

@@ -335,7 +335,7 @@ python scripts/siphon-dofusdex.py            # → public/game-data/dofusdex.jso
 1. Lire `docs/agents/activeContext.md` (**bloc suite 43**, en haut) puis `docs/ROADMAP.md` (§0 + §2).
 2. **État et restes (22/11/2026)** : **une seule source** — `docs/plans/RUSH-DEVELOPPEMENT-SUITE.md` « Restes — fiche unique ». Mesures du jour : **536** séquences, **527** positions (0 sans monde), **527** prérequis (0 orphelin), **518/536** cartographiables, **3** succès 3/3.
 3. **Prochains gestes** : voir la même fiche (O13 → V-D2 → O6, puis T-6 ; ops VPS à part). Le **173 vs 143** est expliqué : écart de route, pas un bug.
-4. **Itérations 5/6** : définition toujours absente — ne pas l'inventer.
+4. **Itérations 5/6** : **supprimées de la liste le 23/11/2026** (non définies) — toute itération future est un **nouveau lot à définir**.
 5. **Règles clés** : valider un **bloc** ne consulte plus le verrou donjon/prérequis (confort) ; la validation **quête par quête** le garde, fail-closed (`RUSH-DEVELOPPEMENT-SUITE.md` §donjons). Un **succès** n'est pas une quête : aucune position attendue. WebSocket local = `npm run ws` (port 3001), **pas** `npm run dev`.
 6. **Ops** : `docs/MAINTENANCE.md` § Rush — remplacer/archiver ; runbook `scripts/ops/vps.sh` (`docs/agents/vps-ops.md`) ; lecture seule `vps-read-only.md`.
 7. **Ne pas** : lancer le CLI legacy sur le nouveau guide ; importer sans dry-run ; archiver sans dump ; supprimer l'archive avant validation ; déplacer/supprimer des quêtes cochées ; oublier `npm run test:run` avant la PR.

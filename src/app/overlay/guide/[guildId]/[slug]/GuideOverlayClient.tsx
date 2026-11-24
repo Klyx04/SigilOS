@@ -10,6 +10,7 @@ import {
   setRushBookmark,
   applyRushAlignmentFromSequence,
   resetGuideProgress,
+  resetMilestoneProgress,
 } from "@/server/actions/optimized-guide-actions";
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
 import { type GuideProgressRow } from "@/lib/guide-progress-helpers";
@@ -508,23 +509,18 @@ export default function GuideOverlayClient({
   const isPublicSurface = guildId === "public";
   const [dungeonsOverviewOpen, setDungeonsOverviewOpen] = useState(false);
   const [dungeonsCommunity, setDungeonsCommunity] = useState<RushOverviewMember[] | null>(null);
-  const dungeonsCommunityLoaded = useRef(false);
   const openDungeonsOverview = useCallback(() => {
     setDungeonsOverviewOpen(true);
-    if (dungeonsCommunityLoaded.current) return;
     if (isPublicSurface && !feedbackSignedIn) return;
-    dungeonsCommunityLoaded.current = true;
+    // Toujours relire : une coche/décoche de quête, un bloc ou un reset change la liste.
     const request = isPublicSurface
       ? getPublicRushDungeonsCommunity()
       : getRushDungeonsCommunity(guildId, guide.slug, effectiveAltPseudo);
     void request
       .then((res) => {
         if (res.success) setDungeonsCommunity(res.members);
-        else dungeonsCommunityLoaded.current = false;
       })
-      .catch(() => {
-        dungeonsCommunityLoaded.current = false;
-      });
+      .catch(() => {});
   }, [guildId, guide.slug, effectiveAltPseudo, isPublicSurface, feedbackSignedIn]);
   const dungeonsOverviewMe = useMemo(
     () => ({
@@ -1146,6 +1142,7 @@ export default function GuideOverlayClient({
           });
           await setRushBookmark(guildId, ms.id, null, effectiveAltPseudo).catch(() => {});
         }
+        void guildDungeons.refresh();
         // Chapitre complété d'un coup → passer automatiquement au suivant.
         if (!was) {
           notifyBlockDone(ms);
@@ -1168,7 +1165,79 @@ export default function GuideOverlayClient({
         });
       }
     },
-    [completedIds, completedStepsByMs, loadingIds, bookmarksByMs, guildId, effectiveAltPseudo, goToNextMs, resourceChecks, isGuest, persistGuestResourceChecks, notifyBlockDone]
+    [completedIds, completedStepsByMs, loadingIds, bookmarksByMs, guildId, effectiveAltPseudo, goToNextMs, resourceChecks, isGuest, persistGuestResourceChecks, notifyBlockDone, guildDungeons.refresh]
+  );
+
+  const handleResetMs = useCallback(
+    async (ms: RushMilestone) => {
+      if (loadingIds.has(ms.id)) return;
+      const prevCompleted = completedIds;
+      const prevSteps = completedStepsByMs;
+      const prevResources = resourceChecks;
+      setCompletedIds((prev) => {
+        const n = new Set(prev);
+        n.delete(ms.id);
+        return n;
+      });
+      const nextSteps = new Map(completedStepsByMs);
+      nextSteps.set(ms.id, new Set<string>());
+      setCompletedStepsByMs(nextSteps);
+      const nextResources = (ms.sequences || []).reduce(
+        (acc, s) => applyQuestResourceChecks(acc, s.activityTags, false),
+        resourceChecks
+      );
+      setResourceChecks(nextResources);
+
+      if (isGuest) {
+        persistGuestResourceChecks(nextResources);
+        if (typeof window !== "undefined") {
+          try {
+            const stepsObj: Record<string, string[]> = {};
+            nextSteps.forEach((set, key) => {
+              stepsObj[key] = Array.from(set);
+            });
+            localStorage.setItem(`${storagePrefix}steps`, JSON.stringify(stepsObj));
+            localStorage.setItem(
+              `${storagePrefix}completed_ms`,
+              JSON.stringify(Array.from(completedIds).filter((id) => id !== ms.id))
+            );
+          } catch {}
+        }
+        toast.success("Bloc réinitialisé");
+        return;
+      }
+
+      setLoadingIds((prev) => new Set([...prev, ms.id]));
+      try {
+        await resetMilestoneProgress(guildId, ms.id, effectiveAltPseudo);
+        toast.success("Bloc réinitialisé");
+        void guildDungeons.refresh();
+      } catch {
+        setCompletedIds(prevCompleted);
+        setCompletedStepsByMs(prevSteps);
+        setResourceChecks(prevResources);
+        toast.error("Erreur de réinitialisation");
+      } finally {
+        setLoadingIds((prev) => {
+          const n = new Set(prev);
+          n.delete(ms.id);
+          return n;
+        });
+      }
+    },
+    [
+      completedIds,
+      completedStepsByMs,
+      loadingIds,
+      guildId,
+      effectiveAltPseudo,
+      resourceChecks,
+      isGuest,
+      persistGuestResourceChecks,
+      storagePrefix,
+      toast,
+      guildDungeons.refresh,
+    ]
   );
 
   const handleToggleSeq = useCallback(
@@ -1748,6 +1817,7 @@ export default function GuideOverlayClient({
             completedMsIds={completedIds}
             doneByMs={completedStepsByMs}
             onToggleChapter={handleToggleMs}
+            onResetChapter={handleResetMs}
             loading={!!currentMs && loadingIds.has(currentMs.id)}
           />
 

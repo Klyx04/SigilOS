@@ -6,6 +6,16 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 23/11/2026 (suite 64) — **Rush : plan consolidé 28 points, décisions 16-21, début phase 1** — branche `feat/rush-progression-2026-11-23`
+
+> **Demande user (verbatim)** : « documente/maj les contexte la totalité avant non ? commit puis démarre la phase 1 ».
+> **Décisions** : ① validation de bloc = **cascade montante** des prérequis (un seul par groupe « OU ») + **coche des donjons requis** (un par groupe « au choix ») ; ② **reset bloc/guide** recalcule la fermeture des blocs validés, **retire** les prérequis qui ne sont plus impliqués et **efface les donjons** du personnage ; ③ dévalider un bloc **laisse** les donjons ; ④ la modale Dofus « Avancement », la modale « Progression Donjons » (statut par membre) et la coche du sommaire se recalculent après chaque mutation, pour le personnage ciblé ; ⑤ overlay = bouton **« Réinitialiser »** du bloc ; ⑥ célébration unifiée (bloc = toast, chapitre = burst) ; ⑦ **choix Brak 55/66** = carte claire + éditable God ; ⑧ **mode blanc** prioritaire sur G7/G9 ; ⑨ **E2 écarté** (pas de migration) ; ⑩ **itérations 5/6 supprimées** ; ⑪ **prod en attente**.
+> **Mesuré** : 117 Brâkmarien local = **102 série + 15 Ordres** (3×5) ; le 121 est le compte brut, pas un doublon. **0 constraints réelles** en local ; **29 conseils** (7+22, bêta 49) ; **742 tags combat** (bêta 746) ; **6 positions** des quêtes ajoutées (local fait, bêta à vérifier ; 894 sans source) ; DPLN **0 à mettre à jour** (532) ; **bêta 540 / local 541** ; 20 `createContext` dans `RushTimelineClient` ; `resetMilestoneProgress`/`resetGuideProgress` **n'effacent pas** `PlayerGuideDungeonState` ; `dungeonsCommunity` chargé **une fois** ; la modale Dofus lit `guildProgress` serveur, pas l'état local.
+> **Fait (docs + Phase 1)** : fiche unique §H (plan 28 points/5 phases + décisions), ROADMAP §0 + rangs 9/10/10b/55/59/64 + §3 bis, `REFONTE-EDITEUR-RUSH` (choix Brak), `ROUTE-RUSH-ISO-TOUGLI` (itérations supprimées), `MAINTENANCE` (positions DPLN ≠ manuelles) · **Phase 1A serveur** : cascade montante (`rush-prereq-cascade`), donjons requis (`rush-block-dungeons`), resets qui effacent les donjons, retrait des prérequis orphelins · **Phase 1B UI** : projection `memberCompletedStepKeys` (bloc `isCompleted` = toutes ses quêtes), statut par membre dans la modale Donjons, relecture de la communauté, reset du bloc dans l'overlay, célébration réservée aux fins de chapitre, `refresh` des donjons après chaque mutation · **PR #1525** (CI verte).
+> **Preuves** : **27 tests neufs** (12 cascade + 6 donjons + 2 projections + 7 verrous source) · `tsc` 0 · **8 397 tests ✅** · `lint` 0 erreur (7 796 warnings préexistants) · **CI #1525 verte** · aucune migration.
+> **Reste** : Phase 2 (mode blanc, fiche quête, choix Brak + God) · Phase 3 données (6 positions bêta, 894, 514, 1 085 contraintes, 98 conseils, combats) · ops/prod en attente.
+> **Rotation** : bloc « suite 58 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
 ## 📝 Session 23/11/2026 (suite 63) — **Rush : audit Tougli/Dofusyelle, hygiène, fiche des succès, quêtes, aide, fiche détail** — branches `fix/rush-hygiene-2026-11-23` + `feat/rush-succes-quetes-2026-11-23` + `feat/rush-quetes-oubliees-2026-11-23` + `feat/rush-aide-navigateur-2026-11-23` + `feat/rush-detail-succes-toast-2026-11-23`
 
 > **Demande user (verbatim)** : « on focus tous les chantiers restant sur le rush sylvestre » puis « recouper avec le guide du streamer lanyielle (dofusyelle) en + de tougli ».
@@ -51,10 +61,3 @@
 > **Preuves** : **103 tests ciblés ✅** (dont `rush-overlay-compact`) · `tsc` 0 · `lint` 0 erreur (39 warnings préexistants) · aucune migration.
 > **Reste** : valider visuellement 310/390/768/1024/1440 · 3ᵉ palier (largeur cible + blocs visibles).
 
-## 📝 Session 22/11/2026 (suite 58) — **Rush : overlay étroit, précédence corrigée** — branche `fix/rush-overlay-density-2026-11-22`
-
-> **Demande user (verbatim)** : « choisi et enchaine ».
-> **Mesuré** : `GuideOverlayClient.tsx:327` évaluait `h >= 900` avant `w < 580` ⇒ une PiP **400 × 1000** était `wide` alors que `overlaySmall` était vrai ; les commentaires annonçaient **820**, le code utilisait **900**.
-> **Fait** : règle pure `resolveOverlayLayout` (`src/lib/rush-overlay-layout.ts`) : `small` si un côté est étroit, `tight` prioritaire, `wide` dès 820 px de haut sinon ; `GuideOverlayClient` l'utilise ; `RushOverlayHeader` fait primer `narrow` sur `density`. 4 tests neufs.
-> **Preuves** : **28 tests ciblés ✅** (`rush-overlay-layout`, `rush-dungeons-overview-ui`, `rush-overlay-v2f`) · `tsc` 0 · `lint` 0 erreur (39 warnings préexistants) · aucune migration.
-> **Reste** : 3ᵉ palier (largeur cible + blocs visibles, décision) · captures 390/768/1024/1440 à valider visuellement.

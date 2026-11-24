@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { ChevronDown, Check } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { ChevronDown, Check, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isNonCheckableBlock } from "@/lib/rush-guide-utils";
 import { getDofusMeta } from "@/lib/rush-dofus-meta";
@@ -27,6 +27,8 @@ interface RushOverlayChapterBarProps {
   className?: string;
   /** Case « tout le chapitre » : le bloc courant se valide (ou se décoche) d'un clic. */
   onToggleChapter?: (ms: RushMilestone) => void;
+  /** Réinitialise le bloc courant (confirmation en 2 temps, comme le guide interne). */
+  onResetChapter?: (ms: RushMilestone) => void;
   /** Bloc courant en cours d'écriture serveur : la case ne repart pas en double. */
   loading?: boolean;
 }
@@ -59,9 +61,14 @@ export function RushOverlayChapterBar({
   doneByMs,
   className,
   onToggleChapter,
+  onResetChapter,
   loading = false,
 }: RushOverlayChapterBarProps) {
   const [open, setOpen] = useState(false);
+  const [resetArmed, setResetArmed] = useState(false);
+  useEffect(() => {
+    setResetArmed(false);
+  }, [activeMsId]);
   if (chapters.length === 0) return null;
 
   // Les blocs SÉPARATEUR ne sont pas des étapes : ils n'entrent PAS dans la liste des
@@ -118,6 +125,41 @@ export function RushOverlayChapterBar({
             <span className="da-node" data-state={msDone ? "done" : "todo"} aria-hidden="true">
               {msDone && <Check className="h-3 w-3 stroke-[3]" />}
             </span>
+          </button>
+        )}
+
+        {/* Réinitialiser le bloc courant — manque signalé le 23/11/2026 dans l'overlay.
+            Confirmation en 2 temps : le premier clic arme, le second écrit. */}
+        {activeMs && onResetChapter && showProgress && (
+          <button
+            type="button"
+            onClick={() => {
+              if (loading) return;
+              if (!resetArmed) {
+                setResetArmed(true);
+                return;
+              }
+              setResetArmed(false);
+              onResetChapter(activeMs);
+            }}
+            disabled={loading}
+            aria-label={
+              resetArmed ? "Confirmer la réinitialisation du bloc" : "Réinitialiser le bloc"
+            }
+            title={
+              resetArmed
+                ? "Cliquer à nouveau pour confirmer la réinitialisation"
+                : "Réinitialiser ce bloc"
+            }
+            className={cn(
+              "grid h-7 w-7 shrink-0 place-items-center rounded-[4px] border transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent",
+              resetArmed
+                ? "border-danger/60 text-danger"
+                : "border-border text-muted-foreground hover:border-danger/40 hover:text-danger",
+              loading && "cursor-not-allowed opacity-50"
+            )}
+          >
+            <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
           </button>
         )}
 

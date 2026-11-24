@@ -48,6 +48,15 @@ import { rushSplitMetaOf } from "@/server/rush-split-data";
 import { isRushNonQuestBlock, isRushSequenceBannerMarker } from "@/lib/rush-block-types";
 import { safeImageUrl } from "@/lib/security";
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
+import {
+  planPrerequisiteCascade,
+  planPrerequisiteRemoval,
+  type RushCascadeMilestone,
+} from "@/lib/rush-prereq-cascade";
+import {
+  planRequiredDungeonChecks,
+  type RushBlockDungeonSequence,
+} from "@/lib/rush-block-dungeons";
 
 /** La carte DPLN a des clés connues ; l'accès par `questId` est un index dynamique. */
 const RUSH_POSITION_MAP = RUSH_QUEST_POSITIONS as RushQuestPositionMap;
@@ -605,6 +614,366 @@ export async function getMemberAllGuidesProgress(profileId: string, guildId: str
 }
 
 /**
+ * **Cohérence de progression (23/11/2026)** — chargement et écriture du plan de
+ * cascade de prérequis + coche des donjons. Les règles pures vivent dans
+ * `src/lib/rush-prereq-cascade.ts` et `src/lib/rush-block-dungeons.ts` ; ce bloc ne
+ * fait que lire la base et appliquer le plan, dans l'ordre auth → plan → transaction.
+ */
+type CompletionSequence = {
+  id: string;
+  subGuideName: string;
+  subGuideRef: string;
+  order: number;
+  activityTags: unknown;
+  questDbIds: number[];
+  alignReq: string | null;
+  alignOrderCode: string | null;
+  alignLevelReq: number | null;
+  dungeonId: string | null;
+  dungeonIds: string[];
+  dungeonOptionalIds: string[];
+  dungeon: { id: string; name: string; slug: string | null; bossName: string | null } | null;
+};
+
+type CompletionMilestone = {
+  id: string;
+  type: string;
+  sequences: CompletionSequence[];
+};
+
+type CompletionGuide = {
+  id: string;
+  slug: string;
+  milestones: CompletionMilestone[];
+};
+
+type ProgressSnapshot = {
+  completed: Set<string>;
+  completedMilestoneIds: Set<string>;
+  byMilestone: Map<
+    string,
+    { isCompleted: boolean; completedAt: Date | null; completedSteps: string[] }
+  >;
+  doneDungeonKeys: Set<string>;
+};
+
+async function loadCompletionGuide(guideId: string): Promise<CompletionGuide> {
+  const guide = await db.optimizedGuide.findUnique({
+    where: { id: guideId },
+    select: {
+      id: true,
+      slug: true,
+      milestones: {
+        select: {
+          id: true,
+          type: true,
+          sequences: {
+            select: {
+              id: true,
+              subGuideName: true,
+              subGuideRef: true,
+              order: true,
+              activityTags: true,
+              questDbIds: true,
+              alignReq: true,
+              alignOrderCode: true,
+              alignLevelReq: true,
+              dungeonId: true,
+              dungeonIds: true,
+              dungeonOptionalIds: true,
+              dungeon: { select: { id: true, name: true, slug: true, bossName: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+  if (!guide) throw new Error("Guide introuvable");
+  return guide as CompletionGuide;
+}
+
+async function loadProgressSnapshot(
+  profileId: string,
+  characterSlot: string,
+  guideId: string
+): Promise<ProgressSnapshot> {
+  const [rows, dungeonRows] = await Promise.all([
+    db.playerGuideProgress.findMany({
+      where: { profileId, characterSlot, milestone: { guideId } },
+      select: { milestoneId: true, isCompleted: true, completedAt: true, completedSteps: true },
+    }),
+    db.playerGuideDungeonState.findMany({
+      where: { profileId, guideId, characterSlot },
+      select: { dungeonKey: true, state: true },
+    }),
+  ]);
+
+  const completed = new Set<string>();
+  const completedMilestoneIds = new Set<string>();
+  const byMilestone: ProgressSnapshot["byMilestone"] = new Map();
+  for (const row of rows) {
+    const steps = Array.isArray(row.completedSteps) ? (row.completedSteps as string[]) : [];
+    for (const id of steps) completed.add(id);
+    if (row.isCompleted) completedMilestoneIds.add(row.milestoneId);
+    byMilestone.set(row.milestoneId, {
+      isCompleted: row.isCompleted,
+      completedAt: row.completedAt,
+      completedSteps: steps,
+    });
+  }
+
+  return {
+    completed,
+    completedMilestoneIds,
+    byMilestone,
+    doneDungeonKeys: new Set(
+      dungeonRows.filter((row) => row.state === "DONE").map((row) => row.dungeonKey)
+    ),
+  };
+}
+
+function isInfoSequenceRow(sequence: { activityTags: unknown }): boolean {
+  return (
+    Array.isArray(sequence.activityTags) &&
+    sequence.activityTags.some((tag) => isRushSequenceBannerMarker(tag))
+  );
+}
+
+function contentSequenceIds(milestone: CompletionMilestone): string[] {
+  return milestone.sequences.filter((sequence) => !isInfoSequenceRow(sequence)).map((sequence) => sequence.id);
+}
+
+function cascadeMilestones(guide: CompletionGuide): RushCascadeMilestone[] {
+  return guide.milestones.map((milestone) => ({
+    id: milestone.id,
+    type: milestone.type,
+    sequences: milestone.sequences.map((sequence) => ({
+      id: sequence.id,
+      subGuideName: sequence.subGuideName,
+      subGuideRef: sequence.subGuideRef,
+      activityTags: sequence.activityTags as never,
+      questDbIds: sequence.questDbIds,
+      alignReq: sequence.alignReq,
+      alignOrderCode: sequence.alignOrderCode,
+      alignLevelReq: sequence.alignLevelReq,
+    })),
+  }));
+}
+
+async function loadDungeonSequences(
+  guide: CompletionGuide
+): Promise<Map<string, RushBlockDungeonSequence>> {
+  const allIds = new Set<string>();
+  for (const milestone of guide.milestones) {
+    for (const sequence of milestone.sequences) {
+      if (sequence.dungeonId) allIds.add(sequence.dungeonId);
+      for (const id of sequence.dungeonIds) allIds.add(id);
+    }
+  }
+  const dungeons = allIds.size
+    ? await db.dungeon.findMany({
+        where: { id: { in: [...allIds] } },
+        select: { id: true, name: true, slug: true, bossName: true },
+      })
+    : [];
+  const byId = new Map(dungeons.map((dungeon) => [dungeon.id, dungeon]));
+  const out = new Map<string, RushBlockDungeonSequence>();
+
+  for (const milestone of guide.milestones) {
+    for (const sequence of milestone.sequences) {
+      const optional = new Set(sequence.dungeonOptionalIds);
+      const refs: Array<{
+        id: string;
+        name: string;
+        slug: string | null;
+        bossName: string | null;
+        isOptional: boolean;
+      }> = [];
+      for (const id of sequence.dungeonIds) {
+        const dungeon = byId.get(id);
+        if (dungeon) refs.push({ ...dungeon, isOptional: optional.has(id) });
+      }
+      if (sequence.dungeon && !refs.some((ref) => ref.id === sequence.dungeon?.id)) {
+        refs.unshift({ ...sequence.dungeon, isOptional: optional.has(sequence.dungeon.id) });
+      }
+      out.set(sequence.id, {
+        id: sequence.id,
+        sequence: {
+          dungeons: refs,
+          activityTags: Array.isArray(sequence.activityTags) ? sequence.activityTags : [],
+        } as unknown as RushSequence,
+      });
+    }
+  }
+  return out;
+}
+
+/** Écrit les prérequis ajoutés, bloc par bloc, et recalcule leur complétude. */
+async function applyCascadeProgress(input: {
+  guide: CompletionGuide;
+  snapshot: ProgressSnapshot;
+  added: readonly string[];
+  targetMilestoneId: string;
+  profileId: string;
+  characterSlot: string;
+}): Promise<void> {
+  const byMilestone = new Map<string, string[]>();
+  for (const sequenceId of input.added) {
+    const owner = input.guide.milestones.find((milestone) =>
+      milestone.sequences.some((sequence) => sequence.id === sequenceId)
+    );
+    if (!owner || owner.id === input.targetMilestoneId) continue;
+    const list = byMilestone.get(owner.id) ?? [];
+    list.push(sequenceId);
+    byMilestone.set(owner.id, list);
+  }
+
+  for (const [milestoneId, added] of byMilestone) {
+    const milestone = input.guide.milestones.find((entry) => entry.id === milestoneId);
+    if (!milestone) continue;
+    const previous = input.snapshot.byMilestone.get(milestoneId);
+    const steps = [...new Set([...(previous?.completedSteps ?? []), ...added])];
+    const contentIds = contentSequenceIds(milestone);
+    const allDone = contentIds.length > 0 && contentIds.every((id) => steps.includes(id));
+    const isCompleted = (previous?.isCompleted ?? false) || allDone;
+    const completedAt = isCompleted ? (previous?.completedAt ?? new Date()) : null;
+
+    await db.playerGuideProgress.upsert({
+      where: {
+        profileId_milestoneId_characterSlot: {
+          profileId: input.profileId,
+          milestoneId,
+          characterSlot: input.characterSlot,
+        },
+      },
+      update: { completedSteps: steps, isCompleted, completedAt },
+      create: {
+        profileId: input.profileId,
+        milestoneId,
+        characterSlot: input.characterSlot,
+        completedSteps: steps,
+        isCompleted,
+        completedAt,
+      },
+    });
+  }
+}
+
+/** Coche les donjons requis du bloc (une alternative par groupe « au choix »). */
+async function applyDungeonChecks(input: {
+  checks: ReadonlyArray<{ sequenceId: string; dungeonKey: string }>;
+  guideId: string;
+  profileId: string;
+  characterSlot: string;
+}): Promise<void> {
+  if (input.checks.length === 0) return;
+  // Un bloc = quelques donjons ; « tout valider » peut en cocher ~173. On découpe en
+  // lots de 50 pour rester sous le délai d'une transaction (même règle que la synchro
+  // des positions).
+  for (let index = 0; index < input.checks.length; index += 50) {
+    const chunk = input.checks.slice(index, index + 50);
+    await db.$transaction(
+      chunk.map((check) =>
+        db.playerGuideDungeonState.upsert({
+          where: {
+            profileId_guideId_sequenceId_dungeonKey_characterSlot: {
+              profileId: input.profileId,
+              guideId: input.guideId,
+              sequenceId: check.sequenceId,
+              dungeonKey: check.dungeonKey,
+              characterSlot: input.characterSlot,
+            },
+          },
+          update: { state: "DONE" },
+          create: {
+            profileId: input.profileId,
+            guideId: input.guideId,
+            sequenceId: check.sequenceId,
+            dungeonKey: check.dungeonKey,
+            characterSlot: input.characterSlot,
+            state: "DONE",
+          },
+        })
+      )
+    );
+  }
+}
+
+/** Retire les prérequis qui n'étaient impliqués que par le bloc dévalidé/reset. */
+async function removeCascadeProgress(input: {
+  guide: CompletionGuide;
+  snapshot: ProgressSnapshot;
+  removedMilestoneId: string;
+  profileId: string;
+  characterSlot: string;
+}): Promise<string[]> {
+  const plan = planPrerequisiteRemoval({
+    milestones: cascadeMilestones(input.guide),
+    completed: input.snapshot.completed,
+    completedMilestoneIds: input.snapshot.completedMilestoneIds,
+    removedMilestoneId: input.removedMilestoneId,
+  });
+  if (plan.remove.length === 0) return [];
+
+  // Les donjons cochés par la cascade pour ces prérequis ne restent pas derrière eux.
+  await db.playerGuideDungeonState.deleteMany({
+    where: {
+      profileId: input.profileId,
+      guideId: input.guide.id,
+      characterSlot: input.characterSlot,
+      sequenceId: { in: plan.remove },
+    },
+  });
+
+  const removed = new Set(plan.remove);
+  const byMilestone = new Map<string, string[]>();
+  for (const sequenceId of plan.remove) {
+    const owner = input.guide.milestones.find((milestone) =>
+      milestone.sequences.some((sequence) => sequence.id === sequenceId)
+    );
+    if (!owner) continue;
+    const list = byMilestone.get(owner.id) ?? [];
+    list.push(sequenceId);
+    byMilestone.set(owner.id, list);
+  }
+
+  for (const [milestoneId, ids] of byMilestone) {
+    const previous = input.snapshot.byMilestone.get(milestoneId);
+    if (!previous) continue;
+    const steps = previous.completedSteps.filter((id) => !removed.has(id));
+    if (steps.length === 0) {
+      await db.playerGuideProgress.deleteMany({
+        where: {
+          profileId: input.profileId,
+          milestoneId,
+          characterSlot: input.characterSlot,
+        },
+      });
+      continue;
+    }
+    const milestone = input.guide.milestones.find((entry) => entry.id === milestoneId);
+    const contentIds = milestone ? contentSequenceIds(milestone) : [];
+    const isCompleted = contentIds.length > 0 && contentIds.every((id) => steps.includes(id));
+    await db.playerGuideProgress.update({
+      where: {
+        profileId_milestoneId_characterSlot: {
+          profileId: input.profileId,
+          milestoneId,
+          characterSlot: input.characterSlot,
+        },
+      },
+      data: {
+        completedSteps: steps,
+        isCompleted,
+        completedAt: isCompleted ? previous.completedAt : null,
+      },
+    });
+  }
+
+  return plan.remove;
+}
+
+/**
  * Marquer un milestone comme terminé/non terminé pour l'utilisateur courant.
  */
 export async function toggleMilestoneProgress(guildId: string, milestoneId: string, isCompleted: boolean, altPseudo?: string) {
@@ -618,26 +987,47 @@ export async function toggleMilestoneProgress(guildId: string, milestoneId: stri
   const { success: rateOk } = await rateLimit(`guide-toggle:${ctx.profileId}`, 30, 60_000);
   if (!rateOk) throw new Error("Trop de requêtes, veuillez patienter.");
 
-  const milestoneWithSequences = await db.guideMilestone.findUnique({
+  const target = await db.guideMilestone.findUnique({
     where: { id: milestoneId },
-    select: {
-      title: true,
-      sequences: {
-        select: { id: true, activityTags: true }
-      },
-      guide: { select: { id: true, slug: true } }
-    }
+    select: { id: true, title: true, guide: { select: { id: true } } },
   });
+  if (!target) throw new Error("Jalon introuvable");
+
+  const guide = await loadCompletionGuide(target.guide.id);
+  const targetMilestone = guide.milestones.find((milestone) => milestone.id === milestoneId);
+  if (!targetMilestone) throw new Error("Jalon introuvable");
+
+  const snapshot = await loadProgressSnapshot(profileId, characterSlot, guide.id);
+  const dungeonSequences = await loadDungeonSequences(guide);
+  const targetSequenceIds = targetMilestone.sequences.map((sequence) => sequence.id);
 
   // ── Validation d'un BLOC : AUCUN verrou de donjon ni de prérequis ───────────
   // Décision user du 20/11/2026 : un membre déjà en cours sur Sylvestre ne doit pas
   // recocher 500+ quêtes à la main parce qu'un donjon n'est pas coché. Le bloc est un
   // geste de **confort** : il valide tout, et la dévalidation reste toujours possible.
+  // Décision du 23/11/2026 : il reste **cohérent** — cascade montante des prérequis
+  // et coche des donjons requis, sans jamais refuser le geste.
   // Les gardes restent **fail-closed** sur la validation quête par quête
   // (`setRushSequenceProgress`) — c'est là que le verrou de donjon et de prérequis
   // protège réellement la progression.
 
-  const completedSteps = isCompleted ? (milestoneWithSequences?.sequences.map((seq) => seq.id) ?? []) : [];
+  const cascade = isCompleted
+    ? planPrerequisiteCascade({
+        milestones: cascadeMilestones(guide),
+        completed: snapshot.completed,
+        targetMilestoneId: milestoneId,
+      })
+    : null;
+
+  // La coche de donjons couvre le bloc **et** les prérequis que la cascade vient de
+  // valider : sans eux, un prérequis coché resterait « fait » avec un donjon manquant.
+  const dungeonSequenceIds = new Set([...targetSequenceIds, ...(cascade?.added ?? [])]);
+  const dungeonSequenceList = [...dungeonSequenceIds]
+    .map((sequenceId) => dungeonSequences.get(sequenceId))
+    .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
+  const dungeonChecks = isCompleted
+    ? planRequiredDungeonChecks(dungeonSequenceList, snapshot.doneDungeonKeys)
+    : [];
 
   const progress = await db.playerGuideProgress.upsert({
     where: {
@@ -646,7 +1036,7 @@ export async function toggleMilestoneProgress(guildId: string, milestoneId: stri
     update: {
       isCompleted,
       completedAt: isCompleted ? new Date() : null,
-      completedSteps,
+      completedSteps: isCompleted ? targetSequenceIds : [],
     },
     create: {
       profileId,
@@ -654,24 +1044,60 @@ export async function toggleMilestoneProgress(guildId: string, milestoneId: stri
       characterSlot,
       isCompleted,
       completedAt: isCompleted ? new Date() : null,
-      completedSteps,
+      completedSteps: isCompleted ? targetSequenceIds : [],
     }
   });
+
+  let removedPrerequisites: string[] = [];
+  if (cascade) {
+    await applyCascadeProgress({
+      guide,
+      snapshot,
+      added: cascade.added,
+      targetMilestoneId: milestoneId,
+      profileId,
+      characterSlot,
+    });
+    await applyDungeonChecks({
+      checks: dungeonChecks,
+      guideId: guide.id,
+      profileId,
+      characterSlot,
+    });
+  } else {
+    removedPrerequisites = await removeCascadeProgress({
+      guide,
+      snapshot,
+      removedMilestoneId: milestoneId,
+      profileId,
+      characterSlot,
+    });
+  }
 
   // ── Ressources : valider/dévalider un BLOC coche/décoche toutes ses ressources ──
   // Même règle que `setRushSequenceProgress` : valider override les coches,
   // invalider les remet à zéro. Échec non bloquant : la progression prime.
+  // Les prérequis cochés par la cascade sont traités comme des quêtes validées :
+  // leurs ressources sont donc cochées aussi.
   try {
     const resourceKeys = new Set<string>();
-    for (const seq of milestoneWithSequences?.sequences ?? []) {
-      for (const key of resourceKeysForTags((seq as any).activityTags)) resourceKeys.add(key);
+    const resourceSequences = isCompleted
+      ? [
+          ...targetMilestone.sequences,
+          ...guide.milestones
+            .flatMap((milestone) => milestone.sequences)
+            .filter((sequence) => cascade?.added.includes(sequence.id)),
+        ]
+      : targetMilestone.sequences;
+    for (const sequence of resourceSequences) {
+      for (const key of resourceKeysForTags(sequence.activityTags as never)) resourceKeys.add(key);
     }
     if (resourceKeys.size > 0) {
       if (isCompleted) {
         await db.playerGuideResourceCheck.createMany({
           data: [...resourceKeys].map((resourceKey) => ({
             profileId,
-            guideId: milestoneWithSequences!.guide.id,
+            guideId: guide.id,
             characterSlot,
             resourceKey,
           })),
@@ -688,27 +1114,20 @@ export async function toggleMilestoneProgress(guildId: string, milestoneId: stri
   }
 
   // Temps réel (Phase E) : broadcast « jalon complété » — fail-closed, non bloquant.
-  if (isCompleted && milestoneWithSequences?.guide?.slug) {
-    await publishGuideEvent(guildId, milestoneWithSequences.guide.slug, {
+  if (isCompleted) {
+    await publishGuideEvent(guildId, guide.slug, {
       type: "milestone:completed",
       profileId,
       userName: ctx.name || "Membre",
       milestoneId,
-      milestoneTitle: milestoneWithSequences.title || "Jalon",
+      milestoneTitle: target.title || "Jalon",
     });
   }
 
-  const milestone = await db.guideMilestone.findUnique({
-    where: { id: milestoneId },
-    select: { guide: { select: { slug: true } } }
-  });
-  if (milestone?.guide?.slug) {
-    revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${milestone.guide.slug}`);
-    await invalidateGuideProgressCache(guildId, milestone.guide.slug);
-  }
-
+  revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${guide.slug}`);
+  await invalidateGuideProgressCache(guildId, guide.slug);
   revalidatePath(`/dashboard/${guildId}/quetes-dofus`);
-  return { success: true, progress };
+  return { success: true, progress, dungeonChecks, removedPrerequisites };
 }
 
 /**
@@ -725,22 +1144,53 @@ export async function resetMilestoneProgress(guildId: string, milestoneId: strin
   const { success: rateOk } = await rateLimit(`guide-reset-ms:${ctx.profileId}`, 15, 60_000);
   if (!rateOk) throw new Error("Trop de requêtes, veuillez patienter.");
 
+  const milestone = await db.guideMilestone.findUnique({
+    where: { id: milestoneId },
+    select: {
+      id: true,
+      guide: { select: { id: true, slug: true } },
+      sequences: { select: { id: true, activityTags: true } },
+    },
+  });
+  if (!milestone) throw new Error("Jalon introuvable");
+
+  const guide = await loadCompletionGuide(milestone.guide.id);
+  const snapshot = await loadProgressSnapshot(profileId, characterSlot, guide.id);
+
+  // Le reset est un retrait : les prérequis que la cascade avait cochés pour ce bloc
+  // et qui ne sont plus impliqués par aucun autre bloc validé sont retirés.
+  await removeCascadeProgress({
+    guide,
+    snapshot,
+    removedMilestoneId: milestoneId,
+    profileId,
+    characterSlot,
+  });
+
   // Delete the progress record entirely (cleaner than zeroing out)
   await db.playerGuideProgress.deleteMany({
     where: { profileId, milestoneId, characterSlot }
   });
 
-  const milestone = await db.guideMilestone.findUnique({
-    where: { id: milestoneId },
-    select: { guide: { select: { slug: true } }, sequences: { select: { activityTags: true } } }
-  });
+  // Un reset de bloc efface aussi les coches de donjons de ses quêtes.
+  const sequenceIds = milestone.sequences.map((sequence) => sequence.id);
+  if (sequenceIds.length > 0) {
+    await db.playerGuideDungeonState.deleteMany({
+      where: {
+        profileId,
+        guideId: guide.id,
+        characterSlot,
+        sequenceId: { in: sequenceIds },
+      },
+    });
+  }
 
   // Réinitialiser un bloc décoche aussi les ressources de ses quêtes (même règle
   // qu'une invalidation de quête).
   try {
     const resourceKeys = new Set<string>();
-    for (const seq of milestone?.sequences ?? []) {
-      for (const key of resourceKeysForTags((seq as any).activityTags)) resourceKeys.add(key);
+    for (const seq of milestone.sequences) {
+      for (const key of resourceKeysForTags(seq.activityTags as never)) resourceKeys.add(key);
     }
     if (resourceKeys.size > 0) {
       await db.playerGuideResourceCheck.deleteMany({
@@ -751,10 +1201,8 @@ export async function resetMilestoneProgress(guildId: string, milestoneId: strin
     logger.error("[resetMilestoneProgress] reset des coches de ressources échoué (non bloquant)", { error: e });
   }
 
-  if (milestone?.guide?.slug) {
-    revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${milestone.guide.slug}`);
-    await invalidateGuideProgressCache(guildId, milestone.guide.slug);
-  }
+  revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${milestone.guide.slug}`);
+  await invalidateGuideProgressCache(guildId, milestone.guide.slug);
   revalidatePath(`/dashboard/${guildId}/quetes-dofus`);
   return { success: true };
 }
@@ -789,6 +1237,10 @@ export async function resetGuideProgress(guildId: string, guideId: string, altPs
   await db.playerGuideResourceCheck.deleteMany({
     where: { profileId, guideId, characterSlot }
   });
+  // … et ses coches de donjons (décision du 23/11/2026 : le reset est complet).
+  await db.playerGuideDungeonState.deleteMany({
+    where: { profileId, guideId, characterSlot }
+  });
 
   // Also look up guide slug for cache invalidation
   const guide = await db.optimizedGuide.findUnique({
@@ -819,14 +1271,9 @@ export async function completeGuideProgress(guildId: string, guideId: string, al
   const { success: rateOk } = await rateLimit(`guide-complete:${ctx.profileId}`, 5, 60_000);
   if (!rateOk) throw new Error("Trop de requêtes, veuillez patienter.");
 
-  // Fetch all milestones with their sequences for this guide
-  const milestones = await db.guideMilestone.findMany({
-    where: { guideId },
-    select: {
-      id: true,
-      sequences: { select: { id: true, activityTags: true } }
-    }
-  });
+  // Fetch all milestones with their sequences (et les champs donjon) pour ce guide.
+  const guide = await loadCompletionGuide(guideId);
+  const milestones = guide.milestones;
 
   // Upsert each milestone as completed (batched in a single transaction)
   await db.$transaction(
@@ -871,15 +1318,28 @@ export async function completeGuideProgress(guildId: string, guideId: string, al
     logger.error("[completeGuideProgress] coches de ressources échouées (non bloquant)", { error: e });
   }
 
-  // Also look up guide slug for cache invalidation
-  const guide = await db.optimizedGuide.findUnique({
-    where: { id: guideId },
-    select: { slug: true }
-  });
-  if (guide?.slug) {
-    revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${guide.slug}`);
-    await invalidateGuideProgressCache(guildId, guide.slug);
+  // « Tout valider » coche aussi les donjons requis de chaque quête (décision 23/11).
+  try {
+    const dungeonSequences = await loadDungeonSequences(guide);
+    const sequences: RushBlockDungeonSequence[] = [];
+    for (const milestone of milestones) {
+      for (const sequence of milestone.sequences) {
+        const entry = dungeonSequences.get(sequence.id);
+        if (entry) sequences.push(entry);
+      }
+    }
+    await applyDungeonChecks({
+      checks: planRequiredDungeonChecks(sequences),
+      guideId: guide.id,
+      profileId,
+      characterSlot,
+    });
+  } catch (e) {
+    logger.error("[completeGuideProgress] coches de donjons échouées (non bloquant)", { error: e });
   }
+
+  revalidatePath(`/dashboard/${guildId}/quetes-dofus/guide/${guide.slug}`);
+  await invalidateGuideProgressCache(guildId, guide.slug);
   revalidatePath(`/dashboard/${guildId}/quetes-dofus`);
   return { success: true };
 }

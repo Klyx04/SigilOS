@@ -6,12 +6,13 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
-## 📝 Session 24/11/2026 (suite 69) — **Rush : conditions Tougli (⑭ + ⑩)** — branche `feat/rush-constraints-2026-11-24` (PR **#1531**)
+## 📝 Session 24/11/2026 (suite 69) — **Rush : conditions Tougli (⑭ + ⑩)** — branche `feat/rush-constraints-2026-11-24` (PR **#1531**, revue **#1532**)
 
 > **Demande user (verbatim)** : « go » sur le plan ⑭ contraintes → ⑩ fiche quête.
 > **Mesuré** : Tougli 530 quêtes / **389 avec conditions** / **726 combats dont 162 multi** (max 14) / 80 `bashMobs` / 38 `needPlayer` / 37 métiers / 7 donjons au choix / 6 horaires ; base locale **0 `constraints` réelles** ; **325 séquences** avec conditions mais **aucun `tips`** (section masquée) ; 7 quêtes absentes de Tougli (1988/894/1939/614/710/711/626) ; Maïmane **29 donjons au choix > plafond 8**.
-> **Fait** : contrat **v2** `combats[]` + `detail` (v1 lue et normalisée) ; mapper pur `rush-constraints-tougli` ; script `backfill-rush-constraints` (dry-run/`--apply`/`--overwrite`, API ou `--source`) ; **391 séquences écrites en local** (157 multi-combats, 336 avec combat) ; éditeur God multi-combats ; `hasRushHints` : conditions seules visibles sur les 3 surfaces ; carte combat avec icônes/portraits/PV/détail.
-> **Preuves** : dry-run `391 à écrire`, apply `391`, second passage `0` ; guide public « Bien débuter » sans `tips` → `COMBAT SOLO / Poutch Céleste / Niv. 1 / 35 PV` ; **8 456 tests ✅** · `tsc` 0 · `lint` 0 erreur · `security:audit` OK.
+> **Fait** : contrat **v2** `combats[]` + `detail` (v1 lue et normalisée) ; mapper pur `rush-constraints-tougli` ; script `backfill-rush-constraints` (dry-run/`--apply`/`--overwrite`, API ou `--source`) ; **391 séquences écrites en local** (**161 multi-combats, 719 combats**) ; éditeur God multi-combats ; `hasRushHints` : conditions seules visibles sur les 3 surfaces ; carte combat avec icônes/portraits/PV/détail.
+> **Preuves** : dry-run `391 à écrire`, apply `391`, second passage `0` ; guide public « Bien débuter » sans `tips` → `COMBAT SOLO / Poutch Céleste / Niv. 1 / 35 PV` ; **8 464 tests ✅** · `tsc` 0 · `lint` 0 erreur · `security:audit` OK.
+> **Revue #1532** : bloc « Conseils » vide corrigé, v1 normalisée en lecture, niveaux >200 (jusqu'à 1 000), combats identiques conservés, cible DB explicite + `DATABASE_URL` obligatoire ; `ROADMAP` compacté sous 60 KiB.
 > **Reste** : **⑨ mode blanc**, **⑪ choix Brak 55/66 + God**, ⑫/⑬/⑮/⑯/⑰/⑱, **bêta/prod apply** (script via conteneur ops), contrôle hebdo VPS, phases 4/5.
 > **Rotation** : bloc « suite 63 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 

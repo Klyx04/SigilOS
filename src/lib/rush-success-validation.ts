@@ -15,7 +15,6 @@
 
 import type { RushGuideQuestRef } from "./rush-guide-utils";
 import {
-  successClosure,
   successQuestLeaves,
   type RushQuestCriteriaMap,
   type RushSuccessCatalog,
@@ -145,9 +144,13 @@ function collectGuideResourceIndex(milestones: readonly RushMilestone[]): {
 }
 
 /**
- * Objets `need.items` d'un succès et de sa fermeture, **vérifiés contre les ressources
- * de quête du guide**. Un objet déjà listé dans le détail d'une quête n'est pas répété
- * dans la fiche du succès (retour user du 24/11/2026 : « Chanvre, Sauge… » en double).
+ * Objets **directement** requis par un succès (`need.items` du succès seul), vérifiés
+ * contre les ressources de quête du guide.
+ *
+ * ⚠️ Ne descend **pas** dans les succès prérequis : leurs `need.items` appartiennent à
+ * leur propre fiche (retour user du 24/11/2026 : « Planche hatoufer » venait de 2302
+ * Jugement dernier, un prérequis transitoire de 2299 — pas de 2299 elle-même).
+ * Un objet déjà listé dans le détail d'une quête n'est pas répété non plus.
  */
 export function successPossessionItems(input: {
   successId: number;
@@ -156,7 +159,6 @@ export function successPossessionItems(input: {
   /** Quêtes du guide : un `PO=` d'une quête DU guide vit dans sa fiche, pas ici. */
   guideQuests?: readonly RushGuideQuestRef[];
   questCriteria?: RushQuestCriteriaMap;
-  overrides?: Readonly<Record<string, readonly number[]>>;
   itemNames?: Readonly<Record<number, string>>;
 }): {
   items: RushSuccessPossession[];
@@ -166,20 +168,14 @@ export function successPossessionItems(input: {
   const index = collectGuideResourceIndex(input.milestones);
   const guideQuestIds = new Set((input.guideQuests ?? []).map((quest) => quest.id));
   const ids = new Set<number>();
-  const closure = successClosure(input.successId, input.catalog, {
-    questCriteria: input.questCriteria,
-    overrides: input.overrides,
-  });
-  for (const successId of closure.ids) {
-    const row = input.catalog.get(successId);
-    if (!row) continue;
-    for (const itemId of row.itemIds ?? []) ids.add(itemId);
-    // `PO=` d'une quête HORS guide : aucun détail de quête ne l'affiche, on le garde.
-    for (const questId of row.questIds) {
-      if (guideQuestIds.has(questId)) continue;
-      for (const itemId of input.questCriteria?.get(questId)?.itemIds ?? []) {
-        ids.add(itemId);
-      }
+  const row = input.catalog.get(input.successId);
+  if (!row) return { items: [], extras: [], coveredCount: 0 };
+  for (const itemId of row.itemIds ?? []) ids.add(itemId);
+  // `PO=` d'une quête HORS guide : aucun détail de quête ne l'affiche, on le garde.
+  for (const questId of row.questIds) {
+    if (guideQuestIds.has(questId)) continue;
+    for (const itemId of input.questCriteria?.get(questId)?.itemIds ?? []) {
+      ids.add(itemId);
     }
   }
   const items: RushSuccessPossession[] = [...ids].map((id) => {
@@ -339,7 +335,6 @@ export function planSuccessValidation(
     milestones: input.milestones,
     guideQuests: input.guideQuests,
     questCriteria: input.questCriteria,
-    overrides: input.overrides,
     itemNames: input.itemNames,
   });
 

@@ -16,7 +16,16 @@ import {
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
 
 const CATALOG: RushSuccessCatalog = new Map<number, RushSuccessCatalogRow>([
-  [100, { id: 100, name: "Dofus Émeraude", questIds: [1, 2], successIds: [200] }],
+  [
+    100,
+    {
+      id: 100,
+      name: "Dofus Émeraude",
+      questIds: [1, 2],
+      successIds: [200],
+      itemIds: [900],
+    },
+  ],
   [
     200,
     {
@@ -24,7 +33,8 @@ const CATALOG: RushSuccessCatalog = new Map<number, RushSuccessCatalogRow>([
       name: "Mais où sont les Dofus ?",
       questIds: [3],
       successIds: [],
-      itemIds: [900],
+      // Objet du PRÉREQUIS : ne doit jamais apparaître sur la fiche de 100.
+      itemIds: [901],
     },
   ],
 ]);
@@ -82,7 +92,7 @@ describe("planSuccessValidation — aperçu avant écriture", () => {
       catalog: CATALOG,
       guideQuests: GUIDE,
       milestones: MILESTONES,
-      itemNames: { 900: "Dom de Pin" },
+      itemNames: { 900: "Dom de Pin", 901: "Objet du prérequis" },
       questNames: { 5: "Quête hors guide" },
     });
 
@@ -95,6 +105,18 @@ describe("planSuccessValidation — aperçu avant écriture", () => {
     expect(plan?.blocks[1].cascadedSequenceIds).toEqual(["s0"]);
     expect(plan?.cascadedCount).toBe(1);
     expect(plan?.possessionNames).toEqual(["Dom de Pin"]);
+  });
+
+  it("n'agrège pas les objets d'un succès prérequis (2299 / 2302)", () => {
+    const plan = planSuccessValidation({
+      successId: 100,
+      catalog: CATALOG,
+      guideQuests: GUIDE,
+      milestones: MILESTONES,
+      itemNames: { 900: "Dom de Pin", 901: "Objet du prérequis" },
+    });
+    expect(plan?.possessionNames).toEqual(["Dom de Pin"]);
+    expect(plan?.possessionNames).not.toContain("Objet du prérequis");
   });
 
   it("ne compte pas une quête déjà validée et n'invente aucune cible hors guide", () => {
@@ -445,10 +467,10 @@ const codeOf = (path: string) =>
 describe("branchement des surfaces — « Valider les prérequis »", () => {
   const CHIP = "src/components/dofus-quests/rush/SuccessChip.tsx";
 
-  it("la fiche liste les possessions nommées et reste en lecture seule sans contexte", () => {
+  it("la fiche liste les objets directs du succès et reste en lecture seule sans contexte", () => {
     const src = codeOf(CHIP);
-    expect(src).toContain("Objets à posséder");
-    expect(src).toContain("ce ne sont pas des");
+    expect(src).toContain("Objets requis par ce succès");
+    expect(src).toContain("les objets des succès prérequis ont leur");
     expect(src).toContain("planSuccessValidation");
     expect(src).toContain("validation?: SuccessValidationContext");
     expect(src).toContain("if (!validation || validationWrites.length === 0");

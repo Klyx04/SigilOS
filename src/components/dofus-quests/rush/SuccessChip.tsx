@@ -360,10 +360,9 @@ function SuccessSheet({
       milestones,
       guideQuests: quests,
       questCriteria: questCriteria ?? undefined,
-      overrides,
       itemNames,
     });
-  }, [catalog, entry, milestones, quests, questCriteria, overrides, itemNames]);
+  }, [catalog, entry, milestones, quests, questCriteria, itemNames]);
   const possessionNames = possessions?.extras.map((item) => item.name) ?? [];
   const coveredPossessionCount = possessions?.coveredCount ?? 0;
 
@@ -532,11 +531,12 @@ function SuccessSheet({
               {possessionNames.length > 0 && (
                 <section className="mb-2 px-1">
                   <p className="m-0 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Objets à posséder
+                    Objets requis par ce succès
                   </p>
                   <p className="m-0 mt-0.5 text-[10px] leading-snug text-muted-foreground">
-                    À avoir en poche ou à obtenir pour valider le succès — ce ne sont pas des
-                    ressources de quête à préparer.
+                    Directement demandés par ce succès — les objets des succès prérequis ont leur
+                    propre fiche, et les ressources déjà listées dans une quête ne sont pas
+                    répétées.
                   </p>
                   <ul className="mt-1 flex flex-wrap gap-1">
                     {possessionNames.slice(0, 8).map((name, index) => (
@@ -649,9 +649,10 @@ function SuccessSheet({
                       {validationPlan.possessionNames.length > 0 && (
                         <p className="m-0 text-[9px] text-muted-foreground">
                           Les {validationPlan.possessionNames.length} objet
-                          {validationPlan.possessionNames.length > 1 ? "s" : ""} à posséder (hors
-                          ressources de quête) restent à obtenir : ils ne se valident pas depuis le
-                          guide.
+                          {validationPlan.possessionNames.length > 1 ? "s" : ""} directement requis
+                          par ce succès (hors ressources de quête) restent à obtenir : ils ne se
+                          valident pas depuis le guide. Les objets des succès prérequis sont dans
+                          leur propre fiche.
                         </p>
                       )}
                       {validationPlan.coveredPossessionCount > 0 && (

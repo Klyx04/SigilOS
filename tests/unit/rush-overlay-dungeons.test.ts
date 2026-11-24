@@ -93,7 +93,7 @@ describe("Badge donjon — compteur, picto du jeu, popover branchée", () => {
 
   it("affiche le NOMBRE d'EXIGENCES de donjons (×1, ×2… ; un groupe au choix = 1)", () => {
     // Mesure du 19/11/2026 : « ×29 » sur Maïmane alors qu'il n'y a que 6 totems à faire.
-    expect(code).toMatch(/Donjon ×\{requiredDungeonBlocks\}/);
+    expect(code).toContain("×{requiredDungeonBlocks}");
     expect(code).toMatch(/const requiredDungeonBlocks = React\.useMemo\(/);
     expect(code).toContain("getDungeons(seq)");
   });

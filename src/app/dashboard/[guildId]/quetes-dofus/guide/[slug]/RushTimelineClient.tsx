@@ -2668,7 +2668,14 @@ const timelineItems=useMemo(()=>{
   const guideLive = useGuidePresence({
     guildId,
     guideSlug: guide.slug,
-    milestoneId: bookmarkedMsId,
+    // Mesure du 25/11 : un membre sans repère n'émettait aucun heartbeat → « 0 en ligne »
+    // alors qu'il était sur le guide. Le heartbeat suit le repère s'il existe, sinon le
+    // premier bloc de contenu : la présence dit « sur le guide », pas « sur un bloc ».
+    milestoneId:
+      bookmarkedMsId ??
+      milestones.find((ms) => !isRushNonQuestBlock(ms.type))?.id ??
+      milestones[0]?.id ??
+      null,
     userName: currentUserProfile?.pseudoDofus || selectedCharacter,
     enabled: !incognito,
   });
@@ -3141,6 +3148,11 @@ const timelineItems=useMemo(()=>{
           </DialogTitle>
         </DialogHeader>
         <div className="p-4 max-h-[300px] overflow-y-auto space-y-1">
+          {guideLive.connectionStatus !== "connected" && (
+            <p className="px-1 pb-1 text-[11px] text-warning">
+              Connexion temps réel indisponible — seules les dernières positions connues s&apos;affichent.
+            </p>
+          )}
           {liveMembers.length === 0 && offlineMembers.length === 0 ? (
             <p className="text-xs text-muted-foreground px-1">Aucun membre sur le guide pour l'instant</p>
           ) : (

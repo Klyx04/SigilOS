@@ -53,6 +53,7 @@ const CLIENT = "src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/RushTimeli
 const DOFUS_MODAL = "src/components/dofus-quests/rush/RushDofusDetailModal.tsx";
 const RESOURCES_MODAL =
     "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayResourcesModal.tsx";
+const SUCCESS_CHIP = "src/components/dofus-quests/rush/SuccessChip.tsx";
 
 const read = (file: string) => readFileSync(path.join(process.cwd(), file), "utf8");
 
@@ -74,5 +75,11 @@ describe("quick wins — branchement", () => {
         expect(modal).toContain("const shown = visible.slice(0, visibleCount)");
         expect(modal).toContain("Afficher plus (");
         expect(modal).toContain("{shown.map((r) =>");
+    });
+
+    it("l'aperçu de validation déplie toutes les quêtes hors guide", () => {
+        const chip = read(SUCCESS_CHIP);
+        expect(chip).toContain("quêtes hors guide");
+        expect(chip).toContain("outsideQuestNames.join");
     });
 });

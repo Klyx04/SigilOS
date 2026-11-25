@@ -819,6 +819,14 @@ function SuccessSheet({
                           {validationPlan.outsideQuestNames.length > 5 ? "…" : ""}
                         </p>
                       )}
+                      {validationPlan.outsideQuestNames.length > 5 && (
+                        <details className="mt-1 text-[9px] text-muted-foreground">
+                          <summary className="cursor-pointer font-semibold text-foreground/80 hover:text-foreground">
+                            Voir les {validationPlan.outsideQuestNames.length} quêtes hors guide
+                          </summary>
+                          <p className="m-0 mt-1">{validationPlan.outsideQuestNames.join(", ")}</p>
+                        </details>
+                      )}
                       {validationPlan.possessionNames.length > 0 && (
                         <p className="m-0 text-[9px] text-muted-foreground">
                           Les {validationPlan.possessionNames.length} objet

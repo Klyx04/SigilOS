@@ -646,8 +646,17 @@ export function RushDungeonsOverviewModal({
                     {block.exigences > 0 && block.exigencesDone >= block.exigences ? (
                       <Check className="h-3 w-3 shrink-0 text-success" aria-label="Bloc terminé" />
                     ) : null}
-                    <span className="ml-auto shrink-0 text-[10px] tabular-nums text-muted-foreground">
-                      {block.exigencesDone} / {block.exigences}
+                    <span
+                      className="da-plank ml-auto shrink-0"
+                      data-size="mini"
+                      role="img"
+                      aria-label={`${block.exigencesDone} exigences faites sur ${block.exigences}`}
+                    >
+                      <i />
+                      <b />
+                      <span>
+                        {block.exigencesDone}/{block.exigences}
+                      </span>
                     </span>
                   </button>
                   {block.exigences > 0 ? (

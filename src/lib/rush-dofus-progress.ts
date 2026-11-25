@@ -295,6 +295,35 @@ export function projectRushStepKeys(
 }
 
 /**
+ * Périmètre du panneau « Progression Guilde par Dofus » pour le lecteur.
+ *
+ * **Mesure du 25/11/2026** : le panneau fusionnait silencieusement **tous** les
+ * emplacements d'un profil (`characterSlot`). Un joueur seul dans sa guilde, avec une
+ * mule à 6 blocs validés, voyait donc les cartes rester à 100 % après avoir remis le
+ * personnage principal à zéro — et le changement de personnage ne changeait rien.
+ *
+ * Règle (même convention que `getRushDungeonStates` : « moi » = l'emplacement
+ * sélectionné, « les autres » = la guilde) : les lignes du lecteur sont réduites à son
+ * **personnage actif** ; celles des autres membres restent intactes. Un emplacement
+ * absent vaut `PRINCIPAL` (même normalisation que `buildGuildProgressRows`).
+ * Sans profil lecteur, aucun filtrage : on ne cache jamais les autres membres.
+ */
+export function scopeGuildProgressForViewer<
+    T extends { profileId: string; characterSlot?: string | null },
+>(
+    rows: readonly T[],
+    viewer: { profileId: string | null | undefined; characterSlot: string }
+): T[] {
+    if (!viewer.profileId) return [...rows];
+    const activeSlot = viewer.characterSlot || "PRINCIPAL";
+    return rows.filter(
+        (row) =>
+            row.profileId !== viewer.profileId ||
+            (row.characterSlot || "PRINCIPAL") === activeSlot
+    );
+}
+
+/**
  * Clés d'étapes d'un membre pour un ensemble de lignes de progression.
  *
  * **Un bloc `isCompleted` vaut toutes ses séquences** : la validation de bloc écrit

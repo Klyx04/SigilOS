@@ -2,7 +2,7 @@
 import { useMemo, memo, useState } from "react";
 import { Users, ChevronRight } from "lucide-react";
 import { dofusMetaIndex } from "@/lib/rush-dofus-meta";
-import { memberCompletedStepKeys, memberDofusProgress, questStatusForMembers, type DofusQuestRef, type MemberDofusProgress } from "@/lib/rush-dofus-progress";
+import { memberCompletedStepKeys, memberDofusProgress, questStatusForMembers, scopeGuildProgressForViewer, type DofusQuestRef, type MemberDofusProgress } from "@/lib/rush-dofus-progress";
 import { RushDofusDetailModal } from "@/components/dofus-quests/rush/RushDofusDetailModal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -21,6 +21,8 @@ type Milestone = {
 type GuildMemberProgress = {
   profileId: string;
   milestoneId: string;
+  /** Emplacement du personnage (`PRINCIPAL` ou pseudo de mule) — porté par la ligne. */
+  characterSlot?: string;
   isCompleted: boolean;
   userName: string;
   userAvatar?: string;
@@ -61,6 +63,8 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
   stepKeysBySequenceId,
   activeFilter,
   onFilterChange,
+  viewerProfileId,
+  activeCharacterSlot,
 }: {
   milestones: Milestone[];
   /** Quêtes ordonnées de chaque Dofus (`subGuideRef`, libellé, catégorie, nb d'étapes). */
@@ -70,9 +74,27 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
   stepKeysBySequenceId: ReadonlyMap<string, readonly string[]>;
   activeFilter: string | null;
   onFilterChange: (id: string | null) => void;
+  /** Profil du lecteur : ses autres emplacements (mules) ne comptent pas dans sa ligne. */
+  viewerProfileId?: string | null;
+  /** Emplacement du personnage sélectionné (`PRINCIPAL` ou pseudo de mule). */
+  activeCharacterSlot?: string;
 }) {
   /** Dofus dont la modale de détail est ouverte (un clic sur un Dofus). */
   const [openDofusId, setOpenDofusId] = useState<string | null>(null);
+
+  /**
+   * Lignes visibles : le lecteur est réduit à son **personnage actif** (pas de fusion
+   * silencieuse avec ses mules) ; les autres membres restent agrégés. Règle pure
+   * `scopeGuildProgressForViewer` — mesurée le 25/11/2026 (cartes à 100 % après reset).
+   */
+  const visibleProgress = useMemo(
+    () =>
+      scopeGuildProgressForViewer(guildProgress, {
+        profileId: viewerProfileId ?? null,
+        characterSlot: activeCharacterSlot ?? "PRINCIPAL",
+      }),
+    [guildProgress, viewerProfileId, activeCharacterSlot]
+  );
 
   /** Ids de séquence par bloc — un bloc `isCompleted` vaut toutes ses quêtes. */
   const sequenceIdsByMilestone = useMemo(
@@ -112,7 +134,7 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
       stat.totalMilestones++;
 
       // Check if this milestone is completed by at least one member
-      const completedBySome = guildProgress.some(
+      const completedBySome = visibleProgress.some(
         (p) => p.milestoneId === ms.id && p.isCompleted
       );
       if (completedBySome) stat.completedMilestones++;
@@ -127,7 +149,7 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
 
     // Avancement par membre et par Dofus — au niveau **quête** (et non plus seulement
     // « bloc validé ») : on réutilise les clés d'étapes déjà fournies par le serveur.
-    const profileIds = [...new Set(guildProgress.map((p) => p.profileId))];
+    const profileIds = [...new Set(visibleProgress.map((p) => p.profileId))];
 
     map.forEach((stat, dofusId) => {
       const dofusMilestoneIds = new Set(
@@ -137,7 +159,7 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
 
       stat.membersInProgress = profileIds
         .map((profileId) => {
-          const rows = guildProgress.filter(
+          const rows = visibleProgress.filter(
             (p) => p.profileId === profileId && dofusMilestoneIds.has(p.milestoneId)
           );
           if (!rows.length) return null;
@@ -161,11 +183,11 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
     });
 
     return Array.from(map.values()).sort((a, b) => b.totalMilestones - a.totalMilestones);
-  }, [milestones, questsByDofus, guildProgress, sequenceIdsByMilestone, stepKeysBySequenceId]);
+  }, [milestones, questsByDofus, visibleProgress, sequenceIdsByMilestone, stepKeysBySequenceId]);
 
   const totalMembers = useMemo(
-    () => new Set(guildProgress.map((p) => p.profileId)).size,
-    [guildProgress]
+    () => new Set(visibleProgress.map((p) => p.profileId)).size,
+    [visibleProgress]
   );
 
   /** Dofus dont la modale est ouverte (un seul à la fois). */
@@ -183,7 +205,7 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
       milestones.filter((milestone) => milestone.dofusId === selected.id).map((milestone) => milestone.id)
     );
     const byMember = new Map<string, { rows: GuildMemberProgress[]; currentStep: string | null }>();
-    for (const row of guildProgress) {
+    for (const row of visibleProgress) {
       if (!dofusMilestoneIds.has(row.milestoneId)) continue;
       const entry = byMember.get(row.profileId) ?? { rows: [], currentStep: null };
       entry.rows.push(row);
@@ -204,7 +226,7 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
         currentStep: entry.currentStep,
       }))
     );
-  }, [selected, questsByDofus, milestones, guildProgress, stepKeysBySequenceId, sequenceIdsByMilestone]);
+  }, [selected, questsByDofus, milestones, visibleProgress, stepKeysBySequenceId, sequenceIdsByMilestone]);
 
   if (dofusStats.length === 0) return null;
 

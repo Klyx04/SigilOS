@@ -31,6 +31,8 @@ import {
   Download,
   Upload,
   Compass,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -2406,6 +2408,27 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
           )}
         </div>
 
+        {/* Bascule visible « masquer les étapes faites » : elle vivait dans le menu
+            Options, donc personne ne la trouvait. Même état `hideDone`. */}
+        <button
+          type="button"
+          onClick={() => setHideDone((value) => !value)}
+          aria-pressed={hideDone}
+          className={cn(
+            "inline-flex shrink-0 items-center gap-1.5 rounded-[4px] border px-3 py-1.5 text-xs font-medium transition-colors",
+            hideDone
+              ? "border-accent/50 bg-accent/10 text-foreground"
+              : "border-border text-muted-foreground hover:border-foreground/20 hover:text-foreground",
+          )}
+        >
+          {hideDone ? (
+            <EyeOff className="h-3.5 w-3.5" aria-hidden="true" />
+          ) : (
+            <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+          )}
+          <span>{hideDone ? (locale === "en" ? "Show full detail" : "Afficher tout le détail") : locale === "en" ? "Hide completed steps" : "Masquer les étapes faites"}</span>
+        </button>
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
@@ -2425,20 +2448,9 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
             align="end"
             className="da-portal min-w-[15rem] rounded-[4px] border border-border bg-background p-1.5"
           >
-            <DropdownMenuItem
-              onSelect={() => setHideDone((v) => !v)}
-              className="flex cursor-pointer items-center gap-2.5 rounded-[4px] px-2.5 py-2"
-            >
-              <CheckCheck
-                className={cn("h-4 w-4", hideDone ? "text-accent" : "text-muted-foreground")}
-                aria-hidden="true"
-              />
-              <span className="text-xs font-semibold">
-                {hideDone
-                  ? locale === "en" ? "Show full detail" : "Afficher tout le détail"
-                  : locale === "en" ? "Hide completed steps" : "Masquer les étapes faites"}
-              </span>
-            </DropdownMenuItem>
+            <DropdownMenuLabel className="px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {locale === "en" ? "Display" : "Affichage"}
+            </DropdownMenuLabel>
 
             {/* V2a-4 — l accueil est REJOUABLE : même modale, même drapeau, aucune donnée
                 perdue. Il ne s ouvre plus tout seul une fois le drapeau posé. */}
@@ -2737,7 +2749,33 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
           });
 
           if (questBlocks.length === 0 && (searchQuery.trim().length > 0 || hideDone)) {
-            return null;
+            // Un bloc entièrement validé + « masquer les étapes faites » laissait une
+            // grande zone noire. On rend un vrai état de fin de bloc.
+            const allChapterDone =
+              chapterSteps.length > 0 && chapterSteps.every((s) => doneSteps.has(s.id));
+            if (!hideDone || !allChapterDone) return null;
+            return (
+              <div key={ms.id} id={`bloc-${ms.id}`} className="px-4 py-6 sm:px-6">
+                <div className="da-card mx-auto max-w-xl p-6 text-center">
+                  <div className="mx-auto grid h-12 w-12 place-items-center rounded-full border border-success/40 bg-success/10 text-success">
+                    <CheckCheck className="h-6 w-6" aria-hidden="true" />
+                  </div>
+                  <p className="da-kicker mt-3">Bloc terminé</p>
+                  <h3 className="da-title mt-1 text-xl">{ms.title}</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {chapterSteps.length}/{chapterSteps.length} quêtes validées
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setHideDone(false)}
+                    className="mt-4 inline-flex items-center gap-1.5 rounded-[4px] border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:border-foreground/20 hover:bg-elevated"
+                  >
+                    <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+                    {locale === "en" ? "Show the steps" : "Afficher les étapes"}
+                  </button>
+                </div>
+              </div>
+            );
           }
 
           const msDoneCount = chapterSteps.filter((s) => doneSteps.has(s.id)).length;

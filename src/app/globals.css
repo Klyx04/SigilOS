@@ -265,7 +265,10 @@ html:has(.boss-detail-shell) {
 
 [data-da="wakfu"].rush-overlay[data-theme="light"],
 [data-da="wakfu"].rush-guide[data-theme="light"],
-[data-da="wakfu"].da-portal[data-theme="light"] {
+[data-da="wakfu"].da-portal[data-theme="light"],
+html.light [data-da="wakfu"].rush-overlay,
+html.light [data-da="wakfu"].rush-guide,
+html.light [data-da="wakfu"].da-portal {
   color-scheme: light;
 }
 

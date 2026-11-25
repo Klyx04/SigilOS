@@ -128,7 +128,8 @@ O10 (3 densités `wide/normal/tight`, mesurées sur le conteneur) · O12 (bulles
 >
 > **Overlay compact (24/11, PR #1535)** : icône de quête à gauche, nom pleine largeur, icônes succès /
 > repère / position / donjon ×N en haut ; clic sur le nom → mini-modale DPLN/DofusDB/détails ; monstres
-> des combats cliquables → fiche. **Reste** : mode blanc, choix Brak 55/66 + God, visuel de bloc terminé.
+> des combats cliquables → fiche. **Mode clair** (PR #1536) : CSS `html.light` sur les 3 surfaces + PiP.
+> **Reste** : choix Brak 55/66 + God, visuel de bloc terminé.
 >
 > **Décision du 24/11 (livrée #1534)** : la validation **unitaire** d'une quête **reste verrouillée** par
 > ses donjons requis ; seule la validation **par bloc** bypass ce verrou (décision 20/11). Les donjons non

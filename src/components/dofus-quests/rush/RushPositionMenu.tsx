@@ -4,19 +4,22 @@
  * Menu d une position — DEUX etapes au clic (demande user du 22/11/2026).
  *
  * Le survol ouvrait une bulle non responsive au premier passage de souris ; on veut un
- * clic, puis deux choix : copier la position, ou voir la carte HD.
+ * clic, puis des choix : copier la position, voir la carte HD, et — depuis le
+ * 25/11/2026 — le détour zaap façon dofuspourlesnoobs (`/zaap x,y ; /travel x,y`).
  *
- * Monte par le guide interne et le guide public. L overlay ne le monte pas : sa puce
- * copie directement (choix user).
+ * Monte par le guide interne, le guide public ET l'overlay (la puce de l'overlay
+ * ouvre cette modale depuis le 25/11/2026 ; elle était auparavant hors de la PiP).
  *
  * Perf : aucun fetch avant le clic sur « Voir la carte » ; la carte est resolue par
- * `/api/rush/map-at`, le worldmap de 1,5 Mo ne part jamais au navigateur.
+ * `/api/rush/map-at`, le worldmap de 1,5 Mo ne part jamais au navigateur. Le zaap
+ * est calculé **côté client** avec la liste DPLN (`dplnNearestZaap`, règle pure).
  */
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Copy, MapPin, X } from "lucide-react";
-import { toast } from "sonner";
 import { copyToClipboard } from "@/lib/clipboard";
+import { useOverlayToast } from "@/components/rush/overlay-toast";
+import { dplnNearestZaap } from "@/lib/dpln-zaap";
 import { useDaTheme } from "@/components/da/da-theme";
 import { daScopeProps } from "@/lib/da-scope";
 import { safeImageUrl } from "@/lib/security";
@@ -36,6 +39,7 @@ export function RushPositionMenu({
   mapId = null,
   npc = null,
   zaap = null,
+  allowZaap = false,
   open,
   onClose,
 }: {
@@ -48,11 +52,18 @@ export function RushPositionMenu({
   npc?: { id?: number | null; name?: string | null; imageUrl?: string | null } | null;
   /** Zaap le plus proche (ou saisi en God) : action « zaap + trajet ». */
   zaap?: { x: number; y: number; name?: string | null } | null;
+  /**
+   * Détour zaap autorisé pour cette position : la modale résout le zaap le plus
+   * proche à l'ouverture (tactile / PiP, où le survol de la puce n'existe pas).
+   */
+  allowZaap?: boolean;
   open: boolean;
   onClose: () => void;
 }) {
   const anchorRef = useRef<HTMLSpanElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  // Overlay ⇒ toaster de la PiP ; navigateur ⇒ toaster global (même abstraction).
+  const toast = useOverlayToast();
   const daScope = daScopeProps(useDaTheme());
   const [doc, setDoc] = useState<Document | null>(null);
   const [map, setMap] = useState<MapState>({ status: "idle" });
@@ -86,12 +97,18 @@ export function RushPositionMenu({
 
   if (!open) return <span ref={anchorRef} className="hidden" aria-hidden="true" />;
 
+  // Zaap calculé à la volée avec la **liste DPLN exacte** (aucun appel serveur) :
+  // la puce de l'overlay est tactile et vit dans la PiP, le survol n'y existe pas.
+  // Un zaap manuel (God) ou explicite DPLN prime toujours.
+  const autoZaap = !zaap && allowZaap ? dplnNearestZaap(x, y, worldId) : null;
+  const effectiveZaap =
+    zaap ?? (autoZaap?.sameWorld ? { x: autoZaap.x, y: autoZaap.y } : null);
   const cmd = `/travel ${x},${y}`;
   const zaapCmd =
-    zaap &&
-    Number.isSafeInteger(zaap.x) &&
-    Number.isSafeInteger(zaap.y)
-      ? `/zaap ${zaap.x},${zaap.y} ; /travel ${x},${y}`
+    effectiveZaap &&
+    Number.isSafeInteger(effectiveZaap.x) &&
+    Number.isSafeInteger(effectiveZaap.y)
+      ? `/zaap ${effectiveZaap.x},${effectiveZaap.y} ; /travel ${x},${y}`
       : null;
 
   const handleCopy = async () => {
@@ -189,7 +206,7 @@ export function RushPositionMenu({
             <button
               type="button"
               onClick={handleCopyZaap}
-              title={zaap?.name ? `Zaap ${zaap.name} + trajet` : "Zaap + trajet"}
+              title={effectiveZaap?.name ? `Zaap ${effectiveZaap.name} + trajet` : "Zaap + trajet"}
               className="inline-flex items-center gap-1.5 rounded-[4px] border border-info/30 bg-info/10 px-2 py-1 text-[12px] font-semibold text-foreground transition-colors hover:bg-info/20"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}

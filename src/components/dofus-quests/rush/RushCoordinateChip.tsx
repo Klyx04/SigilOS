@@ -3,6 +3,7 @@
 import React, { useRef, useState } from "react";
 import { Check } from "lucide-react";
 import { parseCoordinates } from "@/lib/rush-guide-utils";
+import { dplnNearestZaap } from "@/lib/dpln-zaap";
 import { buildManualZaapTravelCommand, buildZaapTravelCommand } from "@/lib/travel-command";
 import { copyToClipboard } from "@/lib/clipboard";
 import { RushPositionMenu } from "./RushPositionMenu";
@@ -65,7 +66,7 @@ interface RushCoordinateChipProps {
   worldId?: number | null;
 }
 
-/** Zaap le plus proche (forme servie par `resolveMapWorldAction`). */
+/** Zaap le plus proche (règle DPLN `dplnNearestZaap`). */
 interface ChipZaap {
   name: string;
   x: number;
@@ -90,9 +91,6 @@ export function RushCoordinateChip({
   const [copied, setCopied] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [copiedZaap, setCopiedZaap] = useState(false);
-  const [zaap, setZaap] = useState<ChipZaap | null>(null);
-  const [zaapState, setZaapState] = useState<"idle" | "loading" | "ready" | "none">("idle");
-  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Document PORTEUR de la puce : dans la fenetre PiP, le `document` du module est celui
   // de l onglet principal (non focalise) et `execCommand` echoue. On cible le bon document.
   const rootRef = useRef<HTMLSpanElement>(null);
@@ -114,33 +112,19 @@ export function RushCoordinateChip({
     Number.isSafeInteger(manualZaap.x) &&
     Number.isSafeInteger(manualZaap.y);
 
-  const scheduleZaapResolve = () => {
-    if (!showZaap || hasManualZaap || zaapState !== "idle") return;
-    hoverTimerRef.current = setTimeout(() => {
-      setZaapState("loading");
-      import("@/server/actions/optimized-guide-actions").then((mod) => {
-        mod.resolveMapWorldAction(parsed.x, parsed.y, undefined, resolvedWorldId ?? null).then((res) => {
-          if (res.success && res.nearestZaap?.sameWorld) {
-            setZaap({
-              name: res.nearestZaap.name,
-              x: res.nearestZaap.x,
-              y: res.nearestZaap.y,
-              sameWorld: true,
-            });
-            setZaapState("ready");
-          } else {
-            // Monde sans zaap ou position non résolue : pas de bouton
-            // (DPLN n'affiche son icône que quand le détour vaut le coup).
-            setZaapState("none");
-          }
-        }).catch(() => setZaapState("none"));
-      }).catch(() => setZaapState("none"));
-    }, 400);
-  };
-
-  const cancelZaapResolve = () => {
-    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
-  };
+  // Règle DPLN **pure** (même liste, même distance) : aucun appel serveur, donc
+  // aucun zaap calculé avec une autre liste que celle de DPLN. Le calcul est
+  // immédiat (37 zaaps) : le bouton zaap s'affiche sans survol, comme chez DPLN.
+  const autoZaap =
+    showZaap && !hasManualZaap
+      ? dplnNearestZaap(parsed.x, parsed.y, resolvedWorldId ?? null)
+      : null;
+  const effectiveZaap: ChipZaap | null =
+    hasManualZaap && manualZaap
+      ? { name: "Zaap (God)", x: manualZaap.x, y: manualZaap.y, sameWorld: true }
+      : autoZaap?.sameWorld
+        ? { name: "le plus proche", x: autoZaap.x, y: autoZaap.y, sameWorld: true }
+        : null;
 
   const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -192,8 +176,8 @@ export function RushCoordinateChip({
       setTimeout(() => setCopiedZaap(false), 2000);
       return;
     }
-    if (!zaap) return;
-    const cmd = buildZaapTravelCommand(zaap, { x: parsed.x, y: parsed.y });
+    if (!effectiveZaap) return;
+    const cmd = buildZaapTravelCommand(effectiveZaap, { x: parsed.x, y: parsed.y });
     if (!cmd) return;
     const ok = await copyToClipboard(cmd, rootRef.current?.ownerDocument);
     if (!ok) {
@@ -205,7 +189,7 @@ export function RushCoordinateChip({
     }
     setCopiedZaap(true);
     toast.success(`Copié : ${cmd}`, {
-      description: `Téléportation au zaap ${zaap.name}, puis trajet jusqu'à la position.`,
+      description: `Téléportation au zaap ${effectiveZaap.name}, puis trajet jusqu'à la position.`,
       duration: 3000,
     });
     setTimeout(() => setCopiedZaap(false), 2000);
@@ -214,12 +198,7 @@ export function RushCoordinateChip({
   if (iconOnly) {
     return (
       <>
-        <span
-          ref={rootRef}
-          className="inline-flex"
-          onMouseEnter={scheduleZaapResolve}
-          onMouseLeave={cancelZaapResolve}
-        >
+        <span ref={rootRef} className="inline-flex">
           <button
             type="button"
             onClick={handleCopy}
@@ -247,7 +226,8 @@ export function RushCoordinateChip({
             x={parsed.x}
             y={parsed.y}
             worldId={resolvedWorldId ?? null}
-            zaap={hasManualZaap && manualZaap ? { ...manualZaap, name: "Zaap (God)" } : zaap}
+            zaap={effectiveZaap}
+            allowZaap={showZaap}
             onClose={() => setMenuOpen(false)}
           />
         )}
@@ -257,12 +237,7 @@ export function RushCoordinateChip({
 
   return (
     <>
-    <span
-      ref={rootRef}
-      className="inline-flex items-center gap-1"
-      onMouseEnter={scheduleZaapResolve}
-      onMouseLeave={cancelZaapResolve}
-    >
+    <span ref={rootRef} className="inline-flex items-center gap-1">
       <button
         type="button"
         onClick={handleCopy}
@@ -288,19 +263,19 @@ export function RushCoordinateChip({
           <PositionPicto className="opacity-70" />
         ) : null}
       </button>
-      {showZaap && (hasManualZaap || (zaapState === "ready" && zaap)) && (
+      {showZaap && effectiveZaap && (
         <button
           type="button"
           onClick={handleCopyZaap}
           title={
-            hasManualZaap && manualZaap
-              ? `Copier la téléportation au zaap saisi en God + le trajet (${`/zaap ${manualZaap.x},${manualZaap.y} ; /travel ${parsed.x},${parsed.y}`})`
-              : `Copier la téléportation au zaap ${zaap!.name} + le trajet (${`/zaap ${zaap!.x},${zaap!.y} ; /travel ${parsed.x},${parsed.y}`})`
+            hasManualZaap
+              ? `Copier la téléportation au zaap saisi en God + le trajet (${`/zaap ${effectiveZaap.x},${effectiveZaap.y} ; /travel ${parsed.x},${parsed.y}`})`
+              : `Copier la téléportation au zaap le plus proche, règle DPLN + le trajet (${`/zaap ${effectiveZaap.x},${effectiveZaap.y} ; /travel ${parsed.x},${parsed.y}`})`
           }
           aria-label={
             hasManualZaap
               ? `Copier zaap manuel puis trajet jusqu'à ${parsed.raw}`
-              : `Copier zaap ${zaap!.name} puis trajet jusqu'à ${parsed.raw}`
+              : `Copier zaap le plus proche (DPLN) puis trajet jusqu'à ${parsed.raw}`
           }
           className={cn(
             "inline-flex cursor-pointer select-none items-center gap-1 rounded-[3px] border border-info/30 bg-info/10 px-1.5 py-0.5",
@@ -322,7 +297,8 @@ export function RushCoordinateChip({
         x={parsed.x}
         y={parsed.y}
         worldId={resolvedWorldId ?? null}
-        zaap={hasManualZaap && manualZaap ? { ...manualZaap, name: "Zaap (God)" } : zaap}
+        zaap={effectiveZaap}
+        allowZaap={showZaap}
         onClose={() => setMenuOpen(false)}
       />
     )}

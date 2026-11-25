@@ -152,6 +152,25 @@ describe("Badge donjon — compteur, picto du jeu, popover branchée", () => {
     expect(codeOf(OVERLAY).split("guildId={guildId}").length - 1).toBeGreaterThanOrEqual(2);
   });
 
+  it("un seul contour d'alerte : le panneau interne n'ajoute pas son halo", () => {
+    // Mesure du 25/11/2026 : popover `da-alert` + panneau `da-alert` = double contour
+    // autour de la modale donjon d'un boss non validé.
+    const pop = codeOf(POPOVER);
+    const panel = codeOf("src/components/dofus-quests/rush/RushQuestDungeonsPanel.tsx");
+    expect(pop).toContain("alert={false}");
+    expect(panel).toContain('progress.missingBlocks > 0 && alert && "da-alert"');
+  });
+
+  it("le nom du boss n'est pas tronqué par les actions dans la modale étroite", () => {
+    const pop = codeOf(POPOVER);
+    const card = codeOf(
+      "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayDungeonCard.tsx"
+    );
+    expect(pop).toContain('layout="stacked"');
+    expect(card).toContain('layout === "stacked" ? "line-clamp-2" : "truncate"');
+    expect(card).toContain("pl-[3.25rem]");
+  });
+
   it("le picto du donjon existe dans les assets", () => {
     expect(existsSync("public/assets/dofus-ui/pictos/donjon.png")).toBe(true);
   });

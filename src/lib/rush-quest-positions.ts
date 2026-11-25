@@ -96,8 +96,11 @@ export function positionFromDofusQuestEntry(
  * (`[-25,-36]`) ; `worldId`, `allowZaap`, `zaapX`/`zaapY` sont les champs du studio.
  *
  * Un **zaap manuel** saisi en God (`zaapX`/`zaapY` sur le tag existant) reste
- * prioritaire ; sinon le zaap de la carte (s'il existe) est repris. Un `allowZaap`
- * explicite (`true` **ou** `false`) est conservé tel quel.
+ * prioritaire ; sinon le zaap de la carte (s'il existe) est repris. `allowZaap` :
+ * - une **exclusion DPLN** (`position.allowZaap === false`, `[x,y!]`) gagne
+ *   toujours — sinon l'ancien `true` du siphon la annulerait ;
+ * - sinon un `allowZaap` booléen déjà posé en God est conservé (dont `false`) ;
+ * - sinon la donnée DPLN (`true` ou absente) décide.
  */
 /** Carte HD d un tag existant (entier positif, Int32) — `null` sinon. */
 function readMapId(value: unknown): number | null {
@@ -113,11 +116,13 @@ export function buildRushPositionTag(
   const worldId = readWorldId(previous?.worldId) ?? readWorldId(position.worldId);
   const mapId = readMapId(previous?.mapId) ?? readMapId(position.mapId);
   const allowZaap =
-    typeof previous?.allowZaap === "boolean"
-      ? previous.allowZaap
-      : position.allowZaap === true
-        ? true
-        : undefined;
+    position.allowZaap === false
+      ? false
+      : typeof previous?.allowZaap === "boolean"
+        ? previous.allowZaap
+        : position.allowZaap === true
+          ? true
+          : undefined;
   return {
     type: "pos_tags",
     name: `[${position.x},${position.y}]`,

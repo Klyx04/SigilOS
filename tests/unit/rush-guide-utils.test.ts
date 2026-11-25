@@ -439,11 +439,12 @@ describe("rush-guide-utils", () => {
     });
   });
 
-  describe("isZaapCopyEnabled — détour zaap opt-in God", () => {
+  describe("isZaapCopyEnabled — détour zaap décidé par DPLN", () => {
     const seqWithPos = (tag: { type: string; name?: string; allowZaap?: boolean; zaapX?: number; zaapY?: number }) =>
       ({ activityTags: [tag] }) as unknown as Parameters<typeof isZaapCopyEnabled>[0];
 
-    it("vrai seulement quand pos_tags.allowZaap est coché", () => {
+    it("seul un allowZaap DPLN (ou un zaap God) ouvre le bouton, jamais une position nue", () => {
+      // Mesure du 25/11/2026 : 770 pos_tags, 0 allowZaap → bouton invisible partout.
       expect(isZaapCopyEnabled(seqWithPos({ type: "pos_tags", name: "1, 1", allowZaap: true }))).toBe(true);
       expect(isZaapCopyEnabled(seqWithPos({ type: "pos_tags", name: "1, 1" }))).toBe(false);
       expect(isZaapCopyEnabled(seqWithPos({ type: "pos_tags", name: "1, 1", allowZaap: false }))).toBe(false);

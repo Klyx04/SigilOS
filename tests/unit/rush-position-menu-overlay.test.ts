@@ -17,4 +17,14 @@ describe("RushPositionMenu — modale dans la fenêtre de l'overlay", () => {
     expect(src).toContain("/zaap ");
     expect(src).toContain("/travel ");
   });
+
+  it("résout le zaap à l'ouverture avec la règle DPLN (tactile et PiP, sans survol)", () => {
+    // La puce de l'overlay est tactile et vit dans la PiP : le minuteur de survol
+    // de `RushCoordinateChip` n'y passe jamais. La modale calcule elle-même,
+    // avec la liste DPLN — jamais `zaaps.json` (39 zaaps ≠ 37 DPLN).
+    const src = readFileSync(MENU, "utf8");
+    expect(src).toContain("allowZaap");
+    expect(src).toContain("dplnNearestZaap");
+    expect(src).not.toContain("resolveMapWorldAction");
+  });
 });

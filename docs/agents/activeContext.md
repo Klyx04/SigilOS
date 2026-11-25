@@ -6,6 +6,15 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 🗓️ Session 25/11/2026 (suite 71) — **Rush : overlay PiP, zaap iso DPLN, blocs terminés** — branche `fix/rush-overlay-position-dungeon-2026-11-25`
+
+> **Demande user (verbatim)** : « les positions dans l'overlay s'ouvrent hors de l'overlay » · « une petite modale au clic sur la position : copier, voir la map HD en petit » · « les positions avec le zaap, très implémenté côté DPLN — on ne peut pas inventer des positions, iso DPLN pour l'entièreté des quêtes, non négociable » · « un double contour pour les modales de boss non validé » · « les notifs de copie de position dans l'overlay doivent rester dans l'overlay » · « dans chaque bloc de quête un bandeau en haut avec toutes les icônes, la quête en dessous qui respire ».
+> **Mesuré** : 770 `pos_tags` (tous guides) / **531 `allowZaap`** ; le calcul du zaap utilisait `zaaps.json` (39 en monde 1, Bonta `[-32,-56]`) au lieu de la liste DPLN (37, Bonta `[-31,-56]`) ; l'ancien siphon posait `allowZaap: true` partout — le contrôle DPLN (529 pages) mesure **65 exclusions `[x,y!]`** et **51 zaaps explicites** que le guide affichait à tort ; `RushPositionMenu` portalait dans `document.body` (page principale) et utilisait le `toast` global ; `RushOverlayDungeonPopover` cumulait deux halos.
+> **Fait** : position + donjons portés dans le `ownerDocument` (PiP), mini-modale position avec copie / carte HD / zaap ; **`dplnNearestZaap`** (liste DPLN exacte, Manhattan + pénalité, garde monde 1) côté client ; **`scripts/check-rush-dpln-zaap.ts`** (dry-run/`--apply`, `!`, zaap explicite) ; `buildRushPositionTag` fait gagner la donnée DPLN sur l'ancien `allowZaap` (**115 corrections**, **116 séquences locales synchronisées**) ; toasts partagés routés par `useOverlayToast` (overlay = PiP, navigateur = global) ; bloc terminé **scellé** (sceau, filet vert, jauge verte) ; modale donjon **un seul contour**, actions sur 2ᵉ ligne ; progression donjons (barre d'en-tête, compteurs, barres de bloc) ; **bandeau d'icônes** au-dessus du nom dans chaque bloc de quête + numéro d'alignement avec le titre.
+> **Preuves** : tests `dpln-zaap`, `rush-position-menu-overlay`, `rush-overlay-quest-banner`, `rush-block-done-visual`, `rush-overlay-dungeons`, `rush-quest-positions` verts ; `tsc` 0 ; suite complète à jouer ; **aucune migration**.
+> **Reste** : choix Brak 55/66 + God, backfill bêta/prod conditions, appliquer le JSON positions corrigé en bêta/prod (God « Synchroniser les positions ») ; mode clair #1536 prête.
+> **Rotation** : bloc « suite 65 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
 ## 📝 Session 24/11/2026 (suite 70) — **Rush : overlay, donjons, PiP et validation** — branches `fix/rush-overlay-dungeons-pip-2026-11-24` (PR **#1533**), `feat/rush-dungeons-auto-2026-11-25` (PR **#1534**), `feat/rush-overlay-compact-2026-11-25` (PR **#1535**)
 
 > **Demande user (verbatim)** : retours captures — tiroir conditions vide, donjons « à faire » par défaut + clignotement, image des combats, overlay compact, Opera GX ; puis « les quêtes invalidées doivent remettre les dj en à faire » et « valider une quête passe et coche les dj ».
@@ -54,14 +63,7 @@
 > **Reste** : **2c** cascade « Valider les prérequis » avec aperçu (écrit les quêtes du guide) · arête quête → succès (source client/tag) · PR 2b à ouvrir · Phases 3/4/5 prochaine conversation.
 > **Rotation** : bloc « suite 60 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
-## 📝 Session 24/11/2026 (suite 65) — **Rush : route d'alignement unique** — branche `feat/rush-route-alignement-2026-11-24`
 
-> **Demande user (verbatim)** : « attaque par contre te plante pas avec ce qu'on avait statué » puis « je valide » la route d'alignement.
-> **Mesuré** : le profil local Wylan a `alignmentOrder = attentif` ; `MilestoneRow` cachait « Valider » dès qu'un Ordre était sélectionné (`!orderKey`) et le serveur validait **tout le milestone** (autres Ordres compris). La page projetait déjà la route (`resolveRushRoute` camp/Ordre/classe) ; le filtre d'Ordre par bloc était redondant. L'overlay décochait tout le chapitre par le nœud.
-> **Fait** : panneau unique `RushAlignmentPanel` (cité / Ordre / palier 20-100 ; badge statique et dropdown masqué quand l'Ordre est terminé ; panneau masqué quand cité 100 + Ordre fait) · `RushOrderSelect` `allowAll` (plus de « Tous » pour un choix de route) · `toggleMilestoneProgress(..., scopeSeqIds)` : cascade, donjons et ressources **sur le périmètre**, `completedSteps` en union, `isCompleted` stocké = bloc entier, événement guilde seulement si bloc entier · complétude de bloc dérivée des séquences de route (dashboard + overlay) · overlay : nœud du chapitre = validation seule, reset dédié · `RushOrderSelect` retiré des blocs.
-> **Preuves** : **8 404 tests ✅** · `tsc` 0 · `lint` 0 erreur (7 802 warnings préexistants) · 1 test de source `rush-route-alignment` + 12 cascade (périmètre) · aucune migration.
-> **Reste** : **graphe des dépendances quête ↔ succès** (siphon OA, quête→succès, succès dérivé, aperçu/cascade) · PR route à ouvrir · Phases 3/4/5 prochaine conversation.
-> **Rotation** : bloc « suite 59 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 
 

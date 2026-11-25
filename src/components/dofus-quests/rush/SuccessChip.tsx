@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, ChevronRight, Package, ShieldCheck, X } from "lucide-react";
-import { toast } from "sonner";
+import { useOverlayToast } from "@/components/rush/overlay-toast";
 import { useDaTheme } from "@/components/da/da-theme";
 import { daScopeProps } from "@/lib/da-scope";
 import type { RushGuideQuestRef, RushSuccessRef } from "@/lib/rush-guide-utils";
@@ -383,6 +383,8 @@ function SuccessSheet({
   iconSrc: string;
   onClose: () => void;
 }) {
+  // Overlay ⇒ toaster de la PiP ; dashboard/public ⇒ toaster global.
+  const toast = useOverlayToast();
   const [entry, setEntry] = useState<AchievementCatalogRow | null>(null);
   const [catalog, setCatalog] = useState<RushSuccessCatalog | null>(null);
   const [questCriteria, setQuestCriteria] = useState<RushQuestCriteriaMap | null>(null);
@@ -607,7 +609,7 @@ function SuccessSheet({
     }
     setConfirming(false);
     onClose();
-  }, [validation, validationWrites, validating, onClose]);
+  }, [validation, validationWrites, validating, onClose, toast]);
 
   const editorialNote = entry ? notes[String(entry.id)] : "";
   const dataDate = generatedAt ? generatedAt.slice(0, 10) : null;

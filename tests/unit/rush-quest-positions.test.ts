@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import RUSH_QUEST_POSITIONS from "@/data/rush-quest-positions.json";
 import { getSequenceCoord, getSequenceManualZaap, isZaapCopyEnabled } from "@/lib/rush-guide-utils";
+import { buildRushPositionTag } from "@/lib/rush-quest-positions";
 import type { RushSequence } from "@/types/rush-guide-types";
 
 /**
@@ -65,5 +66,27 @@ describe("positions de lancement du guide", () => {
             activityTags: [{ type: "pos_tags", name: "[-25,-36]", allowZaap: true, zaapX: -26, zaapY: -37 }],
         } as RushSequence;
         expect(getSequenceManualZaap(seq)).toEqual({ x: -26, y: -37 });
+    });
+
+    it("un zaap explicite DPLN est écrit tel quel dans le tag (iso stricte)", () => {
+        const tag = buildRushPositionTag({
+            x: -67,
+            y: -54,
+            allowZaap: true,
+            worldId: 1,
+            zaapX: -78,
+            zaapY: -41,
+        });
+        expect(tag).toMatchObject({ name: "[-67,-54]", allowZaap: true, zaapX: -78, zaapY: -41 });
+    });
+
+    it("une exclusion DPLN [x,y!] ne peut pas être annulée par l'ancien allowZaap", () => {
+        // Le siphon historique posait `allowZaap: true` partout. La donnée DPLN
+        // (`false`) doit gagner, sinon le bouton zaap revient là où DPLN le cache.
+        const tag = buildRushPositionTag(
+            { x: -55, y: 15, allowZaap: false, worldId: 1 },
+            { type: "pos_tags", name: "[-55,15]", allowZaap: true, worldId: 1 }
+        );
+        expect(tag.allowZaap).toBe(false);
     });
 });

@@ -269,6 +269,30 @@ html:has(.boss-detail-shell) {
   color-scheme: light;
 }
 
+@keyframes da-alert-pulse {
+  0%,
+  100% {
+    border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+  }
+  50% {
+    border-color: var(--danger);
+  }
+}
+
+/* Alerte de donjon requis : le CONTOUR existant pulse, sans anneau ajouté et
+   **sans toucher à l'opacité** du contenu (l'ancien `animate-pulse` rendait la
+   modale entière transparente et un halo en `box-shadow` créait un 2ᵉ contour). */
+.da-alert {
+  animation: da-alert-pulse 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .da-alert {
+    animation: none;
+    border-color: var(--danger);
+  }
+}
+
 @layer utilities {
   /* Panneau « carnet » : un filet de bronze + un biseau interne, jamais d'ombre portée. */
   .rush-carnet {

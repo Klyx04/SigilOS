@@ -279,6 +279,8 @@ export function RushOverlayQuestDetailModal({
                     worldId={coord.worldId ?? null}
                     showZaap={isZaapCopyEnabled(seq)}
                     manualZaap={getSequenceManualZaap(seq)}
+                    menuOnClick
+                    npc={getSequenceNpc(seq)}
                   />
                 </div>
                 {seqNpc && seqNpc.name && !seqNpc.imageUrl && seqNpc.id === null && (

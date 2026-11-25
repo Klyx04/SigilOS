@@ -9,7 +9,7 @@ description: Rush Sylvestre — fiche unique des restes (section ⚡ en tête), 
 > savoir ce qui reste. `docs/ROADMAP.md` garde l'**ordre global** ; les autres plans ne portent plus
 > le détail des restes.
 
-## ⚡ Restes — fiche unique (24/11/2026)
+## ⚡ Restes — fiche unique (25/11/2026)
 
 > **Seule section à lire au démarrage d'une session Rush.** Elle remplace tous les « reste » éparpillés :
 > `ROADMAP.md` (rangs 9/10/10b/55), `PLAN-REFONTE-RUSH-SYLVESTRE.md`, `MODULE-RUSH-SYLVESTRE.md` et
@@ -26,6 +26,14 @@ description: Rush Sylvestre — fiche unique des restes (section ⚡ en tête), 
 > la section est désormais visible) · **29 conseils** (7 de quête + 22 de bloc ; bêta
 > **49**) · **742 tags combat** (bêta 746) · **6 positions** de quêtes ajoutées à traiter (local fait,
 > bêta à vérifier) · dialogue **DPLN : 0 à mettre à jour** (532 positions sur les deux).
+>
+> **Mesures du 25/11/2026** : **770 `pos_tags`** (tous guides) · **531 `allowZaap`** sur le guide
+> Rush · **532 positions identiques** à `rush-quest-positions.json` (9 expliquées) · zaap recalculé
+> avec la **liste DPLN exacte** (37 zaaps, Manhattan + pénalité), jamais `zaaps.json` (39 en monde 1,
+> Bonta `[-32,-56]`) — contrôle `scripts/check-rush-dpln-zaap.ts` (dry-run par défaut).
+> **Contrôle DPLN du 25/11** : 529 pages, **115 corrections** (65 exclusions `[x,y!]`, 51 zaaps
+> explicites), **116 séquences locales synchronisées** ; base : 467 `allowZaap: true`, 65 `false`,
+> 53 zaaps explicites.
 
 ### A. Code — prêt à exécuter (aucune décision requise)
 
@@ -52,7 +60,7 @@ description: Rush Sylvestre — fiche unique des restes (section ⚡ en tête), 
 
 ### C. Déjà livré — à acter (ne plus compter comme reste)
 
-O10 (3 densités `wide/normal/tight`, mesurées sur le conteneur) · O12 (bulles « En attente ici » par quête + toast live) · G2 (`SuccessChip`) · T1 (303 succès, 451 + 76 prérequis) · T5 (`rush-choice-groups` ; le hook `useQuestGroups` n'existe pas) · O3 (écarté par la mesure) · **T-2c : 0 orphelin sur 527 `prereq_text` ⇒ lot inutile** · **3 succès officiels 3/3 `isSuccess`** (le « reste 3 tags » du ROADMAP était périmé) · 173 vs 143 (écart de route) · 1 position 1938 (temple de classe, expliqué) · **22/11 : bandeaux Combat de séquence** (`sequence_banner`, studio `+ Quête` + inspecteur, rendu centré sur les 3 surfaces) · **« Dofus obtenu » partagé** (le titre du studio passe devant) · **blocs hors quête conservés** par `resolveRushRoute` (bannière invisible corrigée) · **V-D2 livré** (`isResolvableItemId`, borne Int32) · **O6 livré** (`autoFocus`, verrou de scroll porteur, piège Tab `nextFocusIndex`) · **E5 livré** (4 `prompt()` → 2 `Dialog`) · **descriptions de blocs recalées** (`syncQuestCountInDescription`, 3 écritures) · **carte HD** (`pos_tags.mapId`) **réellement** prioritaire depuis le 22/11 (branche réactivée) · **positions sous-mondes** : `(0,0)` d'un sous-monde autorisé + `fix-rush-pos-worlds` (514 proposées, 4 appliquées en local) · **`questDbIds` : déjà utilisé sur les 3 surfaces pour les succès ⇒ lot clos par mesure** · **saut prérequis overlay (22/11)** : cible par `milestoneId` + `seqId` (fail-closed), focus dans le document PiP, retour « Revenir » — verrou `rush-overlay-jump` **11**.
+O10 (3 densités `wide/normal/tight`, mesurées sur le conteneur) · O12 (bulles « En attente ici » par quête + toast live) · G2 (`SuccessChip`) · T1 (303 succès, 451 + 76 prérequis) · T5 (`rush-choice-groups` ; le hook `useQuestGroups` n'existe pas) · O3 (écarté par la mesure) · **T-2c : 0 orphelin sur 527 `prereq_text` ⇒ lot inutile** · **3 succès officiels 3/3 `isSuccess`** (le « reste 3 tags » du ROADMAP était périmé) · 173 vs 143 (écart de route) · 1 position 1938 (temple de classe, expliqué) · **22/11 : bandeaux Combat de séquence** (`sequence_banner`, studio `+ Quête` + inspecteur, rendu centré sur les 3 surfaces) · **« Dofus obtenu » partagé** (le titre du studio passe devant) · **blocs hors quête conservés** par `resolveRushRoute` (bannière invisible corrigée) · **V-D2 livré** (`isResolvableItemId`, borne Int32) · **25/11 : modales PiP** (position et donjons portés dans le `ownerDocument`, mini-modale position avec copie / carte HD / zaap) · **bloc terminé scellé** (sceau partagé, filet vert, jauge verte ; plus d'`opacity-80`) · **zaap iso DPLN** (`dplnNearestZaap`, 37 zaaps) · **progression donjons** (barre d'en-tête, compteurs de filtres, actions sur 2ᵉ ligne, un seul contour d'alerte) · **O6 livré** (`autoFocus`, verrou de scroll porteur, piège Tab `nextFocusIndex`) · **E5 livré** (4 `prompt()` → 2 `Dialog`) · **descriptions de blocs recalées** (`syncQuestCountInDescription`, 3 écritures) · **carte HD** (`pos_tags.mapId`) **réellement** prioritaire depuis le 22/11 (branche réactivée) · **positions sous-mondes** : `(0,0)` d'un sous-monde autorisé + `fix-rush-pos-worlds` (514 proposées, 4 appliquées en local) · **`questDbIds` : déjà utilisé sur les 3 surfaces pour les succès ⇒ lot clos par mesure** · **saut prérequis overlay (22/11)** : cible par `milestoneId` + `seqId` (fail-closed), focus dans le document PiP, retour « Revenir » — verrou `rush-overlay-jump` **11**.
 
 ### D. Bloqué par le mainteneur / données à vérifier
 
@@ -62,7 +70,7 @@ O10 (3 densités `wide/normal/tight`, mesurées sur le conteneur) · O12 (bulles
 | **98 conseils Brâkmarien** | Textes : **49 en base (bêta)**, **29 en local** (7 de quête + 22 de bloc), **194 visés**. Les 98 Brâkmarien n'ont **aucune source** (Tougli/Dofusyelle) → rédaction manuelle. |
 | **V-C purge WebP** | Ops VPS + validation de l'archive `rush-sylvestre-archive-*` avant `rush-delete-archive --apply`. |
 | **Touglie enrichi** | Import VPS : la bêta a **540 séquences**, le local **541** ; l'archive **108/492** est l'ancien guide. Les données locales ne sont pas toutes sur le VPS. |
-| **6 positions des quêtes ajoutées (23/11)** | **Local fait ; bêta à vérifier/appliquer.** Le dialogue **DPLN** dit **0 à mettre à jour** : il ne couvre pas ces positions manuelles. Valeurs `DofusQuestEntry.coords` : 614 `(-85,-36)` (correction), 626 `(-63,-75)`, 710/711 `(-34,-16)`, 1939 `(1,0)`, 1988 `(7,-19)` déjà bonne. **894 : aucune source.** |
+| **6 positions des quêtes ajoutées (23/11)** | **Local fait ; bêta à vérifier/appliquer.** Le dialogue **DPLN** dit **0 à mettre à jour** : il ne couvre pas ces positions manuelles. Valeurs `DofusQuestEntry.coords` : 614 `(-85,-36)` (correction), 626 `(-63,-75)`, 710/711 `(-34,-16)`, 1939 `(1,0)`, 1988 `(7,-19)` déjà bonne. **894 : aucune source.** Le contrôle **25/11** `check-rush-dpln-zaap` compare chaque URL DPLN (position + `!` + `zaap` explicite) ; l'écart mesuré est **0**. |
 | **Brâkmarien 121 vs 102** | **Mesuré** : 117 en local = **102 série + 15 quêtes d'Ordre** (3 × 5). Le 121 est le compte **brut** (variantes incluses) ; le 102 le compte **jouable**. Ce n'est **pas** un doublon à supprimer. Le vrai lot est le **choix exclusif des étapes 55/66** (§H) et l'actage « 102 + 15 Ordres + variantes ». |
 | **Combats** | **746 tags** bêta / **742** local avec au moins un monstre sans id. La résolution **815 / 1 443** date du **19/11** et porte sur les fichiers statiques (`unity-bestiary.json` + `rush-monster-map.json`), **pas** sur la base : re-mesurer sur la bêta avant de compléter. |
 | **Itérations 5/6** | ~~Définition absente~~ → **supprimées de la liste le 23/11/2026** : elles ne sont pas actionnables. Toute itération future est un **nouveau lot à définir**. |

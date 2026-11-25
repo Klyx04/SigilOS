@@ -141,7 +141,7 @@ export function RushOverlayDungeonPopover({
               onClick={(event) => event.stopPropagation()}
               className={cn(
                 "rush-carnet overlay-scroll max-h-[calc(100dvh-1.5rem)] w-[min(22rem,calc(100vw-1.5rem))] overflow-y-auto overscroll-contain rounded-[6px] bg-elevated p-1.5",
-                missing && "border-danger/60 animate-pulse motion-reduce:animate-none",
+                missing && "border-danger/60 da-alert",
               )}
             >
               <RushQuestDungeonsPanel
@@ -156,6 +156,8 @@ export function RushOverlayDungeonPopover({
                 onOpenOcre={onOpenOcre}
                 onOpenAchievements={onOpenAchievements}
                 onClose={() => setOpen(false)}
+                alert={false}
+                layout="stacked"
                 className="border-0 bg-transparent p-0"
               />
             </div>

@@ -160,6 +160,7 @@ import { isInfoSequence, isSequenceBlockedByPrereqs, getPrereqRefs, getSequenceS
 // Panneau de droite — le MÊME composant que le guide interne (chapitres, progression,
 // donjons & métiers à prévoir, objets requis + bascule Restantes/Toutes).
 import { RushChapterSidebar } from "@/components/dofus-quests/rush/RushChapterSidebar";
+import { RushBlockDoneSeal } from "@/components/dofus-quests/rush/RushBlockDoneSeal";
 // Sommaire au langage du dock — composant PARTAGÉ (public en E2, interne en E4).
 import { RushChapterNav } from "@/components/dofus-quests/rush/RushChapterNav";
 import { resolveRushDaTheme } from "@/lib/rush-da-theme";
@@ -2756,12 +2757,15 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
             if (!hideDone || !allChapterDone) return null;
             return (
               <div key={ms.id} id={`bloc-${ms.id}`} className="px-4 py-6 sm:px-6">
-                <div className="da-card mx-auto max-w-xl p-6 text-center">
+                <div className="rush-block-done mx-auto flex max-w-xl flex-col items-center rounded-[6px] border p-6 text-center">
                   <div className="mx-auto grid h-12 w-12 place-items-center rounded-full border border-success/40 bg-success/10 text-success">
                     <CheckCheck className="h-6 w-6" aria-hidden="true" />
                   </div>
-                  <p className="da-kicker mt-3">Bloc terminé</p>
-                  <h3 className="da-title mt-1 text-xl">{ms.title}</h3>
+                  <RushBlockDoneSeal
+                    className="mt-3"
+                    label={locale === "en" ? "Block complete" : "Bloc validé"}
+                  />
+                  <h3 className="da-title mt-2 text-xl">{ms.title}</h3>
                   <p className="mt-1 text-sm text-muted-foreground">
                     {chapterSteps.length}/{chapterSteps.length} quêtes validées
                   </p>
@@ -2853,7 +2857,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
               data-tour="rush-public-block"
               className={cn(
                 "reg-panel-strong overflow-hidden transition-colors",
-                isDone ? "border-success/30 opacity-80" : "border-border"
+                isDone ? "rush-block-done border" : "border-border"
               )}
             >
               {/* Chapter Header */}
@@ -2867,11 +2871,21 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                       aucune teinte (une couleur par item est une décoration, pas une donnée).
                       Le chapitre sans Dofus porte son RANG dans le guide en mono — même
                       table que le guide membre et l'overlay, bandeaux exclus — sans boîte. */}
-                  <div className="w-11 h-11 flex items-center justify-center shrink-0">
+                  <div
+                    className={cn(
+                      "w-11 h-11 flex items-center justify-center shrink-0",
+                      isDone && "rush-block-done-medal"
+                    )}
+                  >
                     {chapterDofusImg ? (
                       <img src={chapterDofusImg} alt={ms.title} className="w-9 h-9 object-contain" />
                     ) : (
                       <span className="reg-mono text-sm text-muted-foreground">{blockNumber || ""}</span>
+                    )}
+                    {isDone && (
+                      <span className="rush-block-done-check" aria-hidden="true">
+                        <Check />
+                      </span>
                     )}
                   </div>
 
@@ -2889,6 +2903,11 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                       <span className="reg-mono text-xs text-muted-foreground">
                         {msDoneCount} / {chapterSteps.length} quêtes ({msPercent}%)
                       </span>
+                      {isDone && (
+                        <RushBlockDoneSeal
+                          label={locale === "en" ? "Block complete" : "Bloc validé"}
+                        />
+                      )}
                     </div>
                     <h2 className="mt-0.5 truncate text-base font-bold text-foreground sm:text-lg">
                       {ms.title}
@@ -2935,7 +2954,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
 
               {/* Progress bar du chapitre */}
               <div
-                className="reg-progress rounded-none"
+                className={cn("reg-progress rounded-none", isDone && "rush-block-done-progress")}
                 role="progressbar"
                 aria-valuenow={msPercent}
                 aria-valuemin={0}
@@ -3386,7 +3405,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                                           className={cn(
                                             "inline-flex shrink-0 items-center gap-1 rounded-[3px] px-1 py-0.5 text-[11px] font-semibold text-warning transition-colors hover:bg-warning/10",
                                             dungeonProgress.missingBlocks > 0 &&
-                                              "ring-2 ring-danger/60 animate-pulse motion-reduce:animate-none",
+                                              "border border-danger/40 da-alert",
                                           )}
                                         >
                                           {/* Picto RÉEL du jeu (même asset que le tag « Donjon requis »). */}

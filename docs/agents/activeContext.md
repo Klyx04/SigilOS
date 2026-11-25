@@ -6,7 +6,7 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
-## 🗓️ Session 25/11/2026 (suite 71) — **Rush : overlay PiP, zaap iso DPLN, blocs terminés** — branche `fix/rush-overlay-position-dungeon-2026-11-25`
+## 🗓️ Session 25/11/2026 (suite 71) — **Rush : overlay PiP, zaap iso DPLN, blocs terminés** — branche `fix/rush-overlay-position-dungeon-2026-11-25` (PR **#1537**)
 
 > **Demande user (verbatim)** : « les positions dans l'overlay s'ouvrent hors de l'overlay » · « une petite modale au clic sur la position : copier, voir la map HD en petit » · « les positions avec le zaap, très implémenté côté DPLN — on ne peut pas inventer des positions, iso DPLN pour l'entièreté des quêtes, non négociable » · « un double contour pour les modales de boss non validé » · « les notifs de copie de position dans l'overlay doivent rester dans l'overlay » · « dans chaque bloc de quête un bandeau en haut avec toutes les icônes, la quête en dessous qui respire ».
 > **Mesuré** : 770 `pos_tags` (tous guides) / **531 `allowZaap`** ; le calcul du zaap utilisait `zaaps.json` (39 en monde 1, Bonta `[-32,-56]`) au lieu de la liste DPLN (37, Bonta `[-31,-56]`) ; l'ancien siphon posait `allowZaap: true` partout — le contrôle DPLN (529 pages) mesure **65 exclusions `[x,y!]`** et **51 zaaps explicites** que le guide affichait à tort ; `RushPositionMenu` portalait dans `document.body` (page principale) et utilisait le `toast` global ; `RushOverlayDungeonPopover` cumulait deux halos.

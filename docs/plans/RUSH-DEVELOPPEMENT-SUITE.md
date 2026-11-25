@@ -31,7 +31,7 @@ description: Rush Sylvestre — fiche unique des restes (section ⚡ en tête), 
 > Rush · **532 positions identiques** à `rush-quest-positions.json` (9 expliquées) · zaap recalculé
 > avec la **liste DPLN exacte** (37 zaaps, Manhattan + pénalité), jamais `zaaps.json` (39 en monde 1,
 > Bonta `[-32,-56]`) — contrôle `scripts/check-rush-dpln-zaap.ts` (dry-run par défaut).
-> **Contrôle DPLN du 25/11** : 529 pages, **115 corrections** (65 exclusions `[x,y!]`, 51 zaaps
+> **Contrôle DPLN du 25/11** (PR #1537) : 529 pages, **115 corrections** (65 exclusions `[x,y!]`, 51 zaaps
 > explicites), **116 séquences locales synchronisées** ; base : 467 `allowZaap: true`, 65 `false`,
 > 53 zaaps explicites.
 

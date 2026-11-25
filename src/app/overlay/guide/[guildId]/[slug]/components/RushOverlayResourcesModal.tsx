@@ -42,6 +42,8 @@ interface RushOverlayResourcesModalProps {
 }
 
 const EMPTY_KEYS = new Set<string>();
+/** Première page de la liste : le guide porte 442 ressources, un rendu complet bloque l'ouverture. */
+const RESOURCE_PAGE_SIZE = 60;
 
 /**
  * Modale « Ressources » — liste AGREGÉE de tous les objets nécessaires au guide,
@@ -64,6 +66,7 @@ export function RushOverlayResourcesModal({
   const toast = useOverlayToast();
   const [query, setQuery] = useState("");
   const [mode, setMode] = useState<"restantes" | "toutes">("restantes");
+  const [visibleCount, setVisibleCount] = useState(RESOURCE_PAGE_SIZE);
   const checked = checkedKeys ?? EMPTY_KEYS;
   // Le toggle du guide prime sur la bascule locale (cf. `hideProvidedResources`).
   const effectiveMode = hideProvidedResources ? "restantes" : mode;
@@ -76,6 +79,12 @@ export function RushOverlayResourcesModal({
   )
     .slice()
     .sort((a, b) => Number(checked.has(a.key)) - Number(checked.has(b.key)));
+  // Rendu par pages : 442 lignes d'un coup coûtaient le premier rendu de la modale.
+  const shown = visible.slice(0, visibleCount);
+
+  useEffect(() => {
+    setVisibleCount(RESOURCE_PAGE_SIZE);
+  }, [query, effectiveMode]);
 
   // Compteur : en mode « restantes », ce qu'il reste = non validé PAR LES QUÊTES et
   // non coché à la main.
@@ -251,7 +260,8 @@ export function RushOverlayResourcesModal({
               Aucune ressource trouvée.
             </p>
           ) : (
-            visible.map((r) => {
+            <>
+            {shown.map((r) => {
               const isChecked = checked.has(r.key);
               return (
               <div
@@ -358,7 +368,19 @@ export function RushOverlayResourcesModal({
                 )}
               </div>
               );
-            })
+            })}
+            {shown.length < visible.length ? (
+              <div className="col-span-full flex justify-center py-2">
+                <button
+                  type="button"
+                  onClick={() => setVisibleCount((count) => count + RESOURCE_PAGE_SIZE)}
+                  className="rounded-[4px] border border-border bg-surface px-3 py-1.5 text-[11px] font-semibold text-foreground transition-colors hover:bg-elevated"
+                >
+                  Afficher plus ({visible.length - shown.length} restants)
+                </button>
+              </div>
+            ) : null}
+            </>
           )}
         </div>
       </div>

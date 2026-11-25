@@ -1,10 +1,15 @@
 /**
- * Repère « je suis ici » et quête **verrouillée** — décision du **18/11/2026**.
+ * Repère « je suis ici » et quête **verrouillée** — décision du **18/11/2026**, précisée
+ * le **25/11/2026**.
  *
  * ⚠️ Ce fichier **renverse** la décision du 11/11/2026 (« le repère reste possible sur une
  * carte verrouillée »). Retour user : une quête verrouillée n'est **pas jouable**, on n'y
- * pose donc plus de repère — dans le navigateur comme dans l'overlay. S'il en existait un
- * avant le verrou, il reste **retirable** (sinon il serait collé pour toujours).
+ * pose donc plus de repère **par quête** — dans le navigateur comme dans l'overlay. S'il
+ * en existait un avant le verrou, il reste **retirable**.
+ *
+ * Précision du 25/11 : le bouton **de bloc** « Je suis ici » est une **position**, pas une
+ * validation. Sur un bloc dont toutes les quêtes sont verrouillées (ex. « Prérequis Dofus
+ * Primordiaux »), il vise la première quête de la chaîne au lieu de ne rien faire.
  *
  * Le second bloc (badge Ocre des donjons) est inchangé : l'asset vit dans la ligne de texte,
  * pas sur la vignette du boss.
@@ -40,9 +45,13 @@ describe("Repère — pas de pose sur une quête verrouillée", () => {
         expect(block).toContain('aria-label="Retirer le repère"');
     });
 
-    it("le repère de bloc ne vise jamais une quête verrouillée", () => {
+    it("le repère de BLOC vise la première quête non terminée, même verrouillée", () => {
         const member = read(MEMBER);
-        expect(member).toContain("!isSequenceBlockedByPrereqs(s,allCompletedSeqIds,allMilestones)");
+        // Un repère de bloc est une position : la règle préfère une quête jouable, puis
+        // retombe sur la première de la chaîne (25/11/2026). Le filtre « non bloqué »
+        // ne doit plus pouvoir laisser le bouton sans cible.
+        expect(member).toContain("pickBlockBookmarkSequence(nonInfoSeqs");
+        expect(member).not.toContain("!isSequenceBlockedByPrereqs(s,allCompletedSeqIds,allMilestones)");
     });
 
     it("la page publique et la page membre portent `data-here` sur la carte", () => {

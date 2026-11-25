@@ -202,14 +202,14 @@ export function RushDofusDetailModal({
                                             return (
                                                 <li
                                                     key={rowKey}
-                                                    className="rounded-[4px] border border-border bg-surface"
+                                                    className="rounded-[4px] border border-border bg-surface transition-colors hover:border-success/40"
                                                 >
                                                     <div className="flex items-center gap-2 px-2 py-1.5">
                                                         {onOpenQuest ? (
                                                             <button
                                                                 type="button"
                                                                 onClick={() => onOpenQuest(quest)}
-                                                                className="flex min-w-0 flex-1 items-center gap-2 text-left transition-colors hover:text-success"
+                                                                className="group -mx-1 flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-[3px] px-1 py-0.5 text-left transition-colors hover:bg-elevated hover:text-success focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-success/50"
                                                                 title={en ? "Open the quest in the guide" : "Ouvrir la quête dans le guide"}
                                                             >
                                                                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -230,7 +230,7 @@ export function RushDofusDetailModal({
                                                                         </span>
                                                                     ) : null}
                                                                 </span>
-                                                                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                                                                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-colors group-hover:text-success" aria-hidden="true" />
                                                             </button>
                                                         ) : (
                                                             <div className="flex min-w-0 flex-1 items-center gap-2">

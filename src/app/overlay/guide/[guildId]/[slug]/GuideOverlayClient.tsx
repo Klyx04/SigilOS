@@ -12,7 +12,7 @@ import {
   resetGuideProgress,
   resetMilestoneProgress,
 } from "@/server/actions/optimized-guide-actions";
-import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
+import type { RushMilestone, RushMilestoneChild, RushSequence } from "@/types/rush-guide-types";
 import { type GuideProgressRow } from "@/lib/guide-progress-helpers";
 import { isInfoSequence, isNonCheckableBlock, rushChapterPosition, getPrereqRefs, alignmentCountForCamp, findNextAlignmentCityQuest, isSequenceBlockedByPrereqs, deselectSequenceFromProgress, collectCascadeUncheck, type RushPrereqRef, type RushGuideQuestRef, type RushNextAlignmentQuest } from "@/lib/rush-guide-utils";
 import { getPrereqChoiceGroups, type RushPrereqChoiceGroup } from "@/lib/rush-prereq-expr";
@@ -84,6 +84,8 @@ import { RushSeparatorBanner } from "@/components/dofus-quests/rush/RushSeparato
 import { RushInfoBanner } from "@/components/dofus-quests/rush/RushInfoBanner";
 import { RushCombatBanner } from "@/components/dofus-quests/rush/RushCombatBanner";
 import { DofusObtainedBanner } from "@/components/dofus-quests/rush/DofusObtainedBanner";
+import { RushBlockChild } from "@/components/dofus-quests/rush/RushBlockChild";
+import { RUSH_CHILD_POSITION_END } from "@/lib/rush-block-children";
 import { RushDofusDexTip } from "@/components/dofus-quests/rush/RushDofusDexTip";
 import { splitDofusDexTip } from "@/lib/rush-dofusdex-tip";
 import { isRushCombatBlock, rushCombatSequenceType } from "@/lib/rush-block-types";
@@ -1910,6 +1912,32 @@ export default function GuideOverlayClient({
     );
   };
 
+  // Sous-blocs du chapitre courant : après la quête visée, ou à la fin du chapitre.
+  const overlayChildren = ((currentMs as any)?.children ?? []) as RushMilestoneChild[];
+  const overlayChildrenByAnchor = new Map<string, RushMilestoneChild[]>();
+  const overlayEndChildren: RushMilestoneChild[] = [];
+  for (const child of overlayChildren) {
+    if (child.position >= RUSH_CHILD_POSITION_END) {
+      overlayEndChildren.push(child);
+      continue;
+    }
+    const anchor = [...(currentMs?.sequences ?? [])]
+      .filter((sequence) => Number.isFinite(sequence.order) && sequence.order <= child.position)
+      .sort((a, b) => b.order - a.order)[0];
+    if (!anchor) continue;
+    const list = overlayChildrenByAnchor.get(anchor.id) ?? [];
+    list.push(child);
+    overlayChildrenByAnchor.set(anchor.id, list);
+  }
+  const renderOverlaySequenceWithChild = (seq: RushSequence) => (
+    <>
+      {renderOverlaySequence(seq)}
+      {(overlayChildrenByAnchor.get(seq.id) ?? []).map((child) => (
+        <RushBlockChild key={child.id} child={child} surface="pip" />
+      ))}
+    </>
+  );
+
   // ─── Rendu COMMUN ─────────────────────────────────────────────────────────
   // La fenêtre source et la fenêtre PiP (always-on-top) affichent le même
   // contenu. Seules les actions liées au cycle de vie de la fenêtre (fermer /
@@ -2242,14 +2270,17 @@ export default function GuideOverlayClient({
                             count={item.sequences.length}
                           >
                             {item.sequences.map((seq) => (
-                              <React.Fragment key={seq.id}>{renderOverlaySequence(seq)}</React.Fragment>
+                              <React.Fragment key={seq.id}>{renderOverlaySequenceWithChild(seq)}</React.Fragment>
                             ))}
                           </RushChoiceGroupCard>
                         ) : (
-                          <React.Fragment key={item.seq.id}>{renderOverlaySequence(item.seq)}</React.Fragment>
+                          <React.Fragment key={item.seq.id}>{renderOverlaySequenceWithChild(item.seq)}</React.Fragment>
                         )
                       )}
                     </React.Fragment>
+                  ))}
+                  {overlayEndChildren.map((child) => (
+                    <RushBlockChild key={child.id} child={child} surface="pip" />
                   ))}
                 </div>
               </div>

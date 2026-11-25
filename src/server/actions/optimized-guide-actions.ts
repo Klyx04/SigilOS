@@ -50,6 +50,7 @@ import { hasUnresolvedQuestRef } from "@/lib/rush-quest-refs";
 import { nextSequenceOrder } from "@/lib/rush-move";
 import { slugifyRushQuestName, uniqueRushPublicSlug } from "@/lib/rush-public-slug";
 import { normalizeRushBlockLinks } from "@/lib/rush-block-links";
+import { RUSH_CHILD_POSITION_END, RUSH_CHILD_TYPES, normalizeRushChildPosition } from "@/lib/rush-block-children";
 import { buildRushSplitPlan, type RushSplitBlock } from "@/lib/rush-split";
 import { rushSplitMetaOf } from "@/server/rush-split-data";
 import { isRushNonQuestBlock, isRushSequenceBannerMarker } from "@/lib/rush-block-types";
@@ -267,6 +268,7 @@ export async function getPublicGuideDetail(slug: string) {
             orderBy: { order: "asc" },
             include: { dungeon: true },
           },
+          children: { orderBy: [{ position: "asc" }, { order: "asc" }] },
         },
       },
     },
@@ -330,6 +332,7 @@ export async function getOptimizedGuideDetail(slug: string, guildId: string, alt
             orderBy: { order: "asc" },
             include: { dungeon: true }
           },
+          children: { orderBy: [{ position: "asc" }, { order: "asc" }] },
           playerProgress: profileId
             ? { where: { profileId, characterSlot } }
             : { where: { profileId: "__NONE__" } },
@@ -3791,7 +3794,8 @@ export async function getOrCreateRushSylvestreGuide() {
           sequences: {
             orderBy: { order: "asc" },
             include: { dungeon: true }
-          }
+          },
+          children: { orderBy: [{ position: "asc" }, { order: "asc" }] },
         },
       },
     },
@@ -3814,7 +3818,8 @@ export async function getOrCreateRushSylvestreGuide() {
             sequences: {
               orderBy: { order: "asc" },
               include: { dungeon: true }
-            }
+            },
+            children: { orderBy: [{ position: "asc" }, { order: "asc" }] },
           },
         },
       },
@@ -4467,6 +4472,129 @@ export async function upsertRushMilestone(data: {
 
   revalidateRushContent();
   return { success: true, milestone };
+}
+
+// ─── Sous-blocs d'un bloc (Tips / Obtention Dofus / Séparateur / Combat) ──────
+const rushChildInputSchema = z.object({
+  id: z.string().min(1).max(64).optional(),
+  milestoneId: z.string().min(1).max(64),
+  type: z.enum(RUSH_CHILD_TYPES),
+  title: z.string().trim().min(1).max(120),
+  description: z.string().max(4000).optional().nullable(),
+  tips: z.string().max(8000).optional().nullable(),
+  imageUrl: z.string().max(500).optional().nullable(),
+  accentColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional().nullable(),
+  dofusId: z.string().max(40).optional().nullable(),
+  position: z.number().min(0).max(10000).optional(),
+  links: z.unknown().optional(),
+});
+
+/**
+ * (God) Crée un sous-bloc **dans** un bloc existant.
+ *
+ * Le sous-bloc ne participe ni à la progression ni à la route : il s'affiche à
+ * `position` (intercalée avec l'ordre des quêtes, `9999` = fin du bloc). L'action
+ * vérifie le bloc cible, borne chaque champ et trace l'écriture.
+ */
+export async function createRushMilestoneChild(input: unknown) {
+  await requireRushWriteAccess("rush-block-child", 30, 60_000);
+  const parsed = rushChildInputSchema.safeParse(input);
+  if (!parsed.success) throw new Error("Sous-bloc invalide");
+  const data = parsed.data;
+
+  const milestone = await db.guideMilestone.findUnique({
+    where: { id: data.milestoneId },
+    select: { id: true },
+  });
+  if (!milestone) throw new Error("Bloc introuvable");
+
+  const position = normalizeRushChildPosition(data.position ?? RUSH_CHILD_POSITION_END);
+  const last = await db.guideMilestoneChild.aggregate({
+    where: { milestoneId: milestone.id, position },
+    _max: { order: true },
+  });
+  const child = await db.guideMilestoneChild.create({
+    data: {
+      milestoneId: milestone.id,
+      type: data.type,
+      title: data.title,
+      description: data.description ?? null,
+      tips: data.tips ?? null,
+      links: data.links !== undefined ? normalizeRushBlockLinks(data.links) : undefined,
+      imageUrl: data.imageUrl ?? null,
+      accentColor: data.accentColor ?? null,
+      dofusId: data.dofusId ?? null,
+      position,
+      order: (last._max.order ?? -1) + 1,
+    },
+  });
+
+  await logGodWrite({
+    action: "GOD_RUSH_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: child.id,
+    metadata: { op: "create-rush-block-child", milestoneId: milestone.id, type: data.type },
+  });
+  revalidateRushContent();
+  return { success: true, child };
+}
+
+/** (God) Met à jour un sous-bloc existant — le bloc cible ne change jamais. */
+export async function updateRushMilestoneChild(input: unknown) {
+  await requireRushWriteAccess("rush-block-child", 30, 60_000);
+  const parsed = rushChildInputSchema.safeParse(input);
+  if (!parsed.success || !parsed.data.id) throw new Error("Sous-bloc invalide");
+  const data = parsed.data;
+
+  const existing = await db.guideMilestoneChild.findUnique({
+    where: { id: data.id },
+    select: { id: true, milestoneId: true },
+  });
+  if (!existing) throw new Error("Sous-bloc introuvable");
+  if (existing.milestoneId !== data.milestoneId) throw new Error("Sous-bloc hors du bloc");
+
+  const child = await db.guideMilestoneChild.update({
+    where: { id: existing.id },
+    data: {
+      type: data.type,
+      title: data.title,
+      description: data.description ?? null,
+      tips: data.tips ?? null,
+      ...(data.links !== undefined ? { links: normalizeRushBlockLinks(data.links) } : {}),
+      imageUrl: data.imageUrl ?? null,
+      accentColor: data.accentColor ?? null,
+      dofusId: data.dofusId ?? null,
+      ...(data.position !== undefined ? { position: normalizeRushChildPosition(data.position) } : {}),
+    },
+  });
+
+  await logGodWrite({
+    action: "GOD_RUSH_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: child.id,
+    metadata: { op: "update-rush-block-child", milestoneId: existing.milestoneId, type: data.type },
+  });
+  revalidateRushContent();
+  return { success: true, child };
+}
+
+/** (God) Supprime un sous-bloc — **idempotent** (déjà absent = succès). */
+export async function deleteRushMilestoneChild(childId: string) {
+  await requireRushWriteAccess("rush-block-child", 30, 60_000);
+  const id = z.string().min(1).max(64).safeParse(childId);
+  if (!id.success) throw new Error("Sous-bloc invalide");
+
+  const { count } = await db.guideMilestoneChild.deleteMany({ where: { id: id.data } });
+  if (count === 0) return { success: true, alreadyDeleted: true };
+
+  await logGodWrite({
+    action: "GOD_RUSH_UPDATE",
+    targetType: "DATA_SYNC",
+    targetId: id.data,
+    metadata: { op: "delete-rush-block-child" },
+  });
+  revalidateRushContent();
+  return { success: true, alreadyDeleted: false };
 }
 
 /**

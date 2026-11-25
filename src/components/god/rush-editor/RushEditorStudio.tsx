@@ -55,6 +55,7 @@ import { successPlaceholderFor } from "@/lib/rush-success-placeholders";
 import { QUEST_TYPE_KEYS, QUEST_TYPE_LABELS, questTypeIconPath } from "@/lib/quest-type-icon";
 import { DOFUS_WORLDS, DOFUS_JOBS } from "@/lib/dofus-assets";
 import { resolveRushSeqIcon, getGuideMetiersRequires, RUSH_ACTIVITY_TAG_CONFIG, findMilestoneInsertIndex } from "@/lib/rush-guide-utils";
+import type { RushMilestoneChild } from "@/types/rush-guide-types";
 import { resolveRushUIConfig, type RushUIConfig } from "@/lib/rush-ui-config";
 import { uploadImageFile } from "@/components/editor/utils/image-upload";
 import { isSafeImageUrl, safeImageUrl } from "@/lib/security";
@@ -116,6 +117,7 @@ import { RushEditorShell } from "@/components/god/rush-editor/RushEditorShell";
 import { RushEditorTopbar, type RushEditorTab } from "@/components/god/rush-editor/RushEditorTopbar";
 import { RushEditorTree } from "@/components/god/rush-editor/RushEditorTree";
 import { RushEditorInspector, RushEditorInspectorEmpty } from "@/components/god/rush-editor/RushEditorInspector";
+import { RushBlockChildrenEditor } from "@/components/god/rush-editor/RushBlockChildrenEditor";
 import { RushEditorCommandPalette } from "@/components/god/rush-editor/RushEditorCommandPalette";
 import { useRushEditorSelection } from "@/components/god/rush-editor/useRushEditorSelection";
 import { RushClassSelect } from "@/components/god/rush-editor/fields/RushClassSelect";
@@ -233,6 +235,8 @@ type Milestone = {
   dofusId?: string | null;
   type?: MilestoneType;
   sequences: Sequence[];
+  /** Sous-blocs Tips / Obtention Dofus / Séparateur / Combat, triés par position. */
+  children?: RushMilestoneChild[];
 };
 
 type Guide = {
@@ -2763,6 +2767,17 @@ function BlockInspectorForm({
           )}
         </div>
       )}
+      {/* Sous-blocs : Tips / Obtention Dofus / Combat posés après une quête du bloc. */}
+      <RushBlockChildrenEditor
+        milestoneId={milestone.id}
+        sequences={sequences.map((seq) => ({
+          id: seq.id,
+          order: seq.order,
+          subGuideName: seq.subGuideName,
+          subGuideRef: seq.subGuideRef,
+        }))}
+        childBlocks={milestone.children ?? []}
+      />
       {/* E3c — actions de masse : visibles seulement quand une quête est cochée. */}
       {!isTips && !isSeparator && bulk.count > 0 && (
         <div className="space-y-1.5 rounded-xl border border-primary/30 bg-primary/5 p-2">

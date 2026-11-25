@@ -115,12 +115,12 @@ O10 (3 densités `wide/normal/tight`, mesurées sur le conteneur) · O12 (bulles
 | Phase | Contenu | État |
 |---|---|---|
 | **1 — Cohérence de progression** (aucune migration) | ① cascade montante · ② donjons à la validation · ③ resets qui effacent les donjons · ④ modale Dofus recalculée · ⑤ modale Donjons par membre + refresh · ⑥ coche du sommaire · ⑦ reset bloc overlay · ⑧ célébration unifiée | ✅ **livré — PR #1525** |
-| **2 — Lisibilité** | ⑨ mode blanc · ⑩ fiche quête (types de combat, icônes, accordéon vide, assets) · ⑪ choix Brak 55/66 + God | ⑩ ✅ **livré — PR #1531 + revue #1532** (conditions visibles sans `tips`, multi-combats, cartes illustrées) · ⑨/⑪ à faire |
-| **3 — Données** | ⑫ 6 positions (bêta + 894) · ⑬ 514 positions sous-mondes + verbe ops · ⑭ contraintes 1 085 + 4 donjons Maïmane · ⑮ 98 conseils · ⑯ combats 746/742 · ⑰ actage Brâkmarien · ⑱ Touglie VPS | ⑭ ✅ **livré en local — PR #1531 + revue #1532** (391 séquences, 161 multi-combats ; bêta/prod à appliquer) · 4 donjons Maïmane mesurés **0 à ajouter / 0 inconnu** en local · ⑫/⑬/⑮/⑯/⑰/⑱ à faire |
+| **2 — Lisibilité** | ⑨ mode blanc · ⑩ fiche quête (types de combat, icônes, accordéon vide, assets) · ⑪ choix Brak 55/66 + God | ⑩ ✅ **livré — PR #1531 + revue #1532** (conditions visibles sans `tips`, multi-combats, cartes illustrées) · ⑨ ✅ **mode clair — PR #1536** · ⑪ à faire |
+| **3 — Données** | ⑫ 6 positions (bêta + 894) · ⑬ 514 positions sous-mondes + verbe ops · ⑭ contraintes 1 085 + 4 donjons Maïmane · ⑮ 98 conseils · ⑯ combats 746/742 · ⑰ actage Brâkmarien · ⑱ Touglie VPS | ⑭ ✅ **livré en local — PR #1531 + revue #1532** (391 séquences, 161 multi-combats ; bêta/prod à appliquer) · 4 donjons Maïmane mesurés **0 à ajouter / 0 inconnu** en local · ⑫/⑬ ✅ **positions DPLN contrôlées en local — PR #1537** (529 pages : 115 corrections, 116 séquences synchronisées ; bêta/prod via God) · ⑮/⑯/⑰/⑱ à faire |
 | **4 — Ops / vérifs** | ⑲ bêta 540/541 · ⑳ V-C purge · ㉑ contrôle visuel · ㉒ migrations/bot/crons · ㉓ prod (attente) | à faire |
 | **5 — Perf / décisions** | ㉔ T-6 (session dashboard) · ㉕ E2 (écarté) · ㉖ G7/G9 (après mode blanc) · ㉗ itérations (supprimées) · ㉘ D-G1 (idée) | à faire / tranché |
 
-**Prochain lot** : ⑭ et ⑩ sont **livrés** (#1531, revue #1532). Restent **⑨ mode blanc**, **⑪ choix Brak 55/66 + God**, puis la **phase 3 données** (⑫/⑬/⑯), les **98 conseils** (⑮), les ops (⑰/⑱), le **contrôle hebdo VPS** (`--check` + alerte Discord ops/Sentry) et les phases 4/5.
+**Prochain lot** : ⑨, ⑩, ⑫, ⑬ et ⑭ sont **livrés en local** (#1531/#1532, #1536, #1537). Restent **⑪ choix Brak 55/66 + God**, les **98 conseils** (⑮), les combats (⑯), l'actage Brâkmarien (⑰), le VPS (⑱), les **ops bêta/prod** (⑲-㉓) et les phases 4/5.
 
 > **Overlay / donjons (24/11, PR #1533)** : tiroir « conditions » vide corrigé (`prereq_text` hors conditions),
 > donjons non renseignés affichés **« À faire » par défaut** (affichage seul), clignotement des donjons
@@ -129,7 +129,12 @@ O10 (3 densités `wide/normal/tight`, mesurées sur le conteneur) · O12 (bulles
 > **Overlay compact (24/11, PR #1535)** : icône de quête à gauche, nom pleine largeur, icônes succès /
 > repère / position / donjon ×N en haut ; clic sur le nom → mini-modale DPLN/DofusDB/détails ; monstres
 > des combats cliquables → fiche. **Mode clair** (PR #1536) : CSS `html.light` sur les 3 surfaces + PiP.
-> **Reste** : choix Brak 55/66 + God, visuel de bloc terminé.
+> **Overlay PiP / zaap / blocs (25/11, PR #1537)** : modales position et donjons portées dans le
+> `ownerDocument` de la PiP, mini-modale position (copie / carte HD / zaap), toasts partagés routés
+> par `useOverlayToast`, **zaap iso DPLN** (37 zaaps ; 65 exclusions, 51 zaaps explicites, 116 séquences
+> synchronisées en local), bloc terminé **scellé** (sceau + filet/jauge verts), bandeau d'icônes en haut
+> de chaque bloc de quête, progression donjons (barre d'en-tête, compteurs, écriteaux DA).
+> **Reste** : choix Brak 55/66 + God, puis ⑮/⑯/⑰/⑱ et ops.
 >
 > **Décision du 24/11 (livrée #1534)** : la validation **unitaire** d'une quête **reste verrouillée** par
 > ses donjons requis ; seule la validation **par bloc** bypass ce verrou (décision 20/11). Les donjons non

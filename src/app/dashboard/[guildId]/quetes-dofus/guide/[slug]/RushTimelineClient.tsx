@@ -2088,13 +2088,13 @@ const stepKeysBySequenceId=useMemo(()=>rushStepKeysBySequenceId(milestones),[mil
  * « il en est à telle quête, dans telle catégorie » sans requête supplémentaire.
  */
 const dofusQuestsByDofus=useMemo(()=>{
-  const map:Record<string,Array<{milestoneId:string;category:string;label:string;step:string;steps:number}>>={};
+  const map:Record<string,Array<{milestoneId:string;category:string;label:string;step:string;steps:number;sequenceId:string}>>={};
   for(const ms of contentMilestones){
     if(!ms.dofusId) continue;
     const list=(map[ms.dofusId]??=[]);
     for(const seq of ms.sequences){
       const steps=seq.stepFrom!=null&&seq.stepTo!=null?Math.max(1,seq.stepTo-seq.stepFrom+1):1;
-      list.push({milestoneId:ms.id,category:ms.chapterLabel||ms.title,label:seq.subGuideName||seq.subGuideRef,step:seq.subGuideRef,steps});
+      list.push({milestoneId:ms.id,category:ms.chapterLabel||ms.title,label:seq.subGuideName||seq.subGuideRef,step:seq.subGuideRef,steps,sequenceId:seq.id});
     }
   }
   return map;
@@ -3168,6 +3168,27 @@ const timelineItems=useMemo(()=>{
         onToggle={() => setHideDone(v => !v)}
         count={doneStepCount}
       />
+      {/* Filtre Dofus actif : toujours visible et retirable d'un clic (retour du 25/11). */}
+      {dofusFilter ? (() => {
+        const activeDofus = DOFUS_DEFS.find((d) => d.id === dofusFilter);
+        const label = activeDofus?.label ?? dofusFilter;
+        return (
+          <button
+            type="button"
+            onClick={() => setDofusFilter(null)}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-[4px] border border-success/40 bg-success/10 px-2.5 py-2.5 text-xs font-semibold text-success transition-colors hover:bg-success/15"
+            aria-label={`Retirer le filtre ${label}`}
+            title="Retirer le filtre Dofus"
+          >
+            {activeDofus ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={activeDofus.imageUrl} alt="" className="h-4 w-4 object-contain" />
+            ) : null}
+            <span className="max-w-[10rem] truncate">{label}</span>
+            <X className="h-3.5 w-3.5" />
+          </button>
+        );
+      })() : null}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button type="button" className="flex items-center gap-1.5 px-3 py-2.5 rounded-[4px] border border-border text-muted-foreground hover:text-foreground hover:border-foreground/20 transition-colors text-xs font-medium shrink-0" aria-label="Options du guide">
@@ -3250,7 +3271,7 @@ const timelineItems=useMemo(()=>{
       {celebrate && <MilestoneCelebrationBurst title={celebrate.title} tint={celebrate.tint ?? undefined} />}
     </AnimatePresence>
     <RushAlignmentPanel onChooseAlignment={() => setAlignmentEditOpen(true)} />
-    <GuildStatusPanel milestones={contentMilestones} questsByDofus={dofusQuestsByDofus} guildProgress={guildProgress} stepKeysBySequenceId={stepKeysBySequenceId} activeFilter={dofusFilter} onFilterChange={setDofusFilter} viewerProfileId={currentProfileId} activeCharacterSlot={effectiveAltPseudo ?? "PRINCIPAL"}/>
+    <GuildStatusPanel milestones={contentMilestones} questsByDofus={dofusQuestsByDofus} guildProgress={guildProgress} stepKeysBySequenceId={stepKeysBySequenceId} activeFilter={dofusFilter} onFilterChange={setDofusFilter} viewerProfileId={currentProfileId} activeCharacterSlot={effectiveAltPseudo ?? "PRINCIPAL"} onOpenQuest={scrollToSequence}/>
     {/* Prendre par la main SANS reproposer le tour : personnage → cité (optionnelle) → première quête. */}
     <RushStartHerePanel
       state={{

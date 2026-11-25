@@ -55,8 +55,8 @@ describe("Dashboard — quête bloquée ≠ quête repérée (deux attributs, de
     // Le cadenas du nœud est conservé.
     expect(DASH).toMatch(/<Lock className="h-3\.5 w-3\.5" \/>/);
     // Le clic mène à la quête unique ou ouvre la liste des prérequis.
-    expect(DASH).toMatch(/scrollToPrereq\(singleName, prereqRefs\[0\]\?\.seqId \?\? null\)/);
-    expect(DASH).toMatch(/setPrereqModal\(prereqRefs\)/);
+    expect(DASH).toMatch(/scrollToPrereq\(singleName, missingPrereqs\[0\]\?\.seqId \?\? null\)/);
+    expect(DASH).toMatch(/setPrereqModal\(missingPrereqs\)/);
   });
 
   it("la carte repérée a SON attribut (`data-here`), distinct du verrou", () => {

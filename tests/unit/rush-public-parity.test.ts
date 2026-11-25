@@ -536,7 +536,7 @@ describe("Donjons cochables — même coquille, même règle, verrou dans les é
 
   it("le public ouvre le panneau du donjon de CETTE quête (pastille compacte, comme l'interne)", () => {
     expect(PUB).toMatch(/Donjon requis non fait — coche-le sur la pastille Donjon de cette quête\./);
-    expect(PUB).toContain('"À terminer avant :"');
+    expect(PUB).toContain("À terminer avant :");
     // Plus de gros bloc « Donjon requis à faire » : la pastille compacte Donjon ×N
     // de la barre d'actions porte le geste, exactement comme le guide interne.
     expect(PUB).toContain("Donjon ×{seqDungeonCount}");

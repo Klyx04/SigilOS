@@ -85,7 +85,7 @@ import { RushOverlayQuestDetailModal } from "@/app/overlay/guide/[guildId]/[slug
 // l'overlay et la page publique (mêmes clés de coche des deux côtés).
 import { RushOverlayResourcesModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayResourcesModal";
 import { aggregateRushResources, getDungeons } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
-import { isSequenceBlockedByPrereqs, alignmentCountForCamp, getPrereqRefs, resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, resolvePrereqTarget, RUSH_RESOURCES_PICTO, RUSH_ACTIVITY_TAG_CONFIG, getSequenceCoord, blockHeaderCoord, getAlignmentSet, collectCascadeUncheck, rushChapterNumbers, getSequenceSuccesses, type RushGuideQuestRef, type RushPrereqRef } from "@/lib/rush-guide-utils";
+import { isSequenceBlockedByPrereqs, alignmentCountForCamp, findNextAlignmentCityQuest, getPrereqRefs, resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, resolvePrereqTarget, RUSH_RESOURCES_PICTO, RUSH_ACTIVITY_TAG_CONFIG, getSequenceCoord, blockHeaderCoord, getAlignmentSet, collectCascadeUncheck, rushChapterNumbers, getSequenceSuccesses, type RushGuideQuestRef, type RushPrereqRef } from "@/lib/rush-guide-utils";
 // Verrou de DONJONS : la MÊME règle que le serveur et le guide public (`rush-dungeons`).
 import { doneDungeonKeysForSequence, missingRequiredDungeons, occurrenceState, sequenceDungeonProgress, type RushDungeonMemberState, type RushDungeonState } from "@/lib/rush-dungeons";
 import type { DungeonAchievementDungeon, DungeonAchievementPanelLoadInput, DungeonAchievementToggleInput } from "@/lib/rush-dungeon-achievements";
@@ -420,10 +420,17 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
     // Source UNIQUE des prérequis (tags `prereq_text` + chaîne des rangs, L2) : la carte
     // bloquée nomme donc aussi le rang précédent d'un Ordre, qui n'a aucun tag.
     const prereqRefs = getPrereqRefs(seq as any, allMilestones as any);
+    /**
+     * **Seuls les prérequis encore manquants** sont affichés. Mesure du 25/11/2026 :
+     * le rang 4 d'un Ordre affichait « À terminer avant : [rang 3] » alors que le rang 3
+     * était coché — le vrai verrou était le **palier de cité**. La carte nomme donc le
+     * verrou réel, jamais un prérequis déjà satisfait.
+     */
+    const missingPrereqs = prereqRefs.filter((p) => !allCompletedSeqIds.has(p.seqId));
     /** Groupes « au choix » (`prereq_expr`) : une seule alternative suffit. */
     const choiceGroups = getPrereqChoiceGroups(seq as any, allMilestones as any);
-    const totalPrereqs = prereqRefs.length;
-    const singleName = totalPrereqs === 1 ? prereqRefs[0]?.name : null;
+    const totalPrereqs = missingPrereqs.length;
+    const singleName = totalPrereqs === 1 ? missingPrereqs[0]?.name : null;
     // Verrou de PALIER : une quête d'Ordre exige 20/40/60/80/100 quêtes de cité. Sans ce
     // libellé, la carte affichait « 0 prérequis à terminer » (aucun tag à lister).
     const levelReq = seq.alignLevelReq ?? 0;
@@ -431,6 +438,15 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
       ? alignmentCountForCamp(allMilestones as any, allCompletedSeqIds, seq.alignReq ?? null)
       : 0;
     const palierLocked = levelReq > 0 && cityCount < levelReq;
+    // Un donjon requis peut être le seul verrou restant ; sans ce libellé, la carte
+    // restait muette (« Verrouillée ») ou montrait un prérequis déjà fait.
+    const missingDungeonNames = dungeonProgress.blocked
+      ? missingRequiredDungeons(seq as any, doneDungeonKeysForSequence(dungeonActions.states, seq.id)).map((d) => d.name)
+      : [];
+    // Bouton intelligent : la première quête de CITÉ de la même cité qui reste à faire.
+    const nextAlignmentQuest = palierLocked
+      ? findNextAlignmentCityQuest(seq as any, allMilestones as any, allCompletedSeqIds)
+      : null;
     // Même anatomie que la carte normale : un NŒUD inerte (le cadenas) et une carte
     // peinte par `da-row[data-state="locked"]` — filet pointillé, carte à 78 %, comme
     // dans l'overlay et le guide public. Le rouge de la carte disparaît : il ne disait
@@ -472,9 +488,9 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
               onClick={(e) => {
                 e.stopPropagation();
                 if (totalPrereqs === 1 && singleName) {
-                  scrollToPrereq(singleName, prereqRefs[0]?.seqId ?? null);
+                  scrollToPrereq(singleName, missingPrereqs[0]?.seqId ?? null);
                 } else {
-                  setPrereqModal(prereqRefs);
+                  setPrereqModal(missingPrereqs);
                 }
               }}
               aria-haspopup={totalPrereqs > 1 ? "dialog" : undefined}
@@ -498,7 +514,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
                 prereqs={prereqModal}
                 isDone={(id) => allCompletedSeqIds.has(id)}
                 onGoTo={(seqId) => {
-                  const ref = prereqRefs.find((p) => p.seqId === seqId);
+                  const ref = missingPrereqs.find((p) => p.seqId === seqId);
                   scrollToPrereq(ref?.name ?? "", seqId);
                   setPrereqModal(null);
                   // Retour : le joueur a quitte sa quete d origine (souvent un autre bloc).
@@ -513,9 +529,26 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
             ) : null}
           </>
         ) : (
-          <p className="px-3 pb-3 pt-1 text-[11px] text-muted-foreground">
-            {palierLocked ? `Palier ${levelReq} — ${cityCount}/${levelReq} quêtes de cité` : "Verrouillée"}
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-2 px-3 pb-3 pt-1">
+            <p className="text-[11px] text-muted-foreground">
+              {palierLocked
+                ? `Encore ${Math.max(0, levelReq - cityCount)} quête${levelReq - cityCount > 1 ? "s" : ""} de cité (${cityCount}/${levelReq})`
+                : missingDungeonNames.length > 0
+                  ? `Il faut d'abord faire le donjon : ${missingDungeonNames.join(", ")}`
+                  : "Verrouillée"}
+            </p>
+            {nextAlignmentQuest ? (
+              <button
+                type="button"
+                onClick={() => scrollToPrereq(nextAlignmentQuest.name, nextAlignmentQuest.seqId)}
+                className="inline-flex shrink-0 items-center gap-1 rounded-[4px] border border-warning/40 bg-warning/10 px-2.5 py-1 text-[11px] font-semibold text-warning transition-colors hover:bg-warning/20"
+                title={`Aller à : ${nextAlignmentQuest.name}`}
+              >
+                Prochaine quête de cité
+                <ChevronRight className="h-3 w-3" aria-hidden="true" />
+              </button>
+            ) : null}
+          </div>
         )}
         {choiceGroups.length > 0 && (
           <div className="px-3 pb-3">

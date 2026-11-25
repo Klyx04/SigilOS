@@ -10,7 +10,7 @@ import { RushOverlayMemberBubbles, type OverlayBubbleMember } from "./RushOverla
 import { RushOverlayDungeonPopover } from "./RushOverlayDungeonPopover";
 import { RushOverlayQuestLinksModal } from "./RushOverlayQuestLinksModal";
 import { safeExternalUrl, safeImageUrl } from "@/lib/security";
-import { resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, getAlignmentSet, getSequenceSuccesses, type RushGuideQuestRef } from "@/lib/rush-guide-utils";
+import { resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, getAlignmentSet, getSequenceSuccesses, type RushGuideQuestRef, type RushNextAlignmentQuest } from "@/lib/rush-guide-utils";
 import {
   SuccessChip,
   type SuccessValidationContext,
@@ -134,6 +134,11 @@ interface RushOverlayQuestListItemProps {
   alignmentLabel?: string | null;
   /** Groupes « au choix » (`prereq_expr`) : une seule alternative suffit. */
   choiceGroups?: RushPrereqChoiceGroup[];
+  /**
+   * Palier de cité : première quête de cité encore à faire. Fournie par la surface
+   * (calcul pur), elle alimente le bouton « Prochaine quête de cité ».
+   */
+  nextAlignment?: RushNextAlignmentQuest | null;
 }
 
 /**
@@ -174,6 +179,7 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
   onOpenAchievements,
   alignmentLabel = null,
   choiceGroups = [],
+  nextAlignment = null,
 }: RushOverlayQuestListItemProps) {
   const parsedCoord = getSequenceCoord(seq);
   // Panneau donjon piloté par la ligne : la pastille l'ouvre, les icônes des donjons
@@ -494,6 +500,25 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
                 {prereqs[0].name}
                 {prereqs.length > 1 ? ` +${prereqs.length - 1}` : ""}
               </span>
+            </button>
+          )}
+          {isLocked && nextAlignment && (
+            /* Palier de cité : un geste direct vers la première quête de cité qui reste.
+               Le bouton est calculé par la surface (jamais un id en dur). */
+            <button
+              type="button"
+              onClick={() =>
+                onGoToPrereq?.(
+                  nextAlignment.seqId,
+                  nextAlignment.milestoneId,
+                  blockId ? { milestoneId: blockId, seqId: seq.id, name } : undefined
+                )
+              }
+              title={`Aller à : ${nextAlignment.name}`}
+              className="inline-flex max-w-full items-center gap-1 self-start text-[11px] font-semibold text-warning underline-offset-2 transition-colors hover:underline"
+            >
+              Prochaine quête de cité
+              <span aria-hidden="true">→</span>
             </button>
           )}
           {isLocked && choiceGroups.length > 0 && (

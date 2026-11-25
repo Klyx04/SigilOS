@@ -14,7 +14,7 @@ import {
 } from "@/server/actions/optimized-guide-actions";
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
 import { type GuideProgressRow } from "@/lib/guide-progress-helpers";
-import { isInfoSequence, isNonCheckableBlock, rushChapterPosition, getPrereqRefs, isSequenceBlockedByPrereqs, deselectSequenceFromProgress, collectCascadeUncheck, type RushPrereqRef, type RushGuideQuestRef } from "@/lib/rush-guide-utils";
+import { isInfoSequence, isNonCheckableBlock, rushChapterPosition, getPrereqRefs, alignmentCountForCamp, findNextAlignmentCityQuest, isSequenceBlockedByPrereqs, deselectSequenceFromProgress, collectCascadeUncheck, type RushPrereqRef, type RushGuideQuestRef, type RushNextAlignmentQuest } from "@/lib/rush-guide-utils";
 import { getPrereqChoiceGroups, type RushPrereqChoiceGroup } from "@/lib/rush-prereq-expr";
 import { applyQuestResourceChecks } from "@/lib/rush-resource-checks";
 import { buildAlignmentSeries, groupByAlignmentSeries } from "@/lib/rush-alignment-series";
@@ -920,7 +920,14 @@ export default function GuideOverlayClient({
   }, [milestones, completedStepsByMs]);
 
   const getSeqGate = useCallback(
-    (seq: RushSequence): { locked: boolean; prereqs: RushPrereqRef[]; missingDungeons: RushMissingDungeon[]; choiceGroups: RushPrereqChoiceGroup[] } => {
+    (seq: RushSequence): {
+      locked: boolean;
+      prereqs: RushPrereqRef[];
+      missingDungeons: RushMissingDungeon[];
+      choiceGroups: RushPrereqChoiceGroup[];
+      /** Palier de cité : la première quête de cité à faire, pour un bouton utile. */
+      nextAlignment: RushNextAlignmentQuest | null;
+    } => {
       const refs = prereqBySeq.get(seq.id) || getPrereqRefs(seq, milestones);
       // Verrou UNITAIRE : un donjon **requis** non coché bloque la quête. La validation
       // par bloc bypass ce verrou (décision 20/11) ; la quête seule le conserve (24/11).
@@ -932,6 +939,12 @@ export default function GuideOverlayClient({
       // des rangs, palier de cité et groupes « au choix ». La liste `refs` ne sert qu'à
       // l'affichage (nommer les prérequis ET) — elle ne couvrait ni le palier ni l'OU.
       const choiceGroups = getPrereqChoiceGroups(seq, milestones);
+      const levelReq = seq.alignLevelReq ?? 0;
+      const cityCount =
+        levelReq > 0
+          ? alignmentCountForCamp(milestones, gateAllCompleted, seq.alignReq ?? null)
+          : 0;
+      const palierLocked = levelReq > 0 && cityCount < levelReq;
       return {
         locked: isSequenceBlockedByPrereqs(seq, gateAllCompleted, milestones) || missingDungeons.length > 0,
         // Seuls les prérequis ENCORE manquants : la carte affiche « Terminer : X » et
@@ -940,6 +953,9 @@ export default function GuideOverlayClient({
         prereqs: refs.filter((r) => !gateAllCompleted.has(r.seqId)),
         missingDungeons,
         choiceGroups,
+        nextAlignment: palierLocked
+          ? findNextAlignmentCityQuest(seq, milestones, gateAllCompleted)
+          : null,
       };
     },
     [prereqBySeq, gateAllCompleted, milestones, dungeonActions.states]
@@ -1889,6 +1905,7 @@ export default function GuideOverlayClient({
         onOpenOcre={openOcre}
         alignmentLabel={alignmentSeries.get(seq.id)?.label ?? null}
         choiceGroups={gate.choiceGroups}
+        nextAlignment={gate.nextAlignment}
       />
     );
   };
@@ -2169,6 +2186,7 @@ export default function GuideOverlayClient({
                         onOpenOcre={openOcre}
                         alignmentLabel={alignmentSeries.get(seq.id)?.label ?? null}
                         choiceGroups={gate.choiceGroups}
+                        nextAlignment={gate.nextAlignment}
                       />
                     </React.Fragment>
                   );

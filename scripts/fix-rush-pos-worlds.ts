@@ -11,8 +11,12 @@
  *   npx -y tsx scripts/fix-rush-pos-worlds.ts --world 24        # simulation
  *   npx -y tsx scripts/fix-rush-pos-worlds.ts --world 24 --apply
  *
- * Sur le VPS, `npx` n'est pas installé sur l'hôte : lancer dans le conteneur app
- *   docker exec -it sigilos-beta npx -y tsx scripts/fix-rush-pos-worlds.ts --world 24
+ * Sur le VPS, lancer dans le conteneur **ops** (dépendances complètes) :
+ *   docker compose ... run --rm -T ops-beta npx -y tsx scripts/fix-rush-pos-worlds.ts --trust-hd
+ * `--trust-hd` : le conteneur d'ops ne monte pas `public/game-data/hd_maps`
+ * (exclu de l'image), alors que l'app les sert depuis le volume hôte. Sans ce
+ * drapeau, les cartes absentes de `worldmap.json` (ex. Royaume Corrompu) sont
+ * ignorées. L'opérateur vérifie que `sync-assets.sh` a publié les HD.
  *
  * Ne touche jamais aux autres champs du tag (nom, allowZaap, zaapX/Y).
  */
@@ -41,6 +45,7 @@ function connectionString(): string {
 }
 
 const apply = process.argv.includes("--apply");
+const trustHd = process.argv.includes("--trust-hd");
 const worldArgIndex = process.argv.indexOf("--world");
 const onlyWorld = worldArgIndex >= 0 ? Number(process.argv[worldArgIndex + 1]) : null;
 if (worldArgIndex >= 0 && (!Number.isSafeInteger(onlyWorld) || (onlyWorld ?? 0) <= 0)) {
@@ -114,6 +119,7 @@ async function main() {
         mapById,
         worldIds,
         hdMapIds,
+        trustHd,
       });
       if (plan.status !== "fix" && plan.status !== "fix-map") continue;
       if (onlyWorld !== null && plan.mapWorld !== onlyWorld) continue;

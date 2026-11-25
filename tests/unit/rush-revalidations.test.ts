@@ -69,6 +69,9 @@ describe("revalidateRushContent — source unique", () => {
   it("le helper revalide les trois surfaces et n'est pas exporté", () => {
     const helper = bodyOf("revalidateRushContent");
     expect(helper).toContain('revalidatePath("/guides/rush-sylvestre")');
+    // Les fiches /q/[slug] sont ISR 3600 : sans revalidation, un backfill
+    // positions/conditions reste invisible jusqu'à une heure (mesure 25/11).
+    expect(helper).toContain('revalidatePath("/guides/rush-sylvestre/q/[slug]", "page")');
     expect(helper).toContain('revalidatePath("/dashboard")');
     expect(helper).toContain('revalidatePath("/god/rush-sylvestre")');
     // Un fichier `"use server"` ne peut exporter que des fonctions async.

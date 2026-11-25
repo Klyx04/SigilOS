@@ -61,6 +61,7 @@ export function planRushPosFix({
   mapById,
   worldIds,
   hdMapIds,
+  trustHd = false,
 }: {
   tag: RushPosTag;
   questIds: readonly number[];
@@ -68,6 +69,12 @@ export function planRushPosFix({
   mapById: ReadonlyMap<number, { id: number; worldMap: number }>;
   worldIds: ReadonlySet<number>;
   hdMapIds: ReadonlySet<number>;
+  /**
+   * Le conteneur d'ops ne monte pas toujours `public/game-data/hd_maps`
+   * (`.dockerignore`) alors que l'app sert ces cartes depuis le volume hôte.
+   * `trustHd` accepte la carte de `GameQuest.imageUrl` sans vérifier le fichier.
+   */
+  trustHd?: boolean;
 }): RushPosFixPlan {
   const candidates = new Map<
     number,
@@ -79,8 +86,9 @@ export function planRushPosFix({
     if (!mapId) continue;
     const map = mapById.get(mapId);
     // Une carte absente de worldmap.json n'est corrigeable que si son HD existe
-    // (carte imposée) : on ne devine jamais le monde.
-    if (!map && !hdMapIds.has(mapId)) continue;
+    // (carte imposée) : on ne devine jamais le monde. En ops, `trustHd` remplace
+    // le test de fichier par la confiance dans le volume game-data de l'hôte.
+    if (!map && !trustHd && !hdMapIds.has(mapId)) continue;
     const mapWorld =
       map &&
       Number.isSafeInteger(Number(map.worldMap)) &&

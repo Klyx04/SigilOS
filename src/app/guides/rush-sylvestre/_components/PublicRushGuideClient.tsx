@@ -2426,7 +2426,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
           ) : (
             <Eye className="h-3.5 w-3.5" aria-hidden="true" />
           )}
-          <span>{hideDone ? (locale === "en" ? "Show done" : "Afficher") : locale === "en" ? "Hide done" : "Masquer"}</span>
+          <span>{hideDone ? (locale === "en" ? "Show full detail" : "Afficher tout le détail") : locale === "en" ? "Hide completed steps" : "Masquer les étapes faites"}</span>
         </button>
 
         <DropdownMenu>

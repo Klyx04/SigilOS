@@ -11,7 +11,7 @@
 ## 0. Reprise immédiate
 
 - 🎯 **Rush (mesuré 22/11)** : 536 séquences · 527 `pos_tags` (0 sans monde) · 527 prérequis (0 orphelin) · 518/536 cartographiables · 3 succès 3/3 · bêta 8d7528ff, dev 2275227c.
-- 📌 **Gestes Rush** : état unique dans `RUSH-DEVELOPPEMENT-SUITE.md` « ⚡ Restes — fiche unique » (**25/11** : #1531-#1535, overlay PiP + zaap iso DPLN + blocs terminés ; restent ⑨ mode blanc (#1536) et ⑪ choix Brak + backfill) ; visuels 390/768/1024/1440 ; doc/prod (`main` = `c190f2c7`).
+- 📌 **Gestes Rush** : état unique dans `RUSH-DEVELOPPEMENT-SUITE.md` « ⚡ Restes — fiche unique » (**25/11** : #1531-#1537, mode clair + overlay PiP + zaap iso DPLN + blocs terminés ; reste ⑪ choix Brak + backfill) ; visuels 390/768/1024/1440 ; doc/prod (`main` = `c190f2c7`).
 - ⚡ **Perf web (21/11)** : guide **2,5→3,1–3,3 req/s**, accueil **21,9**, CSS **34,5→69** ; **P0 (#1476)** → **B-3** (profil 3 champs, TTL stats 3 min, `proxy-image` async) livrés ; **bêta à redéployer**. P2/P3 : `docs/plans/PERF-WEB.md`.
 - 🔐 **Sécurité (21/11)** : **#1485/#1486/#1487 mergés** (CSP prod sans wildcard, base dev loopback, guards hors `use server`, Caddy sans `.env.prod`, **`game-data` RW** car l'app écrit) → **redéployer la bêta** (2 bots, Caddy, 1 upload God, 1 cron).
 - 🧭 **Bloc vs quête (20/11/2026)** : valider un **bloc** ne consulte plus le verrou donjon/prérequis (confort) ; la validation **quête par quête** le garde, fail-closed. Le toast affiche le message serveur exact.

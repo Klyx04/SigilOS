@@ -77,7 +77,7 @@ O10 (3 densités `wide/normal/tight`, mesurées sur le conteneur) · O12 (bulles
 
 ### E. Ops (hors code)
 
-**Bêta** : code à vérifier (dev `2275227c`), **540 séquences** contre **541 en local** ; les données locales (6 positions, quête manquante) ne sont pas toutes sur le VPS. Dialogue **DPLN : 0 à mettre à jour** (532 positions) — il ne couvre **pas** les 6 positions manuelles. Migrations `20270112000000` + `20270113000000` (bêta puis prod) · bot Discord + **4 crontabs**.
+**Bêta** : **540 séquences** contre **541 en local** ; **392 conditions appliquées le 25/11** (161 multi-combats, 719 combats) ; **116 positions synchronisées** (65 exclusions `[x,y!]`, 51 zaaps explicites) ; reste la **carte HD des sous-mondes** : `fix-rush-pos-worlds --trust-hd --apply` via `ops-beta` (513 corrections locales, ex. « Les racines du mal » → monde 25, carte 201458178). Migrations `20270112000000` + `20270113000000` (bêta puis prod) · bot Discord + **4 crontabs**.
 
 **Prod** : **en attente** (décision du 23/11/2026), `main` = `c190f2c7`, aucune date.
 
@@ -116,7 +116,7 @@ O10 (3 densités `wide/normal/tight`, mesurées sur le conteneur) · O12 (bulles
 |---|---|---|
 | **1 — Cohérence de progression** (aucune migration) | ① cascade montante · ② donjons à la validation · ③ resets qui effacent les donjons · ④ modale Dofus recalculée · ⑤ modale Donjons par membre + refresh · ⑥ coche du sommaire · ⑦ reset bloc overlay · ⑧ célébration unifiée | ✅ **livré — PR #1525** |
 | **2 — Lisibilité** | ⑨ mode blanc · ⑩ fiche quête (types de combat, icônes, accordéon vide, assets) · ⑪ choix Brak 55/66 + God | ⑩ ✅ **livré — PR #1531 + revue #1532** (conditions visibles sans `tips`, multi-combats, cartes illustrées) · ⑨ ✅ **mode clair — PR #1536** · ⑪ à faire |
-| **3 — Données** | ⑫ 6 positions (bêta + 894) · ⑬ 514 positions sous-mondes + verbe ops · ⑭ contraintes 1 085 + 4 donjons Maïmane · ⑮ 98 conseils · ⑯ combats 746/742 · ⑰ actage Brâkmarien · ⑱ Touglie VPS | ⑭ ✅ **livré en local — PR #1531 + revue #1532** (391 séquences, 161 multi-combats ; bêta/prod à appliquer) · 4 donjons Maïmane mesurés **0 à ajouter / 0 inconnu** en local · ⑫/⑬ ✅ **positions DPLN contrôlées en local — PR #1537** (529 pages : 115 corrections, 116 séquences synchronisées ; bêta/prod via God) · ⑮/⑯/⑰/⑱ à faire |
+| **3 — Données** | ⑫ 6 positions (bêta + 894) · ⑬ 514 positions sous-mondes + verbe ops · ⑭ contraintes 1 085 + 4 donjons Maïmane · ⑮ 98 conseils · ⑯ combats 746/742 · ⑰ actage Brâkmarien · ⑱ Touglie VPS | ⑭ ✅ **bêta appliquée le 25/11** (392 séquences, 161 multi-combats, 719 combats ; prod à faire) · 4 donjons Maïmane mesurés **0 à ajouter / 0 inconnu** en local · ⑫/⑬ ✅ **positions + maps HD** : 529 pages DPLN (115 corrections, 116 sync) + 513 corrections `worldId`/`mapId` locales ; bêta via `ops-beta --trust-hd`, prod à faire · ⑮/⑯/⑰/⑱ à faire |
 | **4 — Ops / vérifs** | ⑲ bêta 540/541 · ⑳ V-C purge · ㉑ contrôle visuel · ㉒ migrations/bot/crons · ㉓ prod (attente) | à faire |
 | **5 — Perf / décisions** | ㉔ T-6 (session dashboard) · ㉕ E2 (écarté) · ㉖ G7/G9 (après mode blanc) · ㉗ itérations (supprimées) · ㉘ D-G1 (idée) | à faire / tranché |
 
@@ -134,6 +134,11 @@ O10 (3 densités `wide/normal/tight`, mesurées sur le conteneur) · O12 (bulles
 > par `useOverlayToast`, **zaap iso DPLN** (37 zaaps ; 65 exclusions, 51 zaaps explicites, 116 séquences
 > synchronisées en local), bloc terminé **scellé** (sceau + filet/jauge verts), bandeau d'icônes en haut
 > de chaque bloc de quête, progression donjons (barre d'en-tête, compteurs, écriteaux DA).
+>
+> **Maps HD / revalidation (25/11)** : `fix-rush-pos-worlds` corrige `worldId` + `mapId` depuis
+> `GameQuest.imageUrl` (54 écarts de monde + cartes imposées ; ex. « Les racines du mal » → monde 25,
+> carte 201458178). Le conteneur `ops` ne monte pas `hd_maps` (dockerignore) → option `--trust-hd`.
+> Les fiches publiques `/q/[slug]` sont ISR 3600 : `revalidateRushContent` les revalide désormais.
 > **Reste** : choix Brak 55/66 + God, puis ⑮/⑯/⑰/⑱ et ops.
 >
 > **Décision du 24/11 (livrée #1534)** : la validation **unitaire** d'une quête **reste verrouillée** par

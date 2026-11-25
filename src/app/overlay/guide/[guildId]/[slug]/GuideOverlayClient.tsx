@@ -188,6 +188,13 @@ type Props = {
    */
   selfAlignment?: string | null;
   selfOrder?: string | null;
+  /**
+   * Porte de départ du guide public : `false` quand aucun personnage n'est déclaré.
+   * L'overlay PiP peut être ouvert avant le choix : il lit alors le guide, mais les
+   * coches sont bloquées et un bandeau renvoie vers le guide.
+   * Absent/`true` ⇒ aucune restriction (overlay interne).
+   */
+  characterReady?: boolean;
 };
 
 export default function GuideOverlayClient({
@@ -213,7 +220,10 @@ export default function GuideOverlayClient({
   initialResourceChecks,
   selfAlignment = null,
   selfOrder = null,
+  characterReady = true,
 }: Props) {
+  /** Un invité sans personnage lit le guide mais ne coche rien (porte de départ). */
+  const canValidate = !isGuest || characterReady;
   const effectiveAltPseudo = altPseudo ?? undefined;
   // ─── Bloc I — succès de donjon (mini-modale) ────────────────────────────────
   // Le mode est déduit de la surface : membre (guildId réel), visiteur connecté
@@ -567,6 +577,11 @@ export default function GuideOverlayClient({
   // Filtre d'affichage de la liste : Toutes / En cours / Verrouillées.
   // Il ne change ni l'ordre, ni les compteurs de progression — seulement les lignes visibles.
   const [questFilter, setQuestFilter] = useState<RushQuestFilter>("all");
+  // Deux filtres incompatibles : « Faites » + « masquer les faites » viderait la liste
+  // sans explication. On revient à « Toutes » dès que l'on masque les terminées.
+  useEffect(() => {
+    if (hideCompleted && questFilter === "done") setQuestFilter("all");
+  }, [hideCompleted, questFilter]);
   // Coches de ressources « déjà préparé », par personnage : serveur pour un membre,
   // `localStorage` pour un invité (même clé que le guide public).
   const [resourceChecks, setResourceChecks] = useState<Set<string>>(() => {
@@ -1154,6 +1169,10 @@ export default function GuideOverlayClient({
   const handleToggleMs = useCallback(
     async (ms: RushMilestone) => {
       if (loadingIds.has(ms.id)) return;
+      if (!canValidate) {
+        toast.warning("Choisis ton personnage dans le guide avant de valider un bloc.");
+        return;
+      }
       const was = completedIds.has(ms.id);
       const contentSeqs = (ms.sequences || []).filter((sequence) => !isInfoSequence(sequence));
       const scope = contentSeqs.map((sequence) => sequence.id);
@@ -1260,7 +1279,7 @@ export default function GuideOverlayClient({
         });
       }
     },
-    [completedIds, completedStepsByMs, loadingIds, bookmarksByMs, guildId, effectiveAltPseudo, goToNextMs, resourceChecks, isGuest, persistGuestResourceChecks, notifyBlockDone, guildDungeons.refresh]
+    [completedIds, completedStepsByMs, loadingIds, bookmarksByMs, guildId, effectiveAltPseudo, goToNextMs, resourceChecks, isGuest, persistGuestResourceChecks, notifyBlockDone, guildDungeons.refresh, canValidate]
   );
 
   const handleResetMs = useCallback(
@@ -1337,6 +1356,10 @@ export default function GuideOverlayClient({
 
   const handleToggleSeq = useCallback(
     async (ms: RushMilestone, seqId: string) => {
+      if (!canValidate) {
+        toast.warning("Choisis ton personnage dans le guide avant de cocher tes quêtes.");
+        return;
+      }
       const prevSet = new Set(completedStepsByMs.get(ms.id) || []);
       let cur = new Set(prevSet);
       const was = cur.has(seqId);
@@ -1517,7 +1540,7 @@ export default function GuideOverlayClient({
         toast.error("Erreur de synchronisation");
       }
     },
-    [completedStepsByMs, completedIds, bookmarksByMs, guildId, effectiveAltPseudo, getSeqGate, goToNextMs, resourceChecks, isGuest, persistGuestResourceChecks, notifyBlockDone, guildDungeons.refresh]
+    [completedStepsByMs, completedIds, bookmarksByMs, guildId, effectiveAltPseudo, getSeqGate, goToNextMs, resourceChecks, isGuest, persistGuestResourceChecks, notifyBlockDone, guildDungeons.refresh, canValidate]
   );
 
   // Réinitialise TOUTE la progression du guide (synchro serveur + dashboard),
@@ -1997,7 +2020,14 @@ export default function GuideOverlayClient({
           />
 
           {/* Filtre d'affichage — Toutes / En cours / Verrouillées. */}
-          <RushOverlayQuestFilter value={questFilter} onChange={setQuestFilter} counts={daCounts} compact={overlayDensity === "tight"} />
+          <RushOverlayQuestFilter
+            value={questFilter}
+            onChange={setQuestFilter}
+            counts={daCounts}
+            compact={overlayDensity === "tight"}
+            hideCompleted={hideCompleted}
+            onToggleHideCompleted={() => setHideCompleted((value) => !value)}
+          />
 
           {/* F9 — le bandeau du bloc courant (image + titre + écriteau « N/M ») est
               retiré : le dock juste au-dessus porte déjà le titre du chapitre et son
@@ -2058,6 +2088,38 @@ export default function GuideOverlayClient({
 
           {/* ══ LISTE DES QUÊTES + DÉTAILS ══ */}
           <main ref={listRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 pt-3 pb-2 space-y-2 overlay-scroll">
+            {/* Porte de départ : la PiP peut s'ouvrir avant le choix du personnage ;
+                elle reste lisible, mais les coches sont bloquées (même règle que la page). */}
+            {!canValidate ? (
+              <div className="rounded-[4px] border border-warning/40 bg-warning/10 px-2.5 py-2 text-[11px] leading-relaxed text-warning">
+                Choisis ton personnage dans le guide pour cocher tes quêtes.{" "}
+                <a
+                  href={`/guides/${guide.slug}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold underline underline-offset-2"
+                >
+                  Choisir
+                </a>
+              </div>
+            ) : null}
+            {/* Ce qui est masqué est DIT, et réouvrable d'un geste (la PiP étroite cache
+                le bouton d'en-tête dans le menu « … »). */}
+            {hideCompleted && currentMsDoneSeqs.size > 0 ? (
+              <div className="flex items-center justify-between gap-2 rounded-[4px] border border-border bg-surface px-2.5 py-1.5 text-[11px]">
+                <span className="min-w-0 truncate text-muted-foreground">
+                  {currentMsDoneSeqs.size} étape{currentMsDoneSeqs.size > 1 ? "s" : ""} faite
+                  {currentMsDoneSeqs.size > 1 ? "s" : ""} masquée{currentMsDoneSeqs.size > 1 ? "s" : ""}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setHideCompleted(false)}
+                  className="shrink-0 rounded-[3px] border border-border px-2 py-0.5 font-semibold text-foreground transition-colors hover:bg-elevated"
+                >
+                  Afficher
+                </button>
+              </div>
+            ) : null}
             {/* Bannières qui INTRODUISENT ce chapitre — leur place chronologique dans le
                 flux. Elles suivent le chapitre, donc on les retrouve dès qu'on l'ouvre
                 (dropdown, précédent/suivant, repère) : c'est ce qui manquait. */}
@@ -2131,6 +2193,15 @@ export default function GuideOverlayClient({
                       ? "Changez de filtre pour voir les autres quêtes."
                       : "Passez au chapitre suivant avec le bouton Suivant."}
                 </p>
+                {hideCompleted && currentMsDoneSeqs.size > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setHideCompleted(false)}
+                    className="mt-3 inline-flex items-center gap-1.5 rounded-[4px] border border-border bg-surface px-2.5 py-1.5 text-[11px] font-semibold text-foreground transition-colors hover:bg-elevated"
+                  >
+                    Afficher les étapes faites
+                  </button>
+                ) : null}
               </div>
             ) : currentMs ? (
               <div className="da-rail" ref={railRef}>

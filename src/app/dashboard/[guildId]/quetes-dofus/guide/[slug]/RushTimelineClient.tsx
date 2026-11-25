@@ -5,7 +5,7 @@ import { GameIcon } from "@/components/shared/game-icon";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import {
   CheckCircle2, Square, ChevronDown, ChevronUp, ChevronLeft,
-  BookOpen, Flag, Users, RotateCcw, EyeOff, Eye, ExternalLink,
+  BookOpen, Flag, Users, RotateCcw, Eye, ExternalLink,
   BookmarkCheck, Loader2, CheckCheck,
   Sparkles, Construction, Sword, Lock, MapPin, Plus,
   Pencil, Crown, ChevronRight, ListCollapse, Info, Check, Search, X, CircleHelp, ClipboardList,
@@ -112,6 +112,8 @@ import { normalizeOrderCode } from "@/lib/rush-order-codes";
 import { RushAlignmentBadge } from "@/components/dofus-quests/rush/RushAlignmentBadge";
 import { RushPrereqChoiceHint } from "@/components/dofus-quests/rush/RushPrereqChoiceHint";
 import { RushChoiceGroupCard } from "@/components/dofus-quests/rush/RushChoiceGroupCard";
+import { RushHideDoneToggle } from "@/components/dofus-quests/rush/RushHideDoneToggle";
+import { RushStartHerePanel } from "@/components/dofus-quests/rush/RushStartHerePanel";
 import { getPrereqChoiceGroups } from "@/lib/rush-prereq-expr";
 import {
   applyChoiceExclusivity,
@@ -1217,7 +1219,7 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
 });
 
 // ─── ChapterBlock ─────────────────────────────────────────────────────────────
-const ChapterBlock = memo(function ChapterBlock({ chapterNum,label,showHeader=true,milestones,completedIds,completedStepsByMs,bookmarksByMs,guildProgressByMs,hideDone,loadingIds,dofusFilter,focusedSeqId,onFocusSequence,onToggle,onToggleSequence,onReset,onDungeonClick,searchFilter,blockNumbers,forceOpen }:any) {
+const ChapterBlock = memo(function ChapterBlock({ chapterNum,label,showHeader=true,milestones,completedIds,completedStepsByMs,bookmarksByMs,guildProgressByMs,hideDone,onShowDone,loadingIds,dofusFilter,focusedSeqId,onFocusSequence,onToggle,onToggleSequence,onReset,onDungeonClick,searchFilter,blockNumbers,forceOpen }:any) {
   const filteredMilestones = useMemo(() => {
     if (!searchFilter) return milestones;
     return milestones.filter((ms:any) => {
@@ -1249,7 +1251,31 @@ const ChapterBlock = memo(function ChapterBlock({ chapterNum,label,showHeader=tr
   useEffect(()=>{if(forceOpen)setOpen(true);},[forceOpen]);
   const effHideDone=hideDone&&!searchFilter;
   const vc=effHideDone?filteredMilestones.filter((m:any)=>!completedIds.has(m.id)).length:filteredMilestones.length;
-  if(effHideDone&&vc===0)return null;
+  // Un chapitre dont tous les blocs sont faits ne laisse ni zone noire ni en-tête vide :
+  // une ligne compacte dit ce qui est masqué et permet de rouvrir. Même règle que le
+  // guide public (état « rien à afficher ici »).
+  const hiddenCompletedBlocks = effHideDone
+    ? filteredMilestones.filter((m:any)=>m.type!=="INFO" && completedIds.has(m.id))
+    : [];
+  if(effHideDone&&vc===0){
+    if(hiddenCompletedBlocks.length===0)return null;
+    return (
+      <div className="rounded-[6px] border border-success/25 bg-success/[0.05] px-4 py-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <CheckCheck className="h-4 w-4 shrink-0 text-success" aria-hidden="true" />
+          <p className="min-w-0 flex-1 text-xs text-muted-foreground">
+            <span className="font-semibold text-foreground">
+              {hiddenCompletedBlocks.length} bloc{hiddenCompletedBlocks.length>1?"s":""} terminé{hiddenCompletedBlocks.length>1?"s":""}
+            </span>{" "}
+            masqué{hiddenCompletedBlocks.length>1?"s":""} dans ce chapitre.
+          </p>
+          <button type="button" onClick={onShowDone} className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-[4px] border border-border bg-surface px-2.5 py-1 text-[11px] font-semibold text-foreground transition-colors hover:border-foreground/20 hover:bg-elevated sm:self-auto">
+            <Eye className="h-3 w-3" aria-hidden="true" /> Afficher
+          </button>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="relative">
       {showHeader && (
@@ -1289,6 +1315,20 @@ const ChapterBlock = memo(function ChapterBlock({ chapterNum,label,showHeader=tr
         {(open||!showHeader) && (
           <motion.div initial={{height:0,opacity:0}} animate={{height:"auto",opacity:1}} exit={{height:0,opacity:0}} className="overflow-hidden">
             <div className="space-y-3 pt-3">
+              {hiddenCompletedBlocks.length > 0 && vc > 0 ? (
+                <div className="flex flex-col gap-2 rounded-[4px] border border-success/25 bg-success/[0.05] px-3 py-2 sm:flex-row sm:items-center">
+                  <CheckCheck className="h-3.5 w-3.5 shrink-0 text-success" aria-hidden="true" />
+                  <p className="min-w-0 flex-1 text-[11px] text-muted-foreground">
+                    <span className="font-semibold text-foreground">
+                      {hiddenCompletedBlocks.length} bloc{hiddenCompletedBlocks.length > 1 ? "s" : ""} terminé{hiddenCompletedBlocks.length > 1 ? "s" : ""}
+                    </span>{" "}
+                    masqué{hiddenCompletedBlocks.length > 1 ? "s" : ""} ici.
+                  </p>
+                  <button type="button" onClick={onShowDone} className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-[4px] border border-border bg-surface px-2.5 py-1 text-[11px] font-semibold text-foreground transition-colors hover:border-foreground/20 hover:bg-elevated sm:self-auto">
+                    <Eye className="h-3 w-3" aria-hidden="true" /> Afficher
+                  </button>
+                </div>
+              ) : null}
               {filteredMilestones.filter((ms:any)=>!dofusFilter||ms.dofusId===dofusFilter).map((ms:any)=>{
                 if(ms.type==="INFO")return <div key={ms.id} className="my-1"><InfoBanner milestone={ms}/></div>;
                 const filteredSeqs = searchFilter ? ms.sequences.filter((s:any)=>searchFilter.has(s.id)) : ms.sequences;
@@ -1727,6 +1767,21 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
   }).map(ms=>ms.id)));
   const [completedStepsByMs,setCompletedStepsByMs]=useState<Map<string,Set<string>>>(()=>{const m=new Map;milestones.forEach(ms=>{const r=ms.playerProgress?.[0]?.completedSteps;const a=Array.isArray(r)?r:typeof r==="string"?JSON.parse(r):[];m.set(ms.id,new Set(a));});return m;});
   useEffect(()=>{const nc=new Set<string>,ns=new Map<string,Set<string>>;milestones.forEach(ms=>{const r=ms.playerProgress?.[0]?.completedSteps;const a=Array.isArray(r)?r:typeof r==="string"?JSON.parse(r):[];if(isRouteBlockComplete(ms,a))nc.add(ms.id);ns.set(ms.id,new Set(a));});setCompletedIds(nc);setCompletedStepsByMs(ns);},[milestones]);
+  /** Étapes réellement faites (variantes exclusives comptées pour une) — badge du bouton. */
+  const doneStepCount = useMemo(() => {
+    let done = 0;
+    for (const ms of milestones) {
+      const steps = (ms.sequences || []).filter((s: any) => !isInfoSequence(s));
+      const completedForCount: Set<string> = completedIds.has(ms.id)
+        ? new Set(steps.map((s: any) => s.id))
+        : completedStepsByMs.get(ms.id) || new Set();
+      done += stepCounts(steps, completedForCount).done;
+    }
+    return done;
+  }, [milestones, completedIds, completedStepsByMs]);
+  /** Cartes de démarrage : « Plus tard » reste possible, l'alignement n'est jamais forcé. */
+  const [startAlignmentDismissed, setStartAlignmentDismissed] = useState(false);
+  const [startNextDismissed, setStartNextDismissed] = useState(false);
   // ─── Bookmark PAR BLOC (jalon) : 1 « Je suis ici » max par bloc ────────────
   const [bookmarksByMs, setBookmarksByMs] = useState<Map<string, string>>(() => {
     const m = new Map<string, string>();
@@ -2853,20 +2908,6 @@ const timelineItems=useMemo(()=>{
               Pense-bête
             </button>
 
-            {/* Interrupteur de densité — SORTI du menu « Options » : il pilote à la fois les
-                étapes affichées ET les ressources (rail « Objets requis », modale, fiche
-                détail), donc son état devait être lisible d'un coup d'œil. */}
-            <button
-              type="button"
-              onClick={() => setHideDone(v => !v)}
-              aria-pressed={hideDone}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] border text-xs font-medium transition-colors ${hideDone ? "border-accent/40 text-accent bg-accent/[0.06]" : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/20"}`}
-              title={hideDone ? "Réafficher les étapes terminées et leurs ressources" : "Masquer les étapes terminées et les ressources déjà fournies"}
-              aria-label={hideDone ? "Afficher les étapes terminées" : "Masquer les étapes terminées"}
-            >
-              {hideDone ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-              {hideDone ? "Afficher" : "Masquer"}
-            </button>
           </div>
         </div>
 
@@ -3087,6 +3128,13 @@ const timelineItems=useMemo(()=>{
           <ContextualHelp label="Aide recherche">Recherche par nom de quête, donjon ou zone. Les résultats s'affichent en temps réel et incluent les quêtes terminées.</ContextualHelp>
         </div>
       </div>
+      {/* Masquer / afficher : à côté de la recherche, là où l'on agit sur la liste.
+          Libellé complet + compteur — jamais un « Masquer » isolé dans la barre du haut. */}
+      <RushHideDoneToggle
+        hidden={hideDone}
+        onToggle={() => setHideDone(v => !v)}
+        count={doneStepCount}
+      />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button type="button" className="flex items-center gap-1.5 px-3 py-2.5 rounded-[4px] border border-border text-muted-foreground hover:text-foreground hover:border-foreground/20 transition-colors text-xs font-medium shrink-0" aria-label="Options du guide">
@@ -3170,6 +3218,35 @@ const timelineItems=useMemo(()=>{
     </AnimatePresence>
     <RushAlignmentPanel onChooseAlignment={() => setAlignmentEditOpen(true)} />
     <GuildStatusPanel milestones={contentMilestones} questsByDofus={dofusQuestsByDofus} guildProgress={guildProgress} stepKeysBySequenceId={stepKeysBySequenceId} activeFilter={dofusFilter} onFilterChange={setDofusFilter}/>
+    {/* Prendre par la main SANS reproposer le tour : personnage → cité (optionnelle) → première quête. */}
+    <RushStartHerePanel
+      state={{
+        needsCharacter: !localProfile?.pseudoDofus,
+        hasCharacter: !!localProfile?.pseudoDofus,
+        needsAlignment:
+          !!localProfile?.pseudoDofus &&
+          !resolvedCharacterInfo.alignment &&
+          doneStepCount === 0 &&
+          !startAlignmentDismissed,
+      }}
+      characterName={effectiveAltPseudo ?? localProfile?.pseudoDofus ?? null}
+      nextStep={
+        actionableSeq && doneStepCount === 0 && !startNextDismissed
+          ? {
+              title:
+                actionableSeq.sequence.subGuideName ||
+                actionableSeq.sequence.subGuideRef ||
+                actionableSeq.milestone.title,
+              blockTitle: actionableSeq.milestone.title,
+              onGo: () => scrollToSequence(actionableSeq.sequence.id),
+            }
+          : null
+      }
+      onPickCharacter={() => router.push(`/dashboard/${guildId}/profile`)}
+      onPickAlignment={() => setAlignmentEditOpen(true)}
+      onDismissAlignment={() => setStartAlignmentDismissed(true)}
+      onDismissNext={() => setStartNextDismissed(true)}
+    />
     {/* ── Grille de la DA (E3) : 260 | contenu | 300 dès 1 440 px ──────────────
         C'est la MÊME feuille que le guide public (`.da-guide-grid`, trois paliers
         1 440 / 1 280 / 900) : la grille locale et son `<style>` sont SUPPRIMÉS,
@@ -3212,7 +3289,7 @@ const timelineItems=useMemo(()=>{
             {searchResults ? "résultats" : "filtre Dofus"} — les {blockPages.length} blocs sont affichés
           </p>
         )}
-        {milestones.length===0?<div className="py-16 text-center"><BookOpen className="w-10 h-10 text-muted-foreground mx-auto mb-3"/><p className="text-muted-foreground font-semibold uppercase text-xs tracking-widest">Aucun objectif</p></div>:<div className="space-y-2">{visibleItems.map((item:any)=>item.kind==="separator"?<RushSeparatorBanner key={item.key} title={item.ms.title} description={item.ms.description} imageUrl={item.ms.imageUrl} accentColor={item.ms.accentColor} surface="page"/>:item.kind==="info"?<div key={item.key}>{item.ms.type==="DOFUS_OBTAINED"?<DofusObtainedBanner milestone={item.ms}/>:isRushCombatBlock(item.ms.type)?<RushCombatBanner type={item.ms.type} title={item.ms.title} bodyText={item.ms.tips} imageUrl={item.ms.imageUrl} links={item.ms.links} surface="page"/>:<InfoBanner milestone={item.ms}/>}</div>:<CanViewSuccesCtx.Provider key={item.key} value={canViewSucces}><AchievementCharacterCtx.Provider value={selectedCharacter === "PRINCIPAL" ? undefined : selectedCharacter}><ChapterBlock key={item.key} chapterNum={item.chapterNum} label={item.label} showHeader={item.showHeader} milestones={item.milestoneList} completedIds={completedIds} completedStepsByMs={completedStepsByMs} bookmarksByMs={bookmarksByMs} guildProgressByMs={guildProgressByMs} hideDone={hideDone} loadingIds={loadingIds} dofusFilter={null} focusedSeqId={focusedSeqId} onFocusSequence={handleFocusSequence} onToggle={handleToggle} onToggleSequence={handleToggleSequence} onReset={handleReset} onDungeonClick={handleDungeonClick} searchFilter={searchResults} blockNumbers={blockNumbers} forceOpen={!showEveryBlock}/></AchievementCharacterCtx.Provider></CanViewSuccesCtx.Provider>)}</div>}
+        {milestones.length===0?<div className="py-16 text-center"><BookOpen className="w-10 h-10 text-muted-foreground mx-auto mb-3"/><p className="text-muted-foreground font-semibold uppercase text-xs tracking-widest">Aucun objectif</p></div>:<div className="space-y-2">{visibleItems.map((item:any)=>item.kind==="separator"?<RushSeparatorBanner key={item.key} title={item.ms.title} description={item.ms.description} imageUrl={item.ms.imageUrl} accentColor={item.ms.accentColor} surface="page"/>:item.kind==="info"?<div key={item.key}>{item.ms.type==="DOFUS_OBTAINED"?<DofusObtainedBanner milestone={item.ms}/>:isRushCombatBlock(item.ms.type)?<RushCombatBanner type={item.ms.type} title={item.ms.title} bodyText={item.ms.tips} imageUrl={item.ms.imageUrl} links={item.ms.links} surface="page"/>:<InfoBanner milestone={item.ms}/>}</div>:<CanViewSuccesCtx.Provider key={item.key} value={canViewSucces}><AchievementCharacterCtx.Provider value={selectedCharacter === "PRINCIPAL" ? undefined : selectedCharacter}><ChapterBlock key={item.key} chapterNum={item.chapterNum} label={item.label} showHeader={item.showHeader} milestones={item.milestoneList} completedIds={completedIds} completedStepsByMs={completedStepsByMs} bookmarksByMs={bookmarksByMs} guildProgressByMs={guildProgressByMs} hideDone={hideDone} onShowDone={()=>setHideDone(false)} loadingIds={loadingIds} dofusFilter={null} focusedSeqId={focusedSeqId} onFocusSequence={handleFocusSequence} onToggle={handleToggle} onToggleSequence={handleToggleSequence} onReset={handleReset} onDungeonClick={handleDungeonClick} searchFilter={searchResults} blockNumbers={blockNumbers} forceOpen={!showEveryBlock}/></AchievementCharacterCtx.Provider></CanViewSuccesCtx.Provider>)}</div>}
         {/* Pager de bas de page : on enchaîne les blocs sans remonter. */}
         {blockPages.length > 1 && !searchResults && !dofusFilter && (
           <div className="mt-4 flex items-center justify-between gap-2 border-t border-border pt-3">

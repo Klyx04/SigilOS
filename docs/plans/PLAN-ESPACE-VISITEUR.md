@@ -317,6 +317,11 @@ tour existe déjà (`src/components/tour/tour-provider.tsx`, `ModuleTourReplayBu
 - **Accueil de première arrivée — fait le 08/11/2026** : 3 étapes qui délèguent aux sélecteurs existants
   (drapeau local, rejouable via Options). **Reste** : le **tour guidé spotlight** (le `TourProvider`
   n'est monté que dans le dashboard — lot séparé).
+- **Porte de départ — 25/11/2026 (PR #1540)** : l'accueil reste **optionnel** (« Passer »), mais les
+  **nouvelles coches** sont bloquées sans personnage (`resolveRushStartState`) — la lecture et la
+  décoche restent libres. Une carte persistante prend le relais : **personnage → cité (optionnelle,
+  « Plus tard ») → « Commence ici »**. La PiP reçoit `characterReady` et gate ses écritures ; un
+  bandeau y dit ce qui est masqué. Aucune migration.
 - Tour **rejouable** par un bouton « Revoir le tour », et **une seule fois** en automatique
   (drapeau local par visiteur). Réutilise `ModuleTourReplayButton` + `tour-provider`.
 - « Ma cité » (Bontarien / Neutre / Brâkmarien, `PublicRouteChoice`) quitte la barre : elle vit

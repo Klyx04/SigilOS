@@ -244,9 +244,15 @@ describe("Panneau public — la MÊME anatomie que le guide interne", () => {
     // n'est plus rendu du tout.
     expect(PUB).not.toMatch(/<PublicRouteChoice/);
     expect(PUB).not.toMatch(/xl:grid-cols-4/);
-    for (const label of ["Ressources", "Pense-bête", "Masquer les étapes faites"]) {
+    for (const label of ["Ressources", "Pense-bête"]) {
       expect(PUB, label).toContain(label);
     }
+    // Le libellé « Masquer les étapes faites » vit désormais dans le contrôle PARTAGÉ
+    // (une seule grammaire dashboard / public / overlay), monté à côté de la recherche.
+    expect(PUB).toContain("<RushHideDoneToggle");
+    expect(codeOf("src/components/dofus-quests/rush/RushHideDoneToggle.tsx")).toContain(
+      "Masquer les étapes faites"
+    );
     // « Ma cité » : trois cités dans le sous-menu radio de « Options ».
     expect(PUB).toContain("Options du guide");
     expect(PUB).toMatch(/<DropdownMenuRadioGroup/);
@@ -418,10 +424,16 @@ describe("Guide interne — le masquage des étapes faites n'est plus enterré d
     expect(DASH).not.toMatch(/"Masquer les terminées"/);
   });
 
-  it("il est monté à côté de « Ressources à prévoir » / « Pense-bête », état lisible", () => {
-    expect(DASH).toMatch(/Pense-bête[\s\S]{0,1200}aria-pressed=\{hideDone\}/);
-    expect(DASH).toMatch(/aria-label=\{hideDone \? "Afficher les étapes terminées" : "Masquer les étapes terminées"\}/);
-    expect(DASH).toMatch(/\{hideDone \? <Eye className="w-3\.5 h-3\.5" \/> : <EyeOff className="w-3\.5 h-3\.5" \/>\}/);
+  it("il est monté à côté de la recherche, avec un libellé complet et un compteur", () => {
+    // Demande user du 25/11/2026 : le « Masquer » discret de la barre du haut était
+    // invisible. Le contrôle partagé vit dans la rangée d'actions, à côté de la recherche.
+    expect(DASH).toContain("<RushHideDoneToggle");
+    expect(DASH).toMatch(/hidden=\{hideDone\}[\s\S]{0,120}count=\{doneStepCount\}/);
+    const toggle = codeOf("src/components/dofus-quests/rush/RushHideDoneToggle.tsx");
+    expect(toggle).toContain("aria-pressed={hidden}");
+    expect(toggle).toContain("Masquer les étapes faites");
+    expect(toggle).toContain("Afficher les étapes faites");
+    expect(toggle).toContain("count > 0");
   });
 });
 
@@ -484,7 +496,8 @@ describe("Donjons cochables — même coquille, même règle, verrou dans les é
     expect(PUB).toMatch(/onClick=\{handleLaunchOverlay\}/);
     expect(PUB).toMatch(/onClick=\{\(\) => setShowResources\(true\)\}/);
     expect(PUB).toMatch(/onClick=\{\(\) => setPenseBeteOpen\(true\)\}/);
-    expect(PUB).toMatch(/onClick=\{\(\) => setHideDone\(\(value\) => !value\)\}/);
+    expect(PUB).toContain("<RushHideDoneToggle");
+    expect(PUB).toMatch(/onToggle=\{\(\) => setHideDone\(\(value\) => !value\)\}/);
   });
 
   it("le public n'importe AUCUN code serveur et persiste dans le navigateur", () => {

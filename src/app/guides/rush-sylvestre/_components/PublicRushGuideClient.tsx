@@ -32,7 +32,6 @@ import {
   Upload,
   Compass,
   Eye,
-  EyeOff,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -119,7 +118,7 @@ import { PublicDofusProgressPanel } from "./PublicDofusProgressPanel";
 import { applyQuestResourceChecks, resourceKeysForTags } from "@/lib/rush-resource-checks";
 import { PUBLIC_SLOT_PRINCIPAL } from "@/lib/public-rush-progress";
 import { metamobState, type PublicGuideVisitor } from "@/lib/public-guide-visitor";
-import { resolveRushOnboardingStart } from "@/lib/rush-onboarding";
+import { resolveRushOnboardingStart, resolveRushStartState } from "@/lib/rush-onboarding";
 import { formatDofusLevel } from "@/lib/dofus-level";
 import {
   adoptMyRushProgress,
@@ -203,6 +202,8 @@ import { PublicRushLiveToast } from "./PublicRushLiveToast";
 import { usePublicRushLive } from "@/hooks/use-public-rush-live";
 import { RushOverlayPrereqModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayPrereqModal";
 import { PublicOnboardingModal, type OnboardingAudience, type OnboardingStep } from "./PublicOnboardingModal";
+import { RushHideDoneToggle } from "@/components/dofus-quests/rush/RushHideDoneToggle";
+import { RushStartHerePanel } from "@/components/dofus-quests/rush/RushStartHerePanel";
 import { useTour } from "@/components/tour/tour-provider";
 import { TourOverlay } from "@/components/tour/tour-overlay";
 // ─── Structuration en Blocs de Quêtes ─────────────────────────────────────────
@@ -522,6 +523,29 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
     },
     [handleRouteChange, routeOrderKey]
   );
+
+  /**
+   * **Porte de départ** : un personnage est requis pour cocher ; la cité reste
+   * optionnelle. L'accueil (tour) ne revient pas, cette carte reste.
+   */
+  const startState = useMemo(
+    () =>
+      resolveRushStartState({
+        isConnected,
+        visitor,
+        hasGuestCharacter: hasGuestCharacter(character),
+        localAlignment: routeCamp,
+      }),
+    [isConnected, visitor, character, routeCamp]
+  );
+  const [startNextDismissed, setStartNextDismissed] = useState(false);
+  const [startAlignmentDismissed, setStartAlignmentDismissed] = useState(false);
+  const startPanelState = {
+    ...startState,
+    // « Plus tard » masque la carte pour la session ; l'alignement reste accessible
+    // dans la tuile Alignement / Options.
+    needsAlignment: startState.needsAlignment && !startAlignmentDismissed,
+  };
 
   // ── F2 — export / import de la progression locale (ANONYME seulement) ───────
   // Le fichier est la seule sauvegarde d'un visiteur sans compte : on l'exporte complet,
@@ -1305,6 +1329,13 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
     (msId: string, seqId: string) => {
       let current = new Set(completedStepsByMs.get(msId) || []);
       const was = current.has(seqId);
+      // Porte de départ : sans personnage, aucune NOUVELLE coche (la lecture et la
+      // décoche restent libres, pour ne pas piéger une progression héritée).
+      if (!was && startState.needsCharacter) {
+        setCharacterOpen(true);
+        toast.error("Choisis d'abord ton personnage pour cocher tes quêtes.");
+        return;
+      }
 
       // 🚫 Même refus que le guide interne : un prérequis non terminé verrouille la
       // quête. Le garde-fou est ICI (dans l'écriture), pas seulement dans le rendu :
@@ -1369,12 +1400,17 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
         });
       }
     },
-    [completedStepsByMs, milestones, storagePrefix, isStepLocked, isSeqBlockedByDungeon, clearDungeonStatesOnInvalidate, applyResourceChecksForQuest]
+    [completedStepsByMs, milestones, storagePrefix, isStepLocked, isSeqBlockedByDungeon, clearDungeonStatesOnInvalidate, applyResourceChecksForQuest, startState.needsCharacter]
   );
 
   // Toggle whole chapter
   const handleToggleChapterAll = useCallback(
     (msId: string, completeAll: boolean) => {
+      if (completeAll && startState.needsCharacter) {
+        setCharacterOpen(true);
+        toast.error("Choisis d'abord ton personnage pour valider tes quêtes.");
+        return;
+      }
       const ms = milestones.find((m) => m.id === msId);
       if (!ms || !ms.sequences) return;
 
@@ -1437,12 +1473,17 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
         return next;
       });
     },
-    [completedStepsByMs, milestones, storagePrefix, isStepLocked, isSeqBlockedByDungeon, clearDungeonStatesOnInvalidate, applyResourceChecksForQuest]
+    [completedStepsByMs, milestones, storagePrefix, isStepLocked, isSeqBlockedByDungeon, clearDungeonStatesOnInvalidate, applyResourceChecksForQuest, startState.needsCharacter]
   );
 
   // Toggle all steps of one quest block (comme le guide interne)
   const handleToggleBlockSteps = useCallback(
     (msId: string, seqIds: string[], completeAll: boolean) => {
+      if (completeAll && startState.needsCharacter) {
+        setCharacterOpen(true);
+        toast.error("Choisis d'abord ton personnage pour valider tes quêtes.");
+        return;
+      }
       // Une quête verrouillée par un prérequis n'est jamais cochée en lot (même règle
       // que le guide interne) : on filtre la cible AVANT d'écrire quoi que ce soit.
       const unlocked = completeAll
@@ -1511,7 +1552,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
         });
       }
     },
-    [completedStepsByMs, milestones, storagePrefix, seqById, completedSeqIds, isSeqBlockedByDungeon, applyResourceChecksForQuest, clearDungeonStatesOnInvalidate]
+    [completedStepsByMs, milestones, storagePrefix, seqById, completedSeqIds, isSeqBlockedByDungeon, applyResourceChecksForQuest, clearDungeonStatesOnInvalidate, startState.needsCharacter]
   );
 
   // Personnage déclaré → libellé affiché (icône de classe + pseudo + serveur) et
@@ -2457,6 +2498,30 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
         ) : null}
       </div>
 
+      {/* Porte de départ persistante — l'accueil peut être passé, cette carte reste. */}
+      <RushStartHerePanel
+        state={startPanelState}
+        characterName={character?.pseudo ?? visitor?.pseudo ?? null}
+        nextStep={
+          startNextDismissed || !rushView.active
+            ? null
+            : {
+                title: rushView.active.title,
+                blockTitle: rushView.active.blockTitle,
+                onGo: () => scrollToStep(rushView.active!.id),
+              }
+        }
+        onPickCharacter={() => {
+          setOnboardingStep(null);
+          openCharacterForm();
+        }}
+        onPickAlignment={() => setAlignmentOpen(true)}
+        onDismissAlignment={() => setStartAlignmentDismissed(true)}
+        onDismissNext={() => setStartNextDismissed(true)}
+        profileHref={!isConnected ? "/espace-visiteur/general" : null}
+        locale={locale}
+      />
+
       {/* ── RECHERCHE + OPTIONS — la rangée de l'anatomie interne (V2a-3) ─────
           Elle vivait plus bas, dans la colonne du détail ; le brief du 06/11 la veut
           entre le haut du panneau (tuiles) et la progression. Même état, mêmes
@@ -2491,26 +2556,14 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
           )}
         </div>
 
-        {/* Bascule visible « masquer les étapes faites » : elle vivait dans le menu
-            Options, donc personne ne la trouvait. Même état `hideDone`. */}
-        <button
-          type="button"
-          onClick={() => setHideDone((value) => !value)}
-          aria-pressed={hideDone}
-          className={cn(
-            "inline-flex shrink-0 items-center gap-1.5 rounded-[4px] border px-3 py-1.5 text-xs font-medium transition-colors",
-            hideDone
-              ? "border-accent/50 bg-accent/10 text-foreground"
-              : "border-border text-muted-foreground hover:border-foreground/20 hover:text-foreground",
-          )}
-        >
-          {hideDone ? (
-            <EyeOff className="h-3.5 w-3.5" aria-hidden="true" />
-          ) : (
-            <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-          )}
-          <span>{hideDone ? (locale === "en" ? "Show full detail" : "Afficher tout le détail") : locale === "en" ? "Hide completed steps" : "Masquer les étapes faites"}</span>
-        </button>
+        {/* Bascule visible « masquer les étapes faites » : libellé complet + compteur,
+            même composant que le dashboard et l'overlay. */}
+        <RushHideDoneToggle
+          hidden={hideDone}
+          onToggle={() => setHideDone((value) => !value)}
+          count={completedCount}
+          locale={locale}
+        />
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -2800,8 +2853,12 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
             );
           }
 
-          // Filtrage « masquer ce qui est terminé » (même état que la vue partagée)
-          if (hideDone) {
+          // Filtrage « masquer ce qui est terminé » (même état que la vue partagée).
+          // ⚠️ Une recherche montre AUSSI les blocs faits : masquer pendant une
+          // recherche ferait croire que la quête n'existe pas (parité dashboard).
+          const hiddenDoneBlocks =
+            hideDone && !searchQuery.trim() ? questBlocks.filter((b) => b.isDone).length : 0;
+          if (hideDone && !searchQuery.trim()) {
             questBlocks = questBlocks.filter((b) => !b.isDone);
           }
 
@@ -2832,11 +2889,43 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
           });
 
           if (questBlocks.length === 0 && (searchQuery.trim().length > 0 || hideDone)) {
-            // Un bloc entièrement validé + « masquer les étapes faites » laissait une
-            // grande zone noire. On rend un vrai état de fin de bloc.
+            // Une recherche sans résultat garde le message global ; « masquer les
+            // étapes faites » ne doit JAMAIS laisser une grande zone noire.
+            if (searchQuery.trim().length > 0) return null;
             const allChapterDone =
               chapterSteps.length > 0 && chapterSteps.every((s) => doneSteps.has(s.id));
-            if (!hideDone || !allChapterDone) return null;
+            const doneCount = chapterSteps.filter((s) => doneSteps.has(s.id)).length;
+            if (!allChapterDone) {
+              // Tous les blocs de la ROUTE visible sont faits, mais le chapitre garde
+              // des quêtes d'une autre route : un état compact, pas un trou.
+              return (
+                <div key={ms.id} id={`bloc-${ms.id}`} className="px-4 py-3 sm:px-6">
+                  <div className="flex flex-col gap-2 rounded-[6px] border border-success/30 bg-success/[0.06] px-4 py-3 sm:flex-row sm:items-center">
+                    <CheckCheck className="h-4 w-4 shrink-0 text-success" aria-hidden="true" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold text-foreground">
+                        {locale === "en" ? "Nothing left to show here" : "Rien à afficher ici"}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {doneCount}/{chapterSteps.length}{" "}
+                        {locale === "en" ? "quests completed" : "quêtes validées"} ·{" "}
+                        {locale === "en"
+                          ? "completed blocks are hidden"
+                          : "les blocs terminés sont masqués"}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setHideDone(false)}
+                      className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-[4px] border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:border-foreground/20 hover:bg-elevated sm:self-auto"
+                    >
+                      <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+                      {locale === "en" ? "Show completed steps" : "Afficher les étapes faites"}
+                    </button>
+                  </div>
+                </div>
+              );
+            }
             return (
               <div key={ms.id} id={`bloc-${ms.id}`} className="px-4 py-6 sm:px-6">
                 <div className="rush-block-done mx-auto flex max-w-xl flex-col items-center rounded-[6px] border p-6 text-center">
@@ -3054,6 +3143,26 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                 // par rapport au panneau du chapitre. On ne garde que l'espace VERTICAL : les blocs
                 // d'étapes épousent désormais exactement la largeur du bloc chapitre.
                 <DaRail className="py-4 sm:py-5 space-y-5">
+                  {hiddenDoneBlocks > 0 && questBlocks.length > 0 ? (
+                    <div className="flex flex-col gap-2 rounded-[4px] border border-success/25 bg-success/[0.05] px-3 py-2 sm:flex-row sm:items-center">
+                      <CheckCheck className="h-3.5 w-3.5 shrink-0 text-success" aria-hidden="true" />
+                      <p className="min-w-0 flex-1 text-[11px] text-muted-foreground">
+                        <span className="font-semibold text-foreground">
+                          {hiddenDoneBlocks} bloc{hiddenDoneBlocks > 1 ? "s" : ""} terminé
+                          {hiddenDoneBlocks > 1 ? "s" : ""}
+                        </span>{" "}
+                        {locale === "en" ? "hidden here." : "masqué(s) ici."}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setHideDone(false)}
+                        className="inline-flex shrink-0 items-center gap-1 self-start rounded-[4px] border border-border bg-surface px-2.5 py-1 text-[11px] font-semibold text-foreground transition-colors hover:border-foreground/20 hover:bg-elevated sm:self-auto"
+                      >
+                        <Eye className="h-3 w-3" aria-hidden="true" />
+                        {locale === "en" ? "Show" : "Afficher"}
+                      </button>
+                    </div>
+                  ) : null}
                   {questBlocks.length === 0 ? (
                     <p className="py-4 text-xs text-muted-foreground">
                       Aucune étape correspondante.
@@ -4014,6 +4123,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
             // L'overlay lit EXACTEMENT les mêmes clés que la page (donc la progression
             // du personnage déclaré), et affiche son icône de classe dans son en-tête.
             guestStoragePrefix={storagePrefix}
+            characterReady={startState.hasCharacter}
             character={{
               pseudo: character?.pseudo || characterClass?.name || "Invité",
               classe: character?.classId ?? null,

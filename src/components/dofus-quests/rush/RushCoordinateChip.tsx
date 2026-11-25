@@ -247,6 +247,7 @@ export function RushCoordinateChip({
             x={parsed.x}
             y={parsed.y}
             worldId={resolvedWorldId ?? null}
+            zaap={hasManualZaap && manualZaap ? { ...manualZaap, name: "Zaap (God)" } : zaap}
             onClose={() => setMenuOpen(false)}
           />
         )}
@@ -321,6 +322,7 @@ export function RushCoordinateChip({
         x={parsed.x}
         y={parsed.y}
         worldId={resolvedWorldId ?? null}
+        zaap={hasManualZaap && manualZaap ? { ...manualZaap, name: "Zaap (God)" } : zaap}
         onClose={() => setMenuOpen(false)}
       />
     )}

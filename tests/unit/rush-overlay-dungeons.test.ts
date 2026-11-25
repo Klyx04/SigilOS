@@ -127,8 +127,8 @@ describe("Badge donjon — compteur, picto du jeu, popover branchée", () => {
     // 0 scroll ». Le panneau calculait sa hauteur (92 + N × 56) sans la borner au
     // viewport : il sortait de la PiP, aucune barre de défilement n'existait.
     const pop = codeOf(POPOVER);
-    expect(pop).toMatch(/maxHeight/);
-    expect(pop).toMatch(/win\.innerHeight - margin \* 2/);
+    expect(pop).toMatch(/max-h-\[calc\(100dvh-1\.5rem\)\]/);
+    expect(pop).toMatch(/100dvh/);
     expect(pop).toMatch(/overflow-y-auto/);
     expect(pop).toMatch(/overscroll-contain/);
     // Scrollbar visible dans la PiP (le défaut peut être invisible au survol).
@@ -142,8 +142,8 @@ describe("Badge donjon — compteur, picto du jeu, popover branchée", () => {
     expect(pop).toMatch(/ownerDocument/);
     expect(pop).toMatch(/portalDoc\.body/);
     expect(pop).not.toMatch(/document\.body/);
-    // Les mesures aussi doivent venir de la fenêtre du nœud.
-    expect(pop).toMatch(/ownerDocument\.defaultView/);
+    // La modale est centrée en unités du document porteur, jamais mesurée sur `window`.
+    expect(pop).toMatch(/100dvh/);
     expect(pop).not.toMatch(/window\.innerWidth/);
     expect(pop).not.toMatch(/window\.innerHeight/);
   });

@@ -5235,15 +5235,28 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
                 </select>
               </div>
               <div>
-                <label className="text-caption text-subtle-foreground mb-1 block">Palier requis (verrou)</label>
-                <select value={alignLevelReq} onChange={e => setAlignLevelReq(e.target.value)}
+                <label htmlFor="rush-align-level" className="text-caption text-subtle-foreground mb-1 block">
+                  Palier requis — nombre de quêtes de cité
+                </label>
+                <input
+                  id="rush-align-level"
+                  type="number"
+                  min={1}
+                  max={200}
+                  step={1}
+                  list="rush-align-level-suggestions"
+                  value={alignLevelReq}
+                  onChange={e => setAlignLevelReq(e.target.value)}
+                  placeholder="ex. 80"
                   className="w-full bg-background/80 border border-border rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none"
-                >
-                  <option value="">— Aucun —</option>
+                />
+                {/* Suggestions des paliers du jeu — la valeur reste libre, donc éditable
+                    sans toucher au code (rien n'est figé côté God). */}
+                <datalist id="rush-align-level-suggestions">
                   {[20, 40, 60, 80, 100].map(n => (
-                    <option key={n} value={n}>Alignement ≥ {n}</option>
+                    <option key={n} value={n} />
                   ))}
-                </select>
+                </datalist>
               </div>
               <div>
                 <label htmlFor="rush-seq-class" className="text-caption text-subtle-foreground mb-1 block">Classe (quêtes de classe)</label>
@@ -5257,7 +5270,8 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
             </div>
             <p className="text-caption text-muted-foreground">
               L'Ordre s'écrit en <strong>code canonique</strong> ({RUSH_ORDER_CODES.map(o => o.code).slice(0, 2).join(", ")}…).
-              Le palier d'une quête d'Ordre se déduit de sa position (20/40/60/80/100) : le verrou compte les quêtes de cité validées.
+              Le <strong>palier</strong> est un nombre de quêtes de cité validées (20/40/60/80/100 dans le jeu, mais
+              la valeur reste libre et vient de cette fiche) : il verrouille la quête et construit la chaîne des rangs.
             </p>
           </div>
         )}

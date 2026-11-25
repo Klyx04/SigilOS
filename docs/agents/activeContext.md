@@ -6,6 +6,15 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 25/11/2026 (suite 73) — **Rush : vrai verrou des rangs et prochaine quête de cité** — branche `fix/rush-locked-reason-next-2026-11-25` (PR **#1542**)
+
+> **Demande user (verbatim)** : capture du rang 4 bloqué par « Apprentissage : Chevalier du Désespoir » pourtant coché, avec 81 quêtes Brâkmarien · « ajoute un truc intelligent avec un bouton qui envoie à la prochaine quête alignement » · « côté brakmar il y avait 2 endroits où il y a un choix ? » · « tout doit être gérable côté god, rien en dur ».
+> **Mesuré** : 81 quêtes d'alignement ≠ 81 quêtes de **cité** — le palier 80 ne compte que les quêtes de cité (les 15 quêtes d'Ordre sont exclues). La carte affichait **tous** les prérequis, y compris le rang 3 déjà coché, au lieu du palier réel. Le futur bouton aurait aussi pu viser les variantes exclusives 55/66 (274/272/312), qui ne sont pas des quêtes de cité à faire.
+> **Fait** : `missingPrereqs` seulement ; ordre du verrou **palier → prérequis manquant → donjon → verrouillée** ; message « Encore N quêtes de cité (x/y) » ; `findNextAlignmentCityQuest` (même cité, hors Ordre, **hors `choice_group`**, préfère une candidate non bloquée) ; bouton **« Prochaine quête de cité »** sur dashboard, public et overlay (lien ambre, sans second cadre) ; palier God en **nombre libre 1–200** + suggestions, valeur en base. Bêta : les **deux** choix Brak sont bien là (55 = 3 variantes, 66 = 2).
+> **Preuves** : **8 524 tests ✅** · `tsc` 0 · `lint` 0 erreur · 25 cas `rush-order-chain` (dont 79/80 cité, exclusion des variantes) · aucune migration.
+> **Reste** : redéployer la bêta ; ops prod plus tard ; ⑮/⑯/⑰/⑱.
+> **Rotation** : blocs « suite 66 » et « suite 67 » sortis — récupérables via `git log -p -- docs/agents/activeContext.md`.
+
 ## 📝 Session 25/11/2026 (suite 72) — **Rush : variantes Brak 55/66, démarrage guidé et masquage** — branches `feat/rush-choice-groups-2026-11-25` (PR **#1539**), `feat/rush-start-gate-2026-11-25` (PR **#1540**)
 
 > **Demande user (verbatim)** : « continuons sur les chantiers et phases restantes » · captures + « revoir le bouton masquer le rendre plus visible et ailleurs » · « dans le guide navigateur au lieu de laisser des gros trous noirs quand un bloc est complet » · « le guide externe public n'a même pas ce bouton lui » · « bloquer tant qu'un personnage n'est pas choisi » · « alignement optionnel à choisir quand il veut » · « prendre par la main tous les utilisateurs ».
@@ -55,27 +64,4 @@
 > **Preuves** : **8 435 tests ✅** · `tsc` 0 · `lint` 0 erreur · 16 tests `rush-success-validation` (dont seed réel : les 3 Qf de 1705, les six Dofus, objets directs sans fermeture OA, déduplication des ressources de quête, `iconId` des objets, PO hors guide, périmètre même bloc et cascade inter-blocs) · `--check` = aucun écart · route image vérifiée (`/api/assets-dofus/items/23035?icon=1` → 200 WebP) · tests source : reset non étiré, popover plafonnée.
 > **Reste** : contrôle hebdo VPS (`--check` + alerte Discord ops/Sentry + changelog membres) en phase 4 · phases 3/4/5 · redéployer la bêta et vérifier les fiches (2299 sans « Planche hatoufer », 1385 « Bleu turquoise » + modale avec icônes, Six sur six, Dom de Pin, Maïmane).
 > **Rotation** : bloc « suite 62 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-## 📝 Session 24/11/2026 (suite 67) — **Rush : graphe DofusDB 2c-1 (données + fiche)** — branche `feat/rush-success-graph-2c-2026-11-24`
-
-> **Demande user (verbatim)** : « et dofusdb peut aider ? » puis « vulgarise un peu stp voir comment on peut faire le mieux possible » et « reprend ».
-> **Mesuré** : DofusDB est plus complet que le client pour les arêtes : **2 777** succès (`need`) et **1 984** quêtes (`startCriterion`), dont **5933 L'héritage de l'île brisée** (`need.achievements = 5925/5928/5931/5932`) **absent** de notre `achievements.json` client. Les exemples : **1048 Vert émeraude → 1036** via 1463→1462 ; **5222 Prologue → 1705 Six sur six** via la quête 2409 (`OA=1705`) ; **7761 En attendant le printemps → 5222/7760/5933** (override DPLN Dom de Pin) ; la quête 2489 porte `PO=27803`.
-> **Fait** : `scripts/siphon-dofusdb-success-graph.mjs` (statique, `--check` de diff) · `public/game-data/success-graph.json` (600 Ko) · `rush-success-meta.json` (override 7761→5933) · `rush-success-graph` étendu (`questCriteria`, `successByQuestId`, `effectiveSuccessIds`, possessions, meta) · `SuccessChip` : état, prérequis **dérivés** et sous-prérequis dépliés, possessions séparées des ressources, date DofusDB · aucune migration.
-> **Preuves** : **8 416 tests ✅** · `tsc` 0 · `lint` 0 erreur (7 802 warnings préexistants) · 6 tests DofusDB réels + 6 graphe + verrous `SuccessChip` · `--check` = « aucun écart ».
-> **Reste** : **2c-2** cascade « Valider les prérequis » avec aperçu (écrit les quêtes de la route) · contrôle hebdo VPS (`--check` + Discord ops/Sentry + changelog membres) en phase 4 · phases 3/4/5 prochaine conversation.
-> **Rotation** : bloc « suite 61 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-## 📝 Session 24/11/2026 (suite 66) — **Rush : graphe des succès 2b (données + fiche)** — branche `feat/rush-success-graph-2026-11-24`
-
-> **Demande user (verbatim)** : « attention 6/6 est un exemple il n'y a pas que cet exemple à prendre en compte » puis « il y a des quêtes par exemple qui nécessite d'avoir déjà validé tel succès (qui comporte lui même des quêtes) et qui lui même nécessite d'avoir validé tel quêtes ».
-> **Mesuré** : le client expose `OA=<achievementId>` (succès prérequis) en plus de `Qf` : **576** succès avec OA, **1 983** OA distincts. Dans le guide, **3** succès portent des OA (1705 Six sur six, 2298 La chevauchée fantastique, 7761 En attendant le printemps) et **61** succès sont des prérequis. Six sur six = 3 Qf (2048/2049/2050) + **11 OA** (10 dans le guide, **565 hors guide**). Le siphon ne gardait que `Qf` ; l'arête **quête → succès** n'est pas encore mesurée (support pur ajouté).
-> **Fait** : `siphon-achievements.py` extrait `successIds` (2 775 succès, 576 avec OA) et `public/game-data/achievements.json` régénéré · `src/lib/rush-success-graph.ts` : succès **dérivé** (`Qf + OA`), cycles absorbés, hors guide, `successQuestLeaves`, `questSuccessPrerequisites` · `SuccessChip` : la fiche affiche l'état du succès (`validé / en attente / hors guide`) et la section **« Succès prérequis x/y »** avec l'état de chaque OA · aucune migration.
-> **Preuves** : **8 410 tests ✅** · `tsc` 0 · `lint` 0 erreur (7 801 warnings préexistants) · 6 tests `rush-success-graph` + verrous `SuccessChip`.
-> **Reste** : **2c** cascade « Valider les prérequis » avec aperçu (écrit les quêtes du guide) · arête quête → succès (source client/tag) · PR 2b à ouvrir · Phases 3/4/5 prochaine conversation.
-> **Rotation** : bloc « suite 60 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-
-
-
-
-
+

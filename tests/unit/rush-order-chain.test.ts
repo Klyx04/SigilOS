@@ -17,7 +17,11 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { previousOrderRank, resolveRushRoute } from "@/lib/rush-route";
-import { getPrereqRefs, isSequenceBlockedByPrereqs } from "@/lib/rush-guide-utils";
+import {
+  findNextAlignmentCityQuest,
+  getPrereqRefs,
+  isSequenceBlockedByPrereqs,
+} from "@/lib/rush-guide-utils";
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
 
 const ROOT = process.cwd();
@@ -131,8 +135,95 @@ describe("verrou — le rang N exige le rang N−1", () => {
     expect(isSequenceBlockedByPrereqs(rank1, vingt, GUIDE)).toBe(false);
   });
 
+  it("cas mesuré 25/11 : rang 3 validé mais 79 quêtes de CITÉ ⇒ rang 4 bloqué par le palier", () => {
+    // Le joueur avait « 81 quêtes d'alignement » en comptant les 3 quêtes d'Ordre :
+    // le palier 80 ne compte QUE les quêtes de cité. Le rang 3 est bien validé, mais
+    // le rang 4 doit rester bloqué jusqu'à la 80e quête de cité — et l'UI doit dire
+    // « Palier 80 — 79/80 », jamais « À terminer avant : rang 3 ».
+    const cityBrak = Array.from({ length: 80 }, (_, i) =>
+      seq(`k-cite-${i}`, { alignReq: "brakmarien" })
+    );
+    const guide = [ms("cite", cityBrak), ms("saignant", ranks("saignant", "brakmarien", "coeur_saignant"))];
+    const rank3 = guide[1].sequences[2];
+    const rank4 = guide[1].sequences[3];
+    const soixanteDixNeuf = done(
+      ...cityBrak.slice(0, 79).map((s) => s.id),
+      rank3.id
+    );
+    expect(isSequenceBlockedByPrereqs(rank4, soixanteDixNeuf, guide)).toBe(true);
+    const quatreVingts = done(
+      ...cityBrak.slice(0, 80).map((s) => s.id),
+      rank3.id
+    );
+    expect(isSequenceBlockedByPrereqs(rank4, quatreVingts, guide)).toBe(false);
+  });
+
   it("une quête commune n'est jamais touchée par la chaîne", () => {
     expect(isSequenceBlockedByPrereqs(findSeq("commune"), done(), GUIDE)).toBe(false);
+  });
+});
+
+describe("findNextAlignmentCityQuest — le bouton « prochaine quête de cité »", () => {
+  const choice = { type: "choice_group", name: "55" } as never;
+
+  it("ignore les variantes exclusives : elles ne sont pas des quêtes de cité à faire", () => {
+    const guide = [
+      ms("cite", [
+        seq("city-done", { alignReq: "brakmarien" }),
+        seq("choice-a", { alignReq: "brakmarien", activityTags: [choice] }),
+        seq("choice-b", { alignReq: "brakmarien", activityTags: [choice] }),
+        seq("city-next", { alignReq: "brakmarien" }),
+      ]),
+    ];
+    const current = seq("order", {
+      alignReq: "brakmarien",
+      alignOrderCode: "coeur_saignant",
+      alignLevelReq: 80,
+    });
+    expect(
+      findNextAlignmentCityQuest(current, guide, new Set(["city-done"]))?.seqId
+    ).toBe("city-next");
+  });
+
+  it("ignore l'autre cité et les quêtes d'Ordre, et rend null quand tout est fait", () => {
+    const guide = [
+      ms("cite", [
+        seq("b-city", { alignReq: "bontarien" }),
+        seq("k-order", {
+          alignReq: "brakmarien",
+          alignOrderCode: "coeur_saignant",
+          alignLevelReq: 40,
+        }),
+        seq("k-city", { alignReq: "brakmarien" }),
+      ]),
+    ];
+    const current = seq("order", {
+      alignReq: "brakmarien",
+      alignOrderCode: "coeur_saignant",
+      alignLevelReq: 80,
+    });
+    expect(findNextAlignmentCityQuest(current, guide, new Set())?.seqId).toBe("k-city");
+    expect(findNextAlignmentCityQuest(current, guide, new Set(["k-city"]))).toBeNull();
+  });
+
+  it("préfère une candidate non bloquée, puis retombe sur la première", () => {
+    const guide = [
+      ms("cite", [
+        // Cible commune NON validée : elle ne bloque que la candidate suivante.
+        seq("common-missing", { subGuideName: "Étape commune" }),
+        seq("blocked", {
+          alignReq: "brakmarien",
+          activityTags: [{ type: "prereq_text", name: "Étape commune" }] as never,
+        }),
+        seq("free", { alignReq: "brakmarien" }),
+      ]),
+    ];
+    const current = seq("order", {
+      alignReq: "brakmarien",
+      alignOrderCode: "coeur_saignant",
+      alignLevelReq: 80,
+    });
+    expect(findNextAlignmentCityQuest(current, guide, new Set())?.seqId).toBe("free");
   });
 });
 
@@ -189,6 +280,38 @@ describe("route — l'Ordre du personnage sélectionné (mule comprise)", () => 
     expect(page).toContain("selectedMule?.classe");
     // Les jalons passés au client sont les jalons FILTRÉS, pas les bruts.
     expect(page).toContain("milestones={routeMilestones");
+  });
+});
+
+describe("carte bloquée — le verrou affiché est le VRAI (25/11/2026)", () => {
+  const DASH = read("src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/RushTimelineClient.tsx");
+  const PUB = read("src/app/guides/rush-sylvestre/_components/PublicRushGuideClient.tsx");
+
+  it("les prérequis déjà satisfaits ne sont plus affichés « À terminer avant »", () => {
+    expect(DASH).toContain("const missingPrereqs = prereqRefs.filter");
+    expect(DASH).toContain("const totalPrereqs = missingPrereqs.length");
+    expect(PUB).toContain("const missingPrereqRefs");
+    expect(PUB).toContain("missingPrereqRefs.length > 0");
+  });
+
+  it("le palier de cité passe AVANT le prérequis et dit combien il en manque", () => {
+    expect(DASH).toContain("Encore ${Math.max(0, levelReq - cityCount)} quête");
+    expect(PUB).toContain("Encore {Math.max(0, levelReq - cityCount)} quête");
+  });
+
+  it("un donjon manquant est nommé quand c'est le seul verrou", () => {
+    expect(DASH).toContain("Il faut d'abord faire le donjon");
+    expect(PUB).toContain("Il faut d'abord faire le donjon");
+  });
+
+  it("le palier vient de la donnée God, jamais d'un nombre figé dans l'UI", () => {
+    const studio = read("src/components/god/rush-editor/RushEditorStudio.tsx");
+    // Champ libre (1–200) + suggestions des paliers du jeu : la valeur est en base.
+    expect(studio).toContain('id="rush-align-level"');
+    expect(studio).toContain('type="number"');
+    expect(studio).toContain('list="rush-align-level-suggestions"');
+    expect(DASH).toContain("const levelReq = seq.alignLevelReq ?? 0");
+    expect(PUB).toContain("const levelReq = seq.alignLevelReq ?? 0");
   });
 });
 

@@ -85,6 +85,7 @@ import {
 import {
   dungeonOccurrenceKey,
   doneDungeonKeysForSequence,
+  missingRequiredDungeons,
   occurrenceState,
   resolveSequenceDungeons,
   sequenceDungeonProgress,
@@ -155,7 +156,7 @@ import {
   aggregateRushResources,
   getSequenceCoord,
 } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
-import { isInfoSequence, isSequenceBlockedByPrereqs, getPrereqRefs, getSequenceSuccesses, resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, RUSH_RESOURCES_PICTO, RUSH_ACTIVITY_TAG_CONFIG, deselectSequenceFromProgress, getAlignmentSet, rushChapterNumbers, type RushPrereqRef, type RushGuideQuestRef } from "@/lib/rush-guide-utils";
+import { isInfoSequence, isSequenceBlockedByPrereqs, getPrereqRefs, alignmentCountForCamp, findNextAlignmentCityQuest, getSequenceSuccesses, resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, RUSH_RESOURCES_PICTO, RUSH_ACTIVITY_TAG_CONFIG, deselectSequenceFromProgress, getAlignmentSet, rushChapterNumbers, type RushPrereqRef, type RushGuideQuestRef } from "@/lib/rush-guide-utils";
 // Panneau de droite — le MÊME composant que le guide interne (chapitres, progression,
 // donjons & métiers à prévoir, objets requis + bascule Restantes/Toutes).
 import { RushChapterSidebar } from "@/components/dofus-quests/rush/RushChapterSidebar";
@@ -3318,6 +3319,25 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                             const dungeonLocked = !stepDone && isSeqBlockedByDungeon(seq.id);
                             const stepLocked = prereqLocked || dungeonLocked;
                             const prereqRefs = prereqLocked ? getPrereqRefs(seq, milestones) : [];
+                            // Seuls les prérequis MANQUANTS sont nommés (le vrai verrou) :
+                            // un rang déjà coché ne doit jamais s'afficher « À terminer avant ».
+                            const missingPrereqRefs = prereqLocked
+                              ? prereqRefs.filter((p) => !completedSeqIds.has(p.seqId))
+                              : [];
+                            const levelReq = seq.alignLevelReq ?? 0;
+                            const cityCount = levelReq > 0
+                              ? alignmentCountForCamp(milestones, completedSeqIds, seq.alignReq ?? null)
+                              : 0;
+                            const palierLocked = prereqLocked && levelReq > 0 && cityCount < levelReq;
+                            const nextAlignmentQuest = palierLocked
+                              ? findNextAlignmentCityQuest(seq, milestones, completedSeqIds)
+                              : null;
+                            const missingDungeonNames = dungeonLocked
+                              ? missingRequiredDungeons(
+                                  seq,
+                                  doneDungeonKeysForSequence(dungeonStates, seq.id)
+                                ).map((d) => d.name)
+                              : [];
                             // Groupes « au choix » (`prereq_expr`) : une seule alternative suffit.
                             const choiceGroups = prereqLocked
                               ? getPrereqChoiceGroups(seq, milestones)
@@ -3726,34 +3746,50 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                                     F6 (11/11/2026) — la MÊME forme que l'overlay : **une seule
                                     ligne** cliquable ouvre la liste des prérequis (modale
                                     partagée), au lieu d'un mur de chips. */}
-                                {prereqLocked && (
+                                {stepLocked && (
                                   <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                                    {prereqRefs.length === 0 ? (
+                                    {palierLocked ? (
                                       <>
                                         <span className="text-[11px] text-muted-foreground">
-                                          {"À terminer avant :"}
+                                          Encore {Math.max(0, levelReq - cityCount)} quête
+                                          {levelReq - cityCount > 1 ? "s" : ""} de cité ({cityCount}/{levelReq})
                                         </span>
-                                        <span className="text-[11px] text-muted-foreground">
-                                          quête prérequis non listée dans ce guide
-                                        </span>
+                                        {nextAlignmentQuest ? (
+                                          <button
+                                            type="button"
+                                            onClick={() => scrollToStep(nextAlignmentQuest.seqId)}
+                                            className="inline-flex shrink-0 items-center gap-1 rounded-[4px] border border-warning/40 bg-warning/10 px-2.5 py-1 text-[11px] font-semibold text-warning transition-colors hover:bg-warning/20"
+                                            title={`Aller à : ${nextAlignmentQuest.name}`}
+                                          >
+                                            Prochaine quête de cité →
+                                          </button>
+                                        ) : null}
                                       </>
-                                    ) : (
+                                    ) : missingPrereqRefs.length > 0 ? (
                                       <button
                                         type="button"
-                                        onClick={() => setPrereqModal(prereqRefs)}
+                                        onClick={() => setPrereqModal(missingPrereqRefs)}
                                         aria-haspopup="dialog"
-                                        title={prereqRefs.map((p) => p.name).join(" · ")}
+                                        title={missingPrereqRefs.map((p) => p.name).join(" · ")}
                                         className="group inline-flex max-w-full items-center gap-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
                                       >
                                         <span aria-hidden="true" className="shrink-0">↳</span>
                                         <span className="shrink-0">À terminer avant :</span>
                                         <span className="min-w-0 truncate font-semibold text-warning group-hover:underline">
-                                          {prereqRefs.length > 1
-                                            ? `${prereqRefs.length} quêtes`
-                                            : prereqRefs[0].name}
+                                          {missingPrereqRefs.length > 1
+                                            ? `${missingPrereqRefs.length} quêtes`
+                                            : missingPrereqRefs[0].name}
                                         </span>
                                         <span aria-hidden="true" className="shrink-0">›</span>
                                       </button>
+                                    ) : missingDungeonNames.length > 0 ? (
+                                      <span className="text-[11px] text-muted-foreground">
+                                        Il faut d'abord faire le donjon : {missingDungeonNames.join(", ")}
+                                      </span>
+                                    ) : (
+                                      <span className="text-[11px] text-muted-foreground">
+                                        Verrouillée
+                                      </span>
                                     )}
                                   </div>
                                 )}

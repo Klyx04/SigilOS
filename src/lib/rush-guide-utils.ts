@@ -834,6 +834,63 @@ export function isSequenceBlockedByPrereqs(
   return false;
 }
 
+/** Cible du bouton « prochaine quête d'alignement » d'une carte bloquée par le palier. */
+export type RushNextAlignmentQuest = {
+  seqId: string;
+  milestoneId: string;
+  name: string;
+};
+
+/**
+ * **Prochaine quête de CITE** à faire pour débloquer un palier d'Ordre.
+ *
+ * Mesure du 25/11/2026 : une carte « Encore 16 quêtes de cité (84/100) » laissait le
+ * joueur sans geste. On cherche la première quête de la **même cité**, hors Ordre,
+ * non validée, de préférence **non bloquée** par ses propres prérequis (sinon la
+ * première non validée). Aucun identifiant en dur : tout vient du guide et de la
+ * progression. `null` quand il n'y a plus rien à faire.
+ */
+export function findNextAlignmentCityQuest(
+  seq: Pick<RushSequence, "id" | "alignReq" | "alignOrderCode">,
+  allMilestones: RushMilestone[],
+  completed: Set<string>
+): RushNextAlignmentQuest | null {
+  const camp = normalizeAlignmentCamp(seq.alignReq);
+  if (!camp) return null;
+
+  const candidates: RushNextAlignmentQuest[] = [];
+  for (const ms of allMilestones) {
+    for (const candidate of ms.sequences || []) {
+      if (candidate.id === seq.id) continue;
+      if (completed.has(candidate.id)) continue;
+      if (normalizeAlignmentCamp(candidate.alignReq) !== camp) continue;
+      // Une quête d'Ordre n'est jamais la « prochaine quête de cité ».
+      if ((candidate.alignOrderCode ?? "").trim()) continue;
+      // ⚠️ Une variante d'étape à choix (Brak 55/66) n'est PAS une quête de cité à
+      // faire : elle est exclusive, une seule est jouée. Sans ce filtre, le bouton
+      // envoyait le joueur sur « Les kamas résolvent tout » alors qu'il avait déjà
+      // coché « Le magnanime » (mesure du 25/11/2026).
+      if (getChoiceGroup(candidate)) continue;
+      candidates.push({
+        seqId: candidate.id,
+        milestoneId: ms.id,
+        name: candidate.subGuideName || candidate.subGuideRef || candidate.id,
+      });
+    }
+  }
+  if (candidates.length === 0) return null;
+
+  // Le premier candidat actionnable est le plus utile ; si tous sont bloqués par
+  // leur propre chaîne, on renvoie le premier pour ne pas laisser un bouton mort.
+  for (const candidate of candidates) {
+    const target = allMilestones
+      .find((ms) => ms.id === candidate.milestoneId)
+      ?.sequences.find((s) => s.id === candidate.seqId);
+    if (target && !isSequenceBlockedByPrereqs(target, completed, allMilestones)) return candidate;
+  }
+  return candidates[0];
+}
+
 /**
  * Trouve la prochaine séquence actionnable du guide en appliquant la priorité :
  * 1. Bookmark actif non terminé et non bloqué

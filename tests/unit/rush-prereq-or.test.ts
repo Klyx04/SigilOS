@@ -132,6 +132,36 @@ describe("intégration au verrou de quête", () => {
   });
 });
 
+describe("prérequis d'une étape à variantes exclusives", () => {
+  const choice = (name: string) => ({ type: "choice_group", name });
+  const GUIDE = [
+    milestone("m", 1, [
+      seq("supermilicien", { subGuideName: "Supermilicien", activityTags: [{ type: "prereq_text", name: "Le magnanime" }] }),
+      seq("magnanime", { subGuideName: "Le magnanime", activityTags: [choice("55")] }),
+      seq("kamas", { subGuideName: "Les kamas résolvent tout", activityTags: [choice("55")] }),
+      seq("assassinat", { subGuideName: "Assassinat effectué", activityTags: [choice("55")] }),
+    ]),
+  ];
+
+  it("une variante sœur validée satisfait le prérequis nommé", () => {
+    expect(isSequenceBlockedByPrereqs(GUIDE[0].sequences[0], new Set(["kamas"]), GUIDE)).toBe(false);
+    expect(isSequenceBlockedByPrereqs(GUIDE[0].sequences[0], new Set(["assassinat"]), GUIDE)).toBe(false);
+  });
+
+  it("aucune variante validée : le prérequis bloque toujours", () => {
+    expect(isSequenceBlockedByPrereqs(GUIDE[0].sequences[0], new Set(), GUIDE)).toBe(true);
+  });
+
+  it("une variante d'un autre bloc ne satisfait jamais le prérequis", () => {
+    const other = milestone("autre", 2, [
+      seq("kamas-ailleurs", { subGuideName: "Kamas ailleurs", activityTags: [choice("55")] }),
+    ]);
+    expect(isSequenceBlockedByPrereqs(GUIDE[0].sequences[0], new Set(["kamas-ailleurs"]), [...GUIDE, other])).toBe(
+      true
+    );
+  });
+});
+
 describe("affichage", () => {
   it("nomme les alternatives connues et compte les inconnues", () => {
     const guide = [

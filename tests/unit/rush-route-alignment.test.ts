@@ -71,7 +71,10 @@ describe("route d'alignement — un seul choix, un périmètre", () => {
     );
     const body = actionBody("toggleMilestoneProgress");
     expect(body).toContain("scopeSeqIds?: string[]");
-    expect(body).toContain("targetSequenceIds: targetIds");
+    // Le périmètre de route est réduit à un représentant par étape à choix avant la
+    // cascade (`checkIds`) ; `targetIds` reste le périmètre demandé pour la dévalidation.
+    expect(body).toContain("choiceRepresentatives(targetContentSeqs, targetIds, previousSteps)");
+    expect(body).toContain("targetSequenceIds: checkIds");
     expect(body).toContain("fullCompleted");
     expect(body).toContain("previousSteps.filter");
   });

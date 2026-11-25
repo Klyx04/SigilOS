@@ -105,6 +105,27 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
     [guildProgress, viewerProfileId, viewerUserId, activeCharacterSlot]
   );
 
+  /**
+   * Vue **« Mon personnage »** : uniquement les lignes du personnage actif. C'est la vue
+   * par défaut (le bandeau « Progression » est lui aussi par personnage) ; la vue
+   * « Guilde » garde l'agrégat historique. Mesure du 25/11/2026 : un membre voyait
+   * 100 % sur les cartes alors qu'il venait de reset — c'était **Chaudsept**, un autre
+   * membre, que le panneau affichait comme « 1 membre ».
+   */
+  const personalProgress = useMemo(
+    () =>
+      guildProgress.filter(
+        (row) =>
+          row.profileId === viewerProfileId &&
+          (row.characterSlot || "PRINCIPAL") === (activeCharacterSlot || "PRINCIPAL")
+      ),
+    [guildProgress, viewerProfileId, activeCharacterSlot]
+  );
+  const [scope, setScope] = useState<"me" | "guild">("me");
+  const panelProgress = scope === "me" ? personalProgress : visibleProgress;
+  const characterLabel =
+    activeCharacterSlot && activeCharacterSlot !== "PRINCIPAL" ? activeCharacterSlot : "Mon personnage";
+
   /** Ids de séquence par bloc — un bloc `isCompleted` vaut toutes ses quêtes. */
   const sequenceIdsByMilestone = useMemo(
     () =>
@@ -143,7 +164,7 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
       stat.totalMilestones++;
 
       // Check if this milestone is completed by at least one member
-      const completedBySome = visibleProgress.some(
+      const completedBySome = panelProgress.some(
         (p) => p.milestoneId === ms.id && p.isCompleted
       );
       if (completedBySome) stat.completedMilestones++;
@@ -158,7 +179,7 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
 
     // Avancement par membre et par Dofus — au niveau **quête** (et non plus seulement
     // « bloc validé ») : on réutilise les clés d'étapes déjà fournies par le serveur.
-    const profileIds = [...new Set(visibleProgress.map((p) => p.profileId))];
+    const profileIds = [...new Set(panelProgress.map((p) => p.profileId))];
 
     map.forEach((stat, dofusId) => {
       const dofusMilestoneIds = new Set(
@@ -168,7 +189,7 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
 
       stat.membersInProgress = profileIds
         .map((profileId) => {
-          const rows = visibleProgress.filter(
+          const rows = panelProgress.filter(
             (p) => p.profileId === profileId && dofusMilestoneIds.has(p.milestoneId)
           );
           if (!rows.length) return null;
@@ -192,11 +213,11 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
     });
 
     return Array.from(map.values()).sort((a, b) => b.totalMilestones - a.totalMilestones);
-  }, [milestones, questsByDofus, visibleProgress, sequenceIdsByMilestone, stepKeysBySequenceId]);
+  }, [milestones, questsByDofus, panelProgress, sequenceIdsByMilestone, stepKeysBySequenceId]);
 
   const totalMembers = useMemo(
-    () => new Set(visibleProgress.map((p) => p.profileId)).size,
-    [visibleProgress]
+    () => new Set(panelProgress.map((p) => p.profileId)).size,
+    [panelProgress]
   );
 
   /** Dofus dont la modale est ouverte (un seul à la fois). */
@@ -214,7 +235,7 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
       milestones.filter((milestone) => milestone.dofusId === selected.id).map((milestone) => milestone.id)
     );
     const byMember = new Map<string, { rows: GuildMemberProgress[]; currentStep: string | null }>();
-    for (const row of visibleProgress) {
+    for (const row of panelProgress) {
       if (!dofusMilestoneIds.has(row.milestoneId)) continue;
       const entry = byMember.get(row.profileId) ?? { rows: [], currentStep: null };
       entry.rows.push(row);
@@ -246,23 +267,45 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
         };
       })
     );
-  }, [selected, questsByDofus, milestones, visibleProgress, stepKeysBySequenceId, sequenceIdsByMilestone, viewerProfileId, activeCharacterSlot]);
+  }, [selected, questsByDofus, milestones, panelProgress, stepKeysBySequenceId, sequenceIdsByMilestone, viewerProfileId, activeCharacterSlot]);
 
   if (dofusStats.length === 0) return null;
 
   return (
     <div className="p-4 rounded-[6px] bg-surface border border-border">
         {/* Header */}
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div className="flex min-w-0 items-center gap-2">
             <Users className="w-4 h-4 text-muted-foreground" />
             <span className="text-xs font-medium text-foreground">
-              Progression Guilde par Dofus
+              {scope === "me" ? "Ma progression par Dofus" : "Progression Guilde par Dofus"}
             </span>
           </div>
-          <span className="text-xs font-mono tabular-nums text-muted-foreground">
-            {totalMembers} membre{totalMembers > 1 ? "s" : ""}
-          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex gap-1" role="group" aria-label="Périmètre de la progression">
+              <button
+                type="button"
+                onClick={() => setScope("me")}
+                aria-pressed={scope === "me"}
+                className={`rounded-[3px] border px-1.5 py-0.5 text-[10px] font-semibold transition-colors ${scope === "me" ? "border-success/40 bg-success/10 text-success" : "border-border text-muted-foreground hover:text-foreground"}`}
+              >
+                Mon personnage
+              </button>
+              <button
+                type="button"
+                onClick={() => setScope("guild")}
+                aria-pressed={scope === "guild"}
+                className={`rounded-[3px] border px-1.5 py-0.5 text-[10px] font-semibold transition-colors ${scope === "guild" ? "border-success/40 bg-success/10 text-success" : "border-border text-muted-foreground hover:text-foreground"}`}
+              >
+                Guilde
+              </button>
+            </div>
+            <span className="text-xs font-mono tabular-nums text-muted-foreground">
+              {scope === "me"
+                ? characterLabel
+                : `${totalMembers} membre${totalMembers > 1 ? "s" : ""}`}
+            </span>
+          </div>
         </div>
 
         {/* Dofus — un asset du jeu se pose NU : pas de tuile teintée, pas de bordure,
@@ -344,7 +387,9 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
         }
         summary={
           selected
-            ? `${selected.completedMilestones}/${selected.totalMilestones} blocs validés par au moins un membre · ${selected.membersInProgress.length} membre(s) engagé(s)`
+            ? scope === "me"
+              ? `${selected.completedMilestones}/${selected.totalMilestones} blocs validés par ${characterLabel}`
+              : `${selected.completedMilestones}/${selected.totalMilestones} blocs validés par au moins un membre · ${selected.membersInProgress.length} membre(s) engagé(s)`
             : ""
         }
         quests={selectedQuestRows}
@@ -359,7 +404,7 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
         members={
           selected
             ? selected.membersInProgress.map((member) => ({
-                name: member.userName,
+                name: scope === "me" ? characterLabel : member.userName,
                 avatar: member.userAvatar ?? null,
                 current: member.current ? member.current.label : null,
                 done: member.done,

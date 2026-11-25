@@ -12,6 +12,7 @@
 
 import { describe, it, expect } from "vitest";
 import { readFileSync, existsSync } from "node:fs";
+import path from "node:path";
 import { formatGuideLiveEvent } from "@/lib/guide-live-lines";
 
 /** Retire les commentaires : on verrouille le code, pas la prose. */
@@ -124,5 +125,34 @@ describe("présence honnête — en ligne ne veut dire qu'une chose", () => {
 
   it("la présence en base sans consommateur client est supprimée (aucun code mort)", () => {
     expect(existsSync("src/components/dofus-quests/RushLivePopover.tsx")).toBe(false);
+  });
+});
+
+/**
+ * Mesure du 25/11/2026 : le heartbeat n'était émis qu'avec un repère « Je suis ici »
+ * (`bookmarkedMsId`). Un membre qui consultait simplement le guide n'était donc jamais
+ * « en ligne » et retombait dans « Hors ligne — dernière position connue ». Le heartbeat
+ * suit désormais le repère s'il existe, sinon le premier bloc de contenu.
+ */
+const HOOK = "src/hooks/use-guide-presence.ts";
+const read = (file: string) => readFileSync(path.join(process.cwd(), file), "utf8");
+
+describe("Rush Live — heartbeat sans repère", () => {
+  it("le client fournit un jalon de repli au hook de présence", () => {
+    const client = read(DASHBOARD);
+    expect(client).toContain("milestoneId:");
+    expect(client).toContain("bookmarkedMsId ??");
+    expect(client).toContain("isRushNonQuestBlock(ms.type)");
+    expect(client).toContain("milestones[0]?.id");
+  });
+
+  it("le hook n'émet un heartbeat qu'avec un jalon (le repli en fournit un)", () => {
+    const hook = read(HOOK);
+    expect(hook).toContain("if (!milestoneId || !enabled) return;");
+    expect(hook).toContain('emit("guide:heartbeat"');
+  });
+
+  it("la modale dit quand le temps réel est indisponible", () => {
+    expect(read(DASHBOARD)).toContain("Connexion temps réel indisponible");
   });
 });

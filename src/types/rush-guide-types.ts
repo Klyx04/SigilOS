@@ -145,6 +145,35 @@ export type RushMilestoneType =
   | "COMBAT_TACTIQUE"
   | "COMBAT_SEMI_TACTIQUE";
 
+/** Types acceptés comme **sous-bloc** d'un bloc existant (jamais une quête cochable). */
+export type RushMilestoneChildType =
+  | "INFO"
+  | "DOFUS_OBTAINED"
+  | "SEPARATEUR"
+  | "COMBAT_TACTIQUE"
+  | "COMBAT_SEMI_TACTIQUE";
+
+/**
+ * Sous-bloc d'un bloc du guide : il se rend **dans** la carte du bloc, à sa `position`
+ * (intercalée avec `GuideSequence.order`) — ex. « Obtention Dofus » juste après une quête.
+ * Il ne participe ni à la progression, ni à la route, ni aux compteurs.
+ */
+export type RushMilestoneChild = {
+  id: string;
+  type: RushMilestoneChildType;
+  title: string;
+  description?: string | null;
+  tips?: string | null;
+  links?: unknown;
+  imageUrl?: string | null;
+  accentColor?: string | null;
+  dofusId?: string | null;
+  /** `sequence.order + 0.5` après une quête ; `9999` = fin du bloc. */
+  position: number;
+  /** Départage plusieurs sous-blocs à la même position. */
+  order: number;
+};
+
 export type RushMilestone = {
   id: string;
   chapter: number;
@@ -162,6 +191,8 @@ export type RushMilestone = {
   dofusId?: string | null;
   type?: RushMilestoneType | string;
   sequences: RushSequence[];
+  /** Sous-blocs Tips / Obtention Dofus / Séparateur / Combat, déjà triés par position. */
+  children?: RushMilestoneChild[];
   playerProgress?: Array<{
     isCompleted: boolean;
     completedSteps?: any;

@@ -3389,11 +3389,37 @@ model GuideMilestone {
 
   guide           OptimizedGuide       @relation(fields: [guideId], references: [id], onDelete: Cascade)
   sequences       GuideSequence[]      // Étapes ordonnées à réaliser pour atteindre ce milestone
+  children        GuideMilestoneChild[] // Sous-blocs Tips / Obtention Dofus / Séparateur / Combat
   playerProgress  PlayerGuideProgress[]
 
   @@index([guideId])
   @@index([guideId, chapter, order])
   @@index([type])
+}
+
+/// Sous-bloc d'un bloc existant (Tips, Obtention Dofus, Séparateur, Combat).
+/// **Additif et isolé** : il ne participe ni à la progression, ni à la route, ni aux compteurs.
+/// `position` s'intercale avec `GuideSequence.order` (ex. `seq.order + 0.5` = juste après la quête) ;
+/// `9999` = fin du bloc. `order` départage plusieurs sous-blocs à la même position.
+model GuideMilestoneChild {
+  id          String             @id @default(cuid())
+  milestoneId String
+  type        GuideMilestoneType
+  title       String
+  description String?
+  tips        String?
+  links       Json?
+  imageUrl    String?
+  accentColor String?
+  dofusId     String?
+  position    Float              @default(9999)
+  order       Int                @default(0)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  milestone   GuideMilestone     @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+
+  @@index([milestoneId, position, order])
 }
 
 // Une séquence = un bloc de travail dans un sous-guide à réaliser

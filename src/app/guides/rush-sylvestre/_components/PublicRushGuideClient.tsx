@@ -135,6 +135,8 @@ import { RushSeparatorBanner } from "@/components/dofus-quests/rush/RushSeparato
 import { RushInfoBanner } from "@/components/dofus-quests/rush/RushInfoBanner";
 import { RushCombatBanner } from "@/components/dofus-quests/rush/RushCombatBanner";
 import { DofusObtainedBanner } from "@/components/dofus-quests/rush/DofusObtainedBanner";
+import { RushBlockChild } from "@/components/dofus-quests/rush/RushBlockChild";
+import { RUSH_CHILD_POSITION_END } from "@/lib/rush-block-children";
 import { isRushCombatBlock, isRushNonQuestBlock, rushCombatSequenceType } from "@/lib/rush-block-types";
 import { RushRichText } from "@/components/dofus-quests/rush/RushRichText";
 import { RushQuestConstraints } from "@/components/dofus-quests/rush/RushQuestConstraints";
@@ -3191,6 +3193,17 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                         : null;
                       // Éléments réellement affichés (étapes + encarts, dans l'ordre du guide).
                       const blockItems = block.sequences.filter((s) => !hideDone || !doneSteps.has(s.id));
+                      // Sous-blocs : ils se posent à la fin du bloc dont ils visent une quête
+                      // (le bloc public = une quête) ; `position = 9999` sur le dernier bloc.
+                      const blockChildren = (ms.children ?? []).filter((child) => {
+                        if (child.position >= RUSH_CHILD_POSITION_END) {
+                          return blockIdx === group.blocks.length - 1;
+                        }
+                        const anchor = [...ms.sequences]
+                          .filter((sequence: any) => Number.isFinite(sequence.order) && sequence.order <= child.position)
+                          .sort((a: any, b: any) => b.order - a.order)[0];
+                        return !!anchor && blockItems.some((sequence) => sequence.id === anchor.id);
+                      });
                       // Bloc mono-étape : pas d'en-tête redondant, la ligne-carte porte le nom (comme le guide interne)
                       const isSingleStep = blockSteps.length === 1;
                       return (
@@ -3913,6 +3926,9 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                               </div>
                             );
                           })}
+                          {blockChildren.map((child) => (
+                            <RushBlockChild key={child.id} child={child} surface="page" />
+                          ))}
                         </div>
                       </div>
                     );

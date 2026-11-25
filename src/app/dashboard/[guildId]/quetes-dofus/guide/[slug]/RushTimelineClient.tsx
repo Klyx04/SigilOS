@@ -47,6 +47,7 @@ import { useRushOverlayStore, type RushOverlayPayload } from "@/store/rush-overl
 import GuideParticles from "@/components/dofus-quests/GuideParticles";
 import { DofusObtainedBanner } from "@/components/dofus-quests/rush/DofusObtainedBanner";
 import type { RushMilestone } from "@/types/rush-guide-types";
+import type { RushMilestoneChild } from "@/types/rush-guide-types";
 import type { RushQuestConstraints } from "@/types/rush-constraints";
 import type { GuideProgressRow } from "@/lib/guide-progress-helpers";
 import "./guide-styles.css";
@@ -113,6 +114,8 @@ import { RushAlignmentBadge } from "@/components/dofus-quests/rush/RushAlignment
 import { RushPrereqChoiceHint } from "@/components/dofus-quests/rush/RushPrereqChoiceHint";
 import { RushChoiceGroupCard } from "@/components/dofus-quests/rush/RushChoiceGroupCard";
 import { RushHideDoneToggle } from "@/components/dofus-quests/rush/RushHideDoneToggle";
+import { RushBlockChild } from "@/components/dofus-quests/rush/RushBlockChild";
+import { RUSH_CHILD_POSITION_END } from "@/lib/rush-block-children";
 import { RushStartHerePanel } from "@/components/dofus-quests/rush/RushStartHerePanel";
 import { getPrereqChoiceGroups } from "@/lib/rush-prereq-expr";
 import {
@@ -153,7 +156,7 @@ type ActivityTag = { type: string; name?: string; level?: number; count?: number
 const TARGET_HIGHLIGHT_MS = 1200;
 
 type Sequence = { id: string; subGuideRef: string; subGuideName: string; stepFrom?: number|null; stepTo?: number|null; note?: string|null; isOptional: boolean; order: number; dungeon?: DungeonRef|null; dungeons?: DungeonRef[]; dofusdbUrl?: string|null; dofuspourlesnoobsUrl?: string|null; tips?: string|null; constraints?: RushQuestConstraints|null; alignReq?: string|null; alignOrderCode?: string|null; alignLevelReq?: number|null; isSuccess?: boolean; icon?: string | null; metamobMonsterId?: number|null; activityTags?: ActivityTag[]; };
-type Milestone = { id:string; title:string; subtitle?:string|null; description?:string|null; type:string; accentColor?:string|null; imageUrl?:string|null; chapter:number; chapterLabel:string; order:number; isOptional:boolean; tips?:string|null; dofusId?:string|null; sequences:Sequence[]; playerProgress?:{isCompleted:boolean;completedSteps?:any;currentStep?:string|null}[]; };
+type Milestone = { id:string; title:string; subtitle?:string|null; description?:string|null; type:string; accentColor?:string|null; imageUrl?:string|null; chapter:number; chapterLabel:string; order:number; isOptional:boolean; tips?:string|null; dofusId?:string|null; sequences:Sequence[]; children?:RushMilestoneChild[]; playerProgress?:{isCompleted:boolean;completedSteps?:any;currentStep?:string|null}[]; };
 type GuildMemberProgress = { profileId:string; milestoneId:string; characterSlot?:string; isCompleted:boolean; userName:string; userAvatar?:string; currentStep?:string|null };
 type RushTimelineClientProps = { guide:{id:string;name:string;slug:string;description?:string|null;isUnderConstruction?:boolean;imageUrl?:string|null;isDiscordConfigured?:boolean}; milestones:Milestone[]; guildProgress:GuildMemberProgress[]; guildId:string; selectedCharacter?:string; currentProfileId?:string; mules?:any[]; rushUIConfig?: RushUIConfig; currentUserProfile:{alignment?:string|null;alignmentOrder?:string|null;alignmentLevel?:number;altPseudos?:any[];dofusClass?:string|null;metamobPseudo?:string|null;metiers?:any[];pseudoDofus?:string|null;}; ocreStats?:{bosses?:{total:number;gathered:number};archis?:{total:number;gathered:number};progressPercent?:number;currentStep?:number;serverName?:string;parallelQuests?:number}|null; capturedOcreMonsterIds?:number[]; capturedMonsterNames?:string[]; ocreMonsters?:OcreMonsterLite[]; initialResourceChecks?:string[]; canViewSucces?:boolean; };
 // Dofus du jeu — SOURCE UNIQUE (`src/lib/rush-dofus-meta.ts`), partagée avec le
@@ -1117,6 +1120,40 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
     )
   );
 
+  /**
+   * Sous-blocs : ils se posent **après la quête** dont l'ordre précède leur `position`
+   * (ou au début / à la fin). Le rendu vit dans le composant partagé `RushBlockChild`.
+   */
+  const childBlocks = ms.children ?? [];
+  const childrenAfterSequenceId = new Map<string, RushMilestoneChild[]>();
+  const leadingChildren: RushMilestoneChild[] = [];
+  const trailingChildren: RushMilestoneChild[] = [];
+  for (const child of childBlocks) {
+    if (child.position >= RUSH_CHILD_POSITION_END) {
+      trailingChildren.push(child);
+      continue;
+    }
+    const anchor = [...visibleSeqs]
+      .filter((s:any) => Number.isFinite(s.order) && s.order <= child.position)
+      .sort((a:any,b:any) => b.order - a.order)[0];
+    if (!anchor) {
+      leadingChildren.push(child);
+      continue;
+    }
+    const list = childrenAfterSequenceId.get(anchor.id) ?? [];
+    list.push(child);
+    childrenAfterSequenceId.set(anchor.id, list);
+  }
+  const renderChild = (child: RushMilestoneChild) => (
+    <RushBlockChild key={child.id} child={child} surface="page" />
+  );
+  const renderSequenceWithChild = (s:any) => (
+    <>
+      {renderSequence(s)}
+      {(childrenAfterSequenceId.get(s.id) ?? []).map(renderChild)}
+    </>
+  );
+
   return (
     <div>
       <div className={`relative rounded-[6px] border overflow-hidden ${
@@ -1217,6 +1254,7 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
                         en haut de page : plus de dropdown répété dans chaque bloc. */}
 
                     <DaRail>
+                    {leadingChildren.map(renderChild)}
                     {alignmentGroups.map((group)=>(
                       <React.Fragment key={group.key}>
                         {alignmentGroups.length>1&&group.label&&(
@@ -1234,14 +1272,15 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
                           note={item.note}
                           count={item.sequences.length}
                         >
-                          {item.sequences.map((s:any)=><React.Fragment key={s.id}>{renderSequence(s)}</React.Fragment>)}
+                          {item.sequences.map((s:any)=><React.Fragment key={s.id}>{renderSequenceWithChild(s)}</React.Fragment>)}
                         </RushChoiceGroupCard>
                       ) : (
-                        <React.Fragment key={item.seq.id}>{renderSequence(item.seq)}</React.Fragment>
+                        <React.Fragment key={item.seq.id}>{renderSequenceWithChild(item.seq)}</React.Fragment>
                       )
                         )}
                       </React.Fragment>
                     ))}
+                    {trailingChildren.map(renderChild)}
                     </DaRail>
                   </>)}
           </div>

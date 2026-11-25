@@ -20,7 +20,7 @@
  */
 
 import { useEffect, useState, type ReactNode } from "react";
-import { CheckCircle2, Clock3, Circle } from "lucide-react";
+import { CheckCircle2, ChevronRight, Circle, Clock3, Users } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { MemberAvatar } from "@/components/shared/member-avatar";
 import { useDaTheme } from "@/components/da/da-theme";
@@ -77,6 +77,7 @@ export function RushDofusDetailModal({
     metamobVerified = false,
     showOcreBand = false,
     footer,
+    onOpenQuest,
     locale = "fr",
 }: {
     open: boolean;
@@ -84,6 +85,8 @@ export function RushDofusDetailModal({
     dofus: DofusDetailTarget | null;
     summary: string;
     quests: DofusDetailQuest[];
+    /** Clic sur une quête : la fiche se ferme et l'appelant ouvre la quête. */
+    onOpenQuest?: (quest: DofusDetailQuest) => void;
     members?: DofusDetailMember[];
     ocre?: DofusDetailOcre | null;
     metamobVerified?: boolean;
@@ -95,8 +98,10 @@ export function RushDofusDetailModal({
     const en = locale === "en";
     const daScope = daScopeProps(useDaTheme());
     const [tab, setTab] = useState<"quests" | "members">("quests");
-    // Un nouveau Dofus (ou une fermeture) repart sur les quêtes.
+    const [questMembersOpen, setQuestMembersOpen] = useState<string | null>(null);
+    // Un nouveau Dofus (ou une fermeture) repart sur les quêtes et referme les listes.
     useEffect(() => {
+        setQuestMembersOpen(null);
         if (!open) setTab("quests");
     }, [open, dofus?.id]);
 
@@ -189,53 +194,147 @@ export function RushDofusDetailModal({
                                     <ul className="mt-1.5 space-y-1">
                                         {quests.map((quest, index) => {
                                             const status = quest.done ? "done" : quest.current ? "current" : "todo";
+                                            const rowKey = `${quest.id}-${index}`;
+                                            const isMembersOpen = questMembersOpen === rowKey;
+                                            const listedMembers = (quest.members ?? []).filter(
+                                                (member) => member.done || member.current
+                                            );
                                             return (
                                                 <li
-                                                    key={`${quest.id}-${index}`}
-                                                    className="flex items-center gap-2 rounded-[4px] border border-border bg-surface px-2 py-1.5"
+                                                    key={rowKey}
+                                                    className="rounded-[4px] border border-border bg-surface"
                                                 >
-                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                    <img
-                                                        src={quest.asset || QUEST_ICON}
-                                                        alt=""
-                                                        aria-hidden="true"
-                                                        loading="lazy"
-                                                        className="h-4 w-4 shrink-0 object-contain"
-                                                    />
-                                                    <div className="min-w-0 flex-1">
-                                                        <p className="truncate text-xs font-semibold text-foreground">
-                                                            {quest.name}
-                                                        </p>
-                                                        {quest.category ? (
-                                                            <p className="truncate text-[10px] text-muted-foreground">
-                                                                {quest.category}
-                                                            </p>
-                                                        ) : null}
-                                                    </div>
-                                                    {quest.membersDone ? (
-                                                        <span className="shrink-0 text-[10px] text-muted-foreground">
-                                                            {quest.membersDone}{" "}
-                                                            {en
-                                                                ? quest.membersDone > 1 ? "members" : "member"
-                                                                : `membre${quest.membersDone > 1 ? "s" : ""}`}
-                                                        </span>
-                                                    ) : null}
-                                                    <span
-                                                        className={`inline-flex shrink-0 items-center gap-1 rounded-[3px] border px-1.5 py-0.5 text-[10px] font-semibold ${PILL[status]}`}
-                                                    >
-                                                        {status === "done" ? (
-                                                            <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
-                                                        ) : status === "current" ? (
-                                                            <Clock3 className="h-3 w-3" aria-hidden="true" />
+                                                    <div className="flex items-center gap-2 px-2 py-1.5">
+                                                        {onOpenQuest ? (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => onOpenQuest(quest)}
+                                                                className="flex min-w-0 flex-1 items-center gap-2 text-left transition-colors hover:text-success"
+                                                                title={en ? "Open the quest in the guide" : "Ouvrir la quête dans le guide"}
+                                                            >
+                                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                                <img
+                                                                    src={quest.asset || QUEST_ICON}
+                                                                    alt=""
+                                                                    aria-hidden="true"
+                                                                    loading="lazy"
+                                                                    className="h-4 w-4 shrink-0 object-contain"
+                                                                />
+                                                                <span className="min-w-0 flex-1">
+                                                                    <span className="block truncate text-xs font-semibold text-foreground">
+                                                                        {quest.name}
+                                                                    </span>
+                                                                    {quest.category ? (
+                                                                        <span className="block truncate text-[10px] text-muted-foreground">
+                                                                            {quest.category}
+                                                                        </span>
+                                                                    ) : null}
+                                                                </span>
+                                                                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                                                            </button>
                                                         ) : (
-                                                            <Circle className="h-3 w-3" aria-hidden="true" />
+                                                            <div className="flex min-w-0 flex-1 items-center gap-2">
+                                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                                <img
+                                                                    src={quest.asset || QUEST_ICON}
+                                                                    alt=""
+                                                                    aria-hidden="true"
+                                                                    loading="lazy"
+                                                                    className="h-4 w-4 shrink-0 object-contain"
+                                                                />
+                                                                <div className="min-w-0 flex-1">
+                                                                    <p className="truncate text-xs font-semibold text-foreground">
+                                                                        {quest.name}
+                                                                    </p>
+                                                                    {quest.category ? (
+                                                                        <p className="truncate text-[10px] text-muted-foreground">
+                                                                            {quest.category}
+                                                                        </p>
+                                                                    ) : null}
+                                                                </div>
+                                                            </div>
                                                         )}
-                                                        {status === "done"
-                                                            ? en ? "Validated" : "Validée"
-                                                            : status === "current"
-                                                                ? en ? "In progress" : "En cours"
-                                                                : en ? "To do" : "À faire"}
-                                                    </span>
+                                                        {listedMembers.length > 0 ? (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setQuestMembersOpen(isMembersOpen ? null : rowKey)}
+                                                                aria-expanded={isMembersOpen}
+                                                                aria-controls={`quest-members-${index}`}
+                                                                aria-label={`${en ? "See members on" : "Voir les membres sur"} ${quest.name}`}
+                                                                className={cn(
+                                                                    "inline-flex shrink-0 items-center gap-1 rounded-[3px] border px-1.5 py-0.5 text-[10px] font-semibold transition-colors",
+                                                                    isMembersOpen
+                                                                        ? "border-success/40 bg-success/10 text-success"
+                                                                        : "border-border bg-elevated text-muted-foreground hover:text-foreground"
+                                                                )}
+                                                            >
+                                                                <Users className="h-3 w-3" aria-hidden="true" />
+                                                                {listedMembers.length}
+                                                            </button>
+                                                        ) : quest.membersDone ? (
+                                                            <span className="shrink-0 text-[10px] text-muted-foreground">
+                                                                {quest.membersDone}{" "}
+                                                                {en
+                                                                    ? quest.membersDone > 1 ? "members" : "member"
+                                                                    : `membre${quest.membersDone > 1 ? "s" : ""}`}
+                                                            </span>
+                                                        ) : null}
+                                                        <span
+                                                            className={`inline-flex shrink-0 items-center gap-1 rounded-[3px] border px-1.5 py-0.5 text-[10px] font-semibold ${PILL[status]}`}
+                                                        >
+                                                            {status === "done" ? (
+                                                                <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+                                                            ) : status === "current" ? (
+                                                                <Clock3 className="h-3 w-3" aria-hidden="true" />
+                                                            ) : (
+                                                                <Circle className="h-3 w-3" aria-hidden="true" />
+                                                            )}
+                                                            {status === "done"
+                                                                ? en ? "Validated" : "Validée"
+                                                                : status === "current"
+                                                                    ? en ? "In progress" : "En cours"
+                                                                    : en ? "To do" : "À faire"}
+                                                        </span>
+                                                    </div>
+                                                    {isMembersOpen ? (
+                                                        <ul
+                                                            id={`quest-members-${index}`}
+                                                            className="space-y-0.5 border-t border-border/70 px-2 py-1.5"
+                                                        >
+                                                            {listedMembers.map((member, memberIndex) => (
+                                                                <li key={`${member.name}-${memberIndex}`} className="flex items-center gap-2">
+                                                                    <span className="h-5 w-5 shrink-0 overflow-hidden rounded-full border border-border bg-elevated">
+                                                                        <MemberAvatar
+                                                                            src={member.avatar}
+                                                                            name={member.name}
+                                                                            alt={member.name}
+                                                                            fallbackClassName="text-[9px] font-semibold text-muted-foreground"
+                                                                        />
+                                                                    </span>
+                                                                    <span className="min-w-0 flex-1 truncate text-[11px] text-foreground">
+                                                                        {member.name}
+                                                                        {member.isViewer ? (
+                                                                            <span className="ml-1 rounded-[3px] border border-success/30 bg-success/10 px-1 py-0.5 text-[9px] font-semibold uppercase text-success">
+                                                                                {en ? "Me" : "Moi"}
+                                                                            </span>
+                                                                        ) : null}
+                                                                    </span>
+                                                                    <span
+                                                                        className={`inline-flex shrink-0 items-center gap-1 rounded-[3px] border px-1.5 py-0.5 text-[10px] font-semibold ${PILL[member.done ? "done" : "current"]}`}
+                                                                    >
+                                                                        {member.done ? (
+                                                                            <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+                                                                        ) : (
+                                                                            <Clock3 className="h-3 w-3" aria-hidden="true" />
+                                                                        )}
+                                                                        {member.done
+                                                                            ? en ? "Validated" : "Validée"
+                                                                            : en ? "Here" : "Ici"}
+                                                                    </span>
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    ) : null}
                                                 </li>
                                             );
                                         })}

@@ -22,7 +22,7 @@ describe("porte de départ — les coches attendent le personnage", () => {
   it("le guide public bloque les trois chemins d'écriture", () => {
     const code = read(PUBLIC);
     expect(code).toContain("resolveRushStartState(");
-    expect(code).toContain("if (startState.needsCharacter)");
+    expect(code).toContain("if (!was && startState.needsCharacter)");
     expect(code).toContain("if (completeAll && startState.needsCharacter)");
     expect(code).toContain("Choisis d'abord ton personnage");
   });

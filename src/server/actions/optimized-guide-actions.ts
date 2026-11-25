@@ -577,6 +577,7 @@ export async function getGuildOptimizedGuideProgress(slug: string, guildId: stri
             alignmentOrder: true,
             alignmentLevel: true,
             altPseudos: true,
+            userId: true,
             user: { select: { name: true, image: true } },
           },
         },
@@ -1302,6 +1303,22 @@ export async function resetGuideProgress(guildId: string, guideId: string, altPs
 
   const { profileId, characterSlot } = resolvePlayerProgressKey(ctx.profileId, altPseudo);
 
+  /**
+   * Profils **hérités** du même compte (mesure bêta du 25/11/2026) : une ancienne ligne
+   * `UserProfile` peut garder la progression du guide. Le reset doit laver **tous** les
+   * profils du compte dans cette guilde, sinon les cartes Dofus restent à 100 % alors que
+   * le profil courant est à 0. Aucun autre membre n'est touché : le filtre est `userId`.
+   */
+  const accountProfileIds = ctx.id
+    ? (
+        await db.userProfile.findMany({
+          where: { userId: ctx.id, guild: { discordGuildId: guildId } },
+          select: { id: true },
+        })
+      ).map((profile) => profile.id)
+    : [];
+  const scopedProfileIds = [...new Set([profileId, ...accountProfileIds])];
+
   // 🛡️ RATE LIMIT (P0) : 5 reset guide/min par membre.
   const { success: rateOk } = await rateLimit(`guide-reset-guide:${ctx.profileId}`, 5, 60_000);
   if (!rateOk) throw new Error("Trop de requêtes, veuillez patienter.");
@@ -1315,16 +1332,16 @@ export async function resetGuideProgress(guildId: string, guideId: string, altPs
 
   if (milestoneIds.length > 0) {
     await db.playerGuideProgress.deleteMany({
-      where: { profileId, characterSlot, milestoneId: { in: milestoneIds } }
+      where: { profileId: { in: scopedProfileIds }, characterSlot, milestoneId: { in: milestoneIds } }
     });
   }
   // Une remise à zéro du guide efface aussi les coches de ressources du personnage.
   await db.playerGuideResourceCheck.deleteMany({
-    where: { profileId, guideId, characterSlot }
+    where: { profileId: { in: scopedProfileIds }, guideId, characterSlot }
   });
   // … et ses coches de donjons (décision du 23/11/2026 : le reset est complet).
   await db.playerGuideDungeonState.deleteMany({
-    where: { profileId, guideId, characterSlot }
+    where: { profileId: { in: scopedProfileIds }, guideId, characterSlot }
   });
 
   // Also look up guide slug for cache invalidation

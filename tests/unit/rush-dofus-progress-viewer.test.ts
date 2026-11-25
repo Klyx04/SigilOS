@@ -65,6 +65,22 @@ describe("périmètre du panneau de guilde — un lecteur = son personnage actif
         expect(out.map((r) => r.milestoneId)).toEqual(["a", "b", "c"]);
     });
 
+    it("écarte un profil hérité du même compte (même userId)", () => {
+        const rows = [
+            { profileId: "moi", userId: "u1", characterSlot: "PRINCIPAL", milestoneId: "moi", isCompleted: true },
+            { profileId: "ancien", userId: "u1", characterSlot: "PRINCIPAL", milestoneId: "ancien", isCompleted: true },
+            { profileId: "autre", userId: "u2", characterSlot: "PRINCIPAL", milestoneId: "autre", isCompleted: true },
+        ];
+
+        const out = scopeGuildProgressForViewer(rows, {
+            profileId: "moi",
+            userId: "u1",
+            characterSlot: "PRINCIPAL",
+        });
+
+        expect(out.map((r) => r.milestoneId)).toEqual(["moi", "autre"]);
+    });
+
     it("normalise un emplacement absent en PRINCIPAL", () => {
         const rows = [row("moi", null, "a", true), row("moi", undefined, "b", true)];
 
@@ -119,12 +135,15 @@ describe("branchement du périmètre dans le guide interne", () => {
         expect(panel).toContain("visibleProgress");
         expect(panel).toContain("activeCharacterSlot");
         expect(panel).toContain("viewerProfileId");
+        expect(panel).toContain("viewerUserId");
     });
 
     it("le client transmet le profil du lecteur et l'emplacement sélectionné", () => {
         const client = read(CLIENT);
         expect(client).toContain("viewerProfileId={currentProfileId}");
+        expect(client).toContain("viewerUserId={currentUserId}");
         expect(client).toContain('activeCharacterSlot={effectiveAltPseudo ?? "PRINCIPAL"}');
         expect(read(PAGE)).toContain("currentProfileId={user.profileId ?? undefined}");
+        expect(read(PAGE)).toContain("currentUserId={user.id ?? undefined}");
     });
 });

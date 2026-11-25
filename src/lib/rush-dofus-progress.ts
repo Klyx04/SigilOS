@@ -350,20 +350,31 @@ export function projectRushStepKeys(
  * **personnage actif** ; celles des autres membres restent intactes. Un emplacement
  * absent vaut `PRINCIPAL` (même normalisation que `buildGuildProgressRows`).
  * Sans profil lecteur, aucun filtrage : on ne cache jamais les autres membres.
+ *
+ * **Profils hérités (mesure bêta du 25/11/2026)** : un même compte peut garder un ancien
+ * `UserProfile` avec de la progression. Ce n'est pas « un autre membre » : ses lignes sont
+ * écartées du panneau (elles resteraient sinon à 100 % après le reset du profil courant).
+ * La suppression réelle est faite par `resetGuideProgress` (tous les profils du compte).
  */
 export function scopeGuildProgressForViewer<
-    T extends { profileId: string; characterSlot?: string | null },
+    T extends { profileId: string; characterSlot?: string | null; userId?: string | null },
 >(
     rows: readonly T[],
-    viewer: { profileId: string | null | undefined; characterSlot: string }
+    viewer: {
+        profileId: string | null | undefined;
+        userId?: string | null;
+        characterSlot: string;
+    }
 ): T[] {
     if (!viewer.profileId) return [...rows];
     const activeSlot = viewer.characterSlot || "PRINCIPAL";
-    return rows.filter(
-        (row) =>
-            row.profileId !== viewer.profileId ||
-            (row.characterSlot || "PRINCIPAL") === activeSlot
-    );
+    return rows.filter((row) => {
+        if (row.profileId === viewer.profileId) {
+            return (row.characterSlot || "PRINCIPAL") === activeSlot;
+        }
+        if (viewer.userId && row.userId === viewer.userId) return false;
+        return true;
+    });
 }
 
 /**

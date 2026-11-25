@@ -23,6 +23,8 @@ type GuildMemberProgress = {
   milestoneId: string;
   /** Emplacement du personnage (`PRINCIPAL` ou pseudo de mule) — porté par la ligne. */
   characterSlot?: string;
+  /** `User.id` interne — détecte les profils hérités du même compte. */
+  userId?: string | null;
   isCompleted: boolean;
   userName: string;
   userAvatar?: string;
@@ -65,6 +67,7 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
   onFilterChange,
   onOpenQuest,
   viewerProfileId,
+  viewerUserId,
   activeCharacterSlot,
 }: {
   milestones: Milestone[];
@@ -79,6 +82,8 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
   onOpenQuest?: (sequenceId: string) => void;
   /** Profil du lecteur : ses autres emplacements (mules) ne comptent pas dans sa ligne. */
   viewerProfileId?: string | null;
+  /** Compte du lecteur : ses profils hérités ne sont pas affichés comme un autre membre. */
+  viewerUserId?: string | null;
   /** Emplacement du personnage sélectionné (`PRINCIPAL` ou pseudo de mule). */
   activeCharacterSlot?: string;
 }) {
@@ -94,9 +99,10 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
     () =>
       scopeGuildProgressForViewer(guildProgress, {
         profileId: viewerProfileId ?? null,
+        userId: viewerUserId ?? null,
         characterSlot: activeCharacterSlot ?? "PRINCIPAL",
       }),
-    [guildProgress, viewerProfileId, activeCharacterSlot]
+    [guildProgress, viewerProfileId, viewerUserId, activeCharacterSlot]
   );
 
   /** Ids de séquence par bloc — un bloc `isCompleted` vaut toutes ses quêtes. */

@@ -39,6 +39,8 @@ export type GuideProgressRowSource = {
     alignmentOrder?: string | null;
     alignmentLevel?: number | null;
     altPseudos?: unknown;
+    /** `User.id` interne — détecte les profils hérités du même compte. */
+    userId?: string | null;
     user?: { name?: string | null; image?: string | null } | null;
   } | null;
 };
@@ -48,6 +50,8 @@ export type GuideProgressRow = {
   profileId: string;
   milestoneId: string;
   characterSlot?: string;
+  /** `User.id` interne du profil (profils hérités du même compte). */
+  userId?: string | null;
   isCompleted: boolean;
   completedSteps: string[];
   currentStep: string | null;
@@ -116,6 +120,7 @@ export function buildGuildProgressRows(rows: GuideProgressRowSource[]): GuidePro
       profileId: p.profileId,
       milestoneId: p.milestoneId,
       characterSlot: slot,
+      userId: p.profile?.userId ?? null,
       isCompleted: p.isCompleted || false,
       completedSteps: toStepKeys(p.completedSteps),
       currentStep: p.currentStep || null,

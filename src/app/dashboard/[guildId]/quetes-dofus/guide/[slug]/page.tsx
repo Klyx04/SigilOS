@@ -225,6 +225,7 @@ export default async function OptimizedGuideUserPage({ params, searchParams }: P
                             guildId={guildId}
                             selectedCharacter={character}
                             currentProfileId={user.profileId ?? undefined}
+                            currentUserId={user.id ?? undefined}
                             mules={mules}
                             rushUIConfig={resolveRushUIConfig((guide as any).rushUIConfig)}
                             currentUserProfile={{

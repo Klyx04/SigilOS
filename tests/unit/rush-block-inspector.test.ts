@@ -80,3 +80,12 @@ describe("inspecteur de bloc — les quêtes du bloc", () => {
     expect(INSPECTOR).toContain("onClick={onAddSequence}");
   });
 });
+
+describe("inspecteur de bloc — la sauvegarde reste visible", () => {
+  it("le pied sticky nomme Enregistrer le bloc et Annuler", () => {
+    expect(INSPECTOR).toContain("sticky bottom-0");
+    expect(INSPECTOR).toContain("Enregistrer le bloc");
+    expect(INSPECTOR).toContain("onClick={onSave}");
+    expect(INSPECTOR).toContain("onClick={onCancelEdit}");
+  });
+});

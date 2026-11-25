@@ -2853,6 +2853,29 @@ function BlockInspectorForm({
         </DialogContent>
       </Dialog>
 
+      {/* Actions toujours visibles : le petit check du bas sortait de l'écran (retour 25/11).
+          Même pied sticky que le formulaire de quête, sans couleur en dur. */}
+      <div className="sticky bottom-0 z-20 -mx-3 -mb-3 mt-2 flex items-center justify-between gap-2 rounded-b-2xl border-t border-border bg-surface px-3 py-2">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onSave}
+            disabled={isPending}
+            className="flex items-center gap-1.5 rounded-lg bg-success px-3.5 py-2 text-caption font-semibold text-success-foreground transition-colors hover:opacity-90 disabled:opacity-40"
+          >
+            <Check className="h-3.5 w-3.5" aria-hidden /> Enregistrer le bloc
+          </button>
+          <button
+            type="button"
+            onClick={onCancelEdit}
+            className="rounded-lg border border-border px-3 py-2 text-caption font-medium text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+          >
+            Annuler
+          </button>
+        </div>
+        {isPending && <span className="text-caption text-muted-foreground">Enregistrement…</span>}
+      </div>
+
     </div>
   );
 }

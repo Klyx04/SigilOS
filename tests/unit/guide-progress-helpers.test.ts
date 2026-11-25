@@ -26,7 +26,7 @@ describe("buildMilestoneStepKeys", () => {
 });
 
 describe("buildGuildProgressRows", () => {
-  it("mappe le select chirurgical vers la shape client (shape inchangée)", () => {
+  it("mappe le select chirurgical vers la shape client (dont userId)", () => {
     const rows = [
       {
         profileId: "p1",
@@ -34,7 +34,7 @@ describe("buildGuildProgressRows", () => {
         isCompleted: true,
         completedSteps: ["GP1-1", "GP1-2"],
         currentStep: "GP1-2",
-        profile: { pseudoDofus: "Klyx", user: { name: "KlyxOS", image: "https://x/avatar.png" } },
+        profile: { pseudoDofus: "Klyx", userId: "u1", user: { name: "KlyxOS", image: "https://x/avatar.png" } },
       },
       {
         profileId: "p2",
@@ -42,7 +42,7 @@ describe("buildGuildProgressRows", () => {
         isCompleted: false,
         completedSteps: [],
         currentStep: null,
-        profile: { pseudoDofus: null, user: { name: "Bob", image: null } },
+        profile: { pseudoDofus: null, userId: "u2", user: { name: "Bob", image: null } },
       },
       {
         profileId: "p3",
@@ -61,6 +61,7 @@ describe("buildGuildProgressRows", () => {
         profileId: "p1",
         milestoneId: "m1",
         characterSlot: "PRINCIPAL",
+        userId: "u1",
         isCompleted: true,
         completedSteps: ["GP1-1", "GP1-2"],
         currentStep: "GP1-2",
@@ -75,6 +76,7 @@ describe("buildGuildProgressRows", () => {
         profileId: "p2",
         milestoneId: "m1",
         characterSlot: "PRINCIPAL",
+        userId: "u2",
         isCompleted: false,
         completedSteps: [],
         currentStep: null,
@@ -88,6 +90,7 @@ describe("buildGuildProgressRows", () => {
         profileId: "p3",
         milestoneId: "m2",
         characterSlot: "PRINCIPAL",
+        userId: null,
         isCompleted: false,
         completedSteps: [],
         currentStep: "GP2-5",

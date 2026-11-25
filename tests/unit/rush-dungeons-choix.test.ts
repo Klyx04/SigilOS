@@ -224,6 +224,6 @@ describe("Câblage — le panneau et la carte disent le choix", () => {
     const OVERLAY = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestListItem.tsx";
     expect(readFileSync(DASH, "utf8")).toContain("Donjon ×{dungeonBlocks}");
     expect(readFileSync(PUBLIC, "utf8")).toContain("const seqDungeonCount = dungeonProgress.requiredBlocks");
-    expect(readFileSync(OVERLAY, "utf8")).toContain("Donjon ×{requiredDungeonBlocks}");
+    expect(readFileSync(OVERLAY, "utf8")).toContain("×{requiredDungeonBlocks}");
   });
 });

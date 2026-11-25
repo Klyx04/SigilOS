@@ -786,7 +786,8 @@ describe("DA Gouache Wakfu — retouches UI/UX 19/11/2026", () => {
 
     it("l'icône de quête ne double pas le nœud ✓ et une image cassée disparaît", () => {
         const src = readFileSync(OVERLAY_ITEM, "utf8");
-        expect(src.match(/\{!isDone && titleIcon\}/g)?.length).toBe(2);
+        // 24/11/2026 : une seule icône, à gauche, toujours présente (repli quête générique).
+        expect(src.match(/\{titleIcon\}/g)?.length).toBe(1);
         expect(src).toContain("onError={() => setTitleIconBroken(true)}");
     });
 

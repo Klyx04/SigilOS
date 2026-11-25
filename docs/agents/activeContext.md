@@ -6,14 +6,15 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
-## 📝 Session 24/11/2026 (suite 70) — **Rush : overlay, donjons, PiP et validation** — branches `fix/rush-overlay-dungeons-pip-2026-11-24` (PR **#1533**) + `feat/rush-dungeons-auto-2026-11-25` (PR **#1534**)
+## 📝 Session 24/11/2026 (suite 70) — **Rush : overlay, donjons, PiP et validation** — branches `fix/rush-overlay-dungeons-pip-2026-11-24` (PR **#1533**), `feat/rush-dungeons-auto-2026-11-25` (PR **#1534**), `feat/rush-overlay-compact-2026-11-25` (PR **#1535**)
 
 > **Demande user (verbatim)** : retours captures — tiroir conditions vide, donjons « à faire » par défaut + clignotement, image des combats, overlay compact, Opera GX ; puis « les quêtes invalidées doivent remettre les dj en à faire » et « valider une quête passe et coche les dj ».
 > **Mesuré** : `prereq_text` était compté en conditions alors que `RushTagBadge` le masque → tiroir vide ; un placeholder 1×1 du proxy passait pour une image ; `requestWindow` pouvait réussir puis `preparePipDocument` échouer et **jeter la PiP ouverte** (fallback popup) ; le commentaire « Opera GX n'expose pas l'API » était faux (Opera 102+ supporte Document PiP).
 > **Fait #1533** : prérequis retirés des conditions ; portrait 1×1 → repli ; `dungeonDisplayState` = « À faire » par défaut (affichage seul) ; pulse sur la pastille, les vignettes **et le bloc panneau** ; `openPipWindow` catch + **PiP conservée si les styles échouent** ; titre `SigilOS — Overlay` ; toast « non épinglée » retiré du guide Rush ; commentaires Opera corrigés.
 > **Fait #1534** : les donjons non renseignés s'affichent « À faire » ; la **validation unitaire reste verrouillée** par les donjons requis (le **bloc** bypass, décision 20/11) ; une quête dévalidée efface ses états ; dashboard/overlay/public rafraîchissent la progression donjons ; tests de parité alignés.
-> **Preuves** : **8 470 tests ✅** · `tsc` 0 · `lint` 0 erreur · aucune migration.
-> **Reste** : liens monstres → fiche ; overlay compact + petite modale au clic d'une quête ; contrôle overlay public invité ; **bêta/prod apply** du backfill conditions.
+> **Fait #1535** : overlay compact (icône de quête à gauche, nom pleine largeur, icônes succès / repère / position / donjon ×N en haut) ; clic quête → mini-modale DPLN/DofusDB/détails (liens vides masqués) ; monstres des combats cliquables → fiche (id lu dans l'asset, pas de fiche inventée).
+> **Preuves** : **8 472 tests ✅** · `tsc` 0 · `lint` 0 erreur · aucune migration.
+> **Reste** : mode blanc, choix Brak 55/66 + God, visuel de bloc terminé / bouton masquer-afficher, contrôle overlay public invité, **bêta/prod apply** du backfill conditions.
 > **Rotation** : bloc « suite 64 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 ## 📝 Session 24/11/2026 (suite 69) — **Rush : conditions Tougli (⑭ + ⑩)** — branche `feat/rush-constraints-2026-11-24` (PR **#1531**, revue **#1532**)

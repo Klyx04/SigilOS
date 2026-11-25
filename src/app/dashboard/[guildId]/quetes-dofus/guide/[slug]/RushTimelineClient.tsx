@@ -128,6 +128,7 @@ import type { RushUIConfig } from "@/lib/rush-ui-config";
 import { safeImageUrl } from "@/lib/security";
 import { hasRushHints } from "@/lib/rush-constraints";
 import { RUSH_DOFUS_META } from "@/lib/rush-dofus-meta";
+import { resolveRushCharacterSlot } from "@/lib/rush-character-slot";
 import { RushSeparatorBanner } from "@/components/dofus-quests/rush/RushSeparatorBanner";
 import { RushInfoBanner } from "@/components/dofus-quests/rush/RushInfoBanner";
 import { RushRichText } from "@/components/dofus-quests/rush/RushRichText";
@@ -1946,7 +1947,7 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
   // unique est le profil du personnage (`currentUserProfile` / `localProfile`), édité
   // sur la page Profil ; une quête d'alignement cochée met le profil à jour via
   // `applyRushAlignmentFromSequence` (jamais un écran d'édition ici).
-  const effectiveAltPseudo=useMemo(()=>{if(!altPseudo)return undefined;const mp=localProfile?.pseudoDofus;if(mp&&altPseudo===mp)return undefined;return altPseudo;},[altPseudo,localProfile?.pseudoDofus]);
+  const effectiveAltPseudo=useMemo(()=>resolveRushCharacterSlot({altPseudo,mainPseudo:localProfile?.pseudoDofus,mules}),[altPseudo,localProfile?.pseudoDofus,mules]);
   // ── Donjons : états par OCCURRENCE, chargés au montage (pastilles + panneaux) ──
   // Chargés ici (et pas à l'ouverture de la fenêtre) parce qu'une coche de quête doit
   // être bloquée AVANT l'aller-retour serveur. Le serveur reste l'autorité : ce n'est

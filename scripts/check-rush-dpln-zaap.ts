@@ -43,14 +43,6 @@ const limit = Math.max(0, Number(valueOf("--limit", "0")) || 0);
 const offset = Math.max(0, Number(valueOf("--offset", "0")) || 0);
 const delay = Math.max(250, Number(valueOf("--delay", "700")) || 700);
 
-const decode = (value: string) =>
-  value
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&eacute;|&egrave;|&ecirc;/gi, "e")
-    .replace(/\s+/g, " ")
-    .trim();
-
 type Parsed = {
   x: number;
   y: number;
@@ -61,7 +53,9 @@ type Parsed = {
 };
 
 function parsePage(html: string): Parsed | null {
-  const text = decode(html);
+  // Aucun décodage d'entités : la regex ne lit que `[x,y]`, `!` et `(zaap x,y)`,
+  // qui ne contiennent jamais d'entité HTML (et un double-unescape est un défaut).
+  const text = html;
   const noAuto = /no-auto-zaap/.test(html);
   // Ligne du haut : « Position de lancement : Zone [x,y] » (le `!` éventuel fait
   // partie du format DPLN, avant ou après l'annotation zaap).

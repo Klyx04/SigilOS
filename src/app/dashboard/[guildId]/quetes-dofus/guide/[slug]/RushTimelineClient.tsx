@@ -159,8 +159,8 @@ const TARGET_HIGHLIGHT_MS = 1200;
 
 type Sequence = { id: string; subGuideRef: string; subGuideName: string; stepFrom?: number|null; stepTo?: number|null; note?: string|null; isOptional: boolean; order: number; dungeon?: DungeonRef|null; dungeons?: DungeonRef[]; dofusdbUrl?: string|null; dofuspourlesnoobsUrl?: string|null; tips?: string|null; constraints?: RushQuestConstraints|null; alignReq?: string|null; alignOrderCode?: string|null; alignLevelReq?: number|null; isSuccess?: boolean; icon?: string | null; metamobMonsterId?: number|null; activityTags?: ActivityTag[]; };
 type Milestone = { id:string; title:string; subtitle?:string|null; description?:string|null; type:string; accentColor?:string|null; imageUrl?:string|null; chapter:number; chapterLabel:string; order:number; isOptional:boolean; tips?:string|null; dofusId?:string|null; sequences:Sequence[]; children?:RushMilestoneChild[]; playerProgress?:{isCompleted:boolean;completedSteps?:any;currentStep?:string|null}[]; };
-type GuildMemberProgress = { profileId:string; milestoneId:string; characterSlot?:string; isCompleted:boolean; userName:string; userAvatar?:string; currentStep?:string|null };
-type RushTimelineClientProps = { guide:{id:string;name:string;slug:string;description?:string|null;isUnderConstruction?:boolean;imageUrl?:string|null;isDiscordConfigured?:boolean}; milestones:Milestone[]; guildProgress:GuildMemberProgress[]; guildId:string; selectedCharacter?:string; currentProfileId?:string; mules?:any[]; rushUIConfig?: RushUIConfig; currentUserProfile:{alignment?:string|null;alignmentOrder?:string|null;alignmentLevel?:number;altPseudos?:any[];dofusClass?:string|null;metamobPseudo?:string|null;metiers?:any[];pseudoDofus?:string|null;}; ocreStats?:{bosses?:{total:number;gathered:number};archis?:{total:number;gathered:number};progressPercent?:number;currentStep?:number;serverName?:string;parallelQuests?:number}|null; capturedOcreMonsterIds?:number[]; capturedMonsterNames?:string[]; ocreMonsters?:OcreMonsterLite[]; initialResourceChecks?:string[]; canViewSucces?:boolean; };
+type GuildMemberProgress = { profileId:string; milestoneId:string; characterSlot?:string; userId?:string|null; isCompleted:boolean; userName:string; userAvatar?:string; currentStep?:string|null };
+type RushTimelineClientProps = { guide:{id:string;name:string;slug:string;description?:string|null;isUnderConstruction?:boolean;imageUrl?:string|null;isDiscordConfigured?:boolean}; milestones:Milestone[]; guildProgress:GuildMemberProgress[]; guildId:string; selectedCharacter?:string; currentProfileId?:string; currentUserId?:string; mules?:any[]; rushUIConfig?: RushUIConfig; currentUserProfile:{alignment?:string|null;alignmentOrder?:string|null;alignmentLevel?:number;altPseudos?:any[];dofusClass?:string|null;metamobPseudo?:string|null;metiers?:any[];pseudoDofus?:string|null;}; ocreStats?:{bosses?:{total:number;gathered:number};archis?:{total:number;gathered:number};progressPercent?:number;currentStep?:number;serverName?:string;parallelQuests?:number}|null; capturedOcreMonsterIds?:number[]; capturedMonsterNames?:string[]; ocreMonsters?:OcreMonsterLite[]; initialResourceChecks?:string[]; canViewSucces?:boolean; };
 // Dofus du jeu — SOURCE UNIQUE (`src/lib/rush-dofus-meta.ts`), partagée avec le
 // studio God, le guide public et l'overlay (cinq copies divergentes avant le
 // 08/10/2026 — cf. l'en-tête du module).
@@ -1721,7 +1721,7 @@ function ContextualHelp({ label, children, className }: { label: string; childre
 // MAIN COMPONENT
 // ══════════════════════════════════════════════════════════════════════════════
 
-export default function RushTimelineClient({ guide, milestones, guildProgress, guildId, selectedCharacter="PRINCIPAL", currentProfileId, mules=[], currentUserProfile, rushUIConfig, ocreStats, capturedOcreMonsterIds, capturedMonsterNames, ocreMonsters=[], initialResourceChecks, canViewSucces=false }: RushTimelineClientProps) {
+export default function RushTimelineClient({ guide, milestones, guildProgress, guildId, selectedCharacter="PRINCIPAL", currentProfileId, currentUserId, mules=[], currentUserProfile, rushUIConfig, ocreStats, capturedOcreMonsterIds, capturedMonsterNames, ocreMonsters=[], initialResourceChecks, canViewSucces=false }: RushTimelineClientProps) {
 const reduceMotion=useReducedMotion();
 const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[capturedOcreMonsterIds]);
   const capturedMonsterNamesMemo=useMemo(()=>capturedMonsterNames||[], [capturedMonsterNames]);
@@ -3324,7 +3324,7 @@ const timelineItems=useMemo(()=>{
       {celebrate && <MilestoneCelebrationBurst title={celebrate.title} tint={celebrate.tint ?? undefined} />}
     </AnimatePresence>
     <RushAlignmentPanel onChooseAlignment={() => setAlignmentEditOpen(true)} />
-    <GuildStatusPanel milestones={contentMilestones} questsByDofus={dofusQuestsByDofus} guildProgress={guildProgress} stepKeysBySequenceId={stepKeysBySequenceId} activeFilter={dofusFilter} onFilterChange={setDofusFilter} viewerProfileId={currentProfileId} activeCharacterSlot={effectiveAltPseudo ?? "PRINCIPAL"} onOpenQuest={scrollToSequence}/>
+    <GuildStatusPanel milestones={contentMilestones} questsByDofus={dofusQuestsByDofus} guildProgress={guildProgress} stepKeysBySequenceId={stepKeysBySequenceId} activeFilter={dofusFilter} onFilterChange={setDofusFilter} viewerProfileId={currentProfileId} viewerUserId={currentUserId} activeCharacterSlot={effectiveAltPseudo ?? "PRINCIPAL"} onOpenQuest={scrollToSequence}/>
     {/* Prendre par la main SANS reproposer le tour : personnage → cité (optionnelle) → première quête. */}
     <RushStartHerePanel
       state={{

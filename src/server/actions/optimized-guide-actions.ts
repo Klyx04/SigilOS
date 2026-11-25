@@ -131,6 +131,10 @@ async function requireRushAccess() {
  */
 function revalidateRushContent() {
   revalidatePath("/guides/rush-sylvestre");
+  // Les fiches publiques /q/[slug] sont en ISR 3600 : sans cette ligne, une
+  // synchro de positions ou un backfill conditions reste invisible une heure
+  // (mesure bêta du 25/11/2026 : « les racines du mal » servie sans mapId).
+  revalidatePath("/guides/rush-sylvestre/q/[slug]", "page");
   revalidatePath("/dashboard");
   revalidatePath("/god/rush-sylvestre");
 }

@@ -32,7 +32,7 @@ const tag = (overrides: Partial<RushPosTag> = {}): RushPosTag => ({
   ...overrides,
 });
 
-const plan = (tagValue: RushPosTag, questIds: number[]) =>
+const plan = (tagValue: RushPosTag, questIds: number[], trustHd = false) =>
   planRushPosFix({
     tag: tagValue,
     questIds,
@@ -40,6 +40,7 @@ const plan = (tagValue: RushPosTag, questIds: number[]) =>
     mapById: MAPS,
     worldIds: WORLD_IDS,
     hdMapIds: HD,
+    trustHd,
   });
 
 describe("positions Rush — réparation monde + carte", () => {
@@ -90,6 +91,14 @@ describe("positions Rush — réparation monde + carte", () => {
     const result = plan(tag({ worldId: 1 }), [44]);
 
     expect(result.status).toBe("none");
+  });
+
+  it("avec trustHd (ops sans montage hd_maps), pose quand même la carte imposée", () => {
+    // Le conteneur d'ops ne voit pas `public/game-data/hd_maps` (dockerignore) ;
+    // l'app les sert depuis le volume hôte. `--trust-hd` accepte GameQuest.imageUrl.
+    const result = plan(tag({ worldId: 1 }), [44], true);
+
+    expect(result).toMatchObject({ status: "fix-map", mapId: 888, mapWorld: null });
   });
 
   it("refuse d'arbitrer plusieurs cartes différentes", () => {

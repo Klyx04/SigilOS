@@ -140,6 +140,7 @@ export function PublicDofusProgressPanel({
                               sequence.stepFrom != null && sequence.stepTo != null && sequence.stepTo >= sequence.stepFrom
                                   ? sequence.stepTo - sequence.stepFrom + 1
                                   : 1,
+                          sequenceId: sequence.id,
                       };
                       const status = questStatusForMembers([ref], members)[0];
                       return {

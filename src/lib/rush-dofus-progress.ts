@@ -27,6 +27,8 @@ export type DofusQuestRef = {
     step: string;
     /** Nombre d'étapes de la quête (1 pour une quête « -all »). */
     steps: number;
+    /** Id de la séquence Rush — cible du clic « ouvrir la quête » dans la timeline. */
+    sequenceId?: string;
 };
 
 export type MemberDofusProgress = {
@@ -53,8 +55,22 @@ export type DofusMilestoneStat = {
 };
 
 /** Statut d'une **quête** dans la fiche d'un Dofus (interne et public). */
+export type DofusQuestMemberStatus = {
+    /** Nom affichable (personnage / pseudo du profil), borné par `questStatusForMembers`. */
+    name: string;
+    avatar?: string | null;
+    /** Vrai pour le lecteur lui-même — la fiche affiche le badge « Moi ». */
+    isViewer?: boolean;
+    done: boolean;
+    /** La personne est sur cette quête (repère « Je suis ici »). */
+    current: boolean;
+};
+
+/** Statut d'une **quête** dans la fiche d'un Dofus (interne et public). */
 export type DofusQuestStatus = {
     id: string;
+    /** Id de la séquence Rush (clic vers la timeline), quand il est connu. */
+    sequenceId?: string;
     name: string;
     category: string;
     /** Au moins une personne (ou le lecteur) a toutes les étapes de la quête. */
@@ -65,6 +81,8 @@ export type DofusQuestStatus = {
     membersDone?: number;
     /** Communauté : nombre de personnes actuellement sur la quête. */
     membersHere?: number;
+    /** Membres qui ont validé la quête ou qui y sont — jamais les « à faire ». */
+    members?: DofusQuestMemberStatus[];
 };
 
 /**
@@ -73,31 +91,56 @@ export type DofusQuestStatus = {
  * Une quête est « validée » quand **toutes ses étapes** le sont (`isQuestDone`) ; elle est
  * « en cours » quand l'étape courante d'une personne appartient à ses clés. Le lecteur
  * (mode personnel) passe par la même règle : il est un groupe d'une personne.
+ *
+ * `members` ne liste que les personnes **qui ont validé la quête ou qui y sont** : la fiche
+ * ne remplit pas une liste avec des « à faire ». Le nom est facultatif — sans nom, la
+ * personne compte dans les totaux mais n'est pas inventée à l'écran.
  */
 export function questStatusForMembers(
     quests: DofusQuestRef[],
-    members: ReadonlyArray<{ completedSteps?: Iterable<string>; currentStep?: string | null }>
+    members: ReadonlyArray<{
+        completedSteps?: Iterable<string>;
+        currentStep?: string | null;
+        name?: string | null;
+        avatar?: string | null;
+        isViewer?: boolean;
+    }>
 ): DofusQuestStatus[] {
     return quests.map((quest) => {
         const keys = questStepKeys(quest);
         let membersDone = 0;
         let membersHere = 0;
+        const listed: DofusQuestMemberStatus[] = [];
         for (const member of members) {
             const steps = new Set(member.completedSteps ?? []);
-            if (isQuestDone(quest, steps)) {
+            const done = isQuestDone(quest, steps);
+            const current = !done && !!member.currentStep && keys.includes(member.currentStep);
+            if (done) {
                 membersDone += 1;
-            } else if (member.currentStep && keys.includes(member.currentStep)) {
+            } else if (current) {
                 membersHere += 1;
             }
+            const name =
+                typeof member.name === "string" ? member.name.trim().slice(0, 80) : "";
+            if (!name || (!done && !current)) continue;
+            listed.push({
+                name,
+                avatar: member.avatar ?? null,
+                isViewer: member.isViewer === true,
+                done,
+                current,
+            });
         }
         return {
             id: quest.step,
+            ...(quest.sequenceId ? { sequenceId: quest.sequenceId } : {}),
             name: quest.label,
             category: quest.category,
             done: membersDone > 0,
             current: membersHere > 0,
             membersDone,
             membersHere,
+            members: listed,
         };
     });
 }

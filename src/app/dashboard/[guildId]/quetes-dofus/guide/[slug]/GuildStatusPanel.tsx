@@ -63,6 +63,7 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
   stepKeysBySequenceId,
   activeFilter,
   onFilterChange,
+  onOpenQuest,
   viewerProfileId,
   activeCharacterSlot,
 }: {
@@ -74,6 +75,8 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
   stepKeysBySequenceId: ReadonlyMap<string, readonly string[]>;
   activeFilter: string | null;
   onFilterChange: (id: string | null) => void;
+  /** Clic sur une quête de la fiche : la page ferme la fiche et va à la quête. */
+  onOpenQuest?: (sequenceId: string) => void;
   /** Profil du lecteur : ses autres emplacements (mules) ne comptent pas dans sa ligne. */
   viewerProfileId?: string | null;
   /** Emplacement du personnage sélectionné (`PRINCIPAL` ou pseudo de mule). */
@@ -217,16 +220,27 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
     }
     return questStatusForMembers(
       quests,
-      [...byMember.values()].map((entry) => ({
-        completedSteps: memberCompletedStepKeys({
-          rows: entry.rows,
-          sequenceIdsByMilestone,
-          stepKeysBySequenceId,
-        }),
-        currentStep: entry.currentStep,
-      }))
+      [...byMember.values()].map((entry) => {
+        const first = entry.rows[0];
+        const isViewer = !!viewerProfileId && first?.profileId === viewerProfileId;
+        const viewerLabel =
+          isViewer && activeCharacterSlot && activeCharacterSlot !== "PRINCIPAL"
+            ? activeCharacterSlot
+            : null;
+        return {
+          completedSteps: memberCompletedStepKeys({
+            rows: entry.rows,
+            sequenceIdsByMilestone,
+            stepKeysBySequenceId,
+          }),
+          currentStep: entry.currentStep,
+          name: viewerLabel ?? first?.userName ?? null,
+          avatar: first?.userAvatar ?? null,
+          isViewer,
+        };
+      })
     );
-  }, [selected, questsByDofus, milestones, visibleProgress, stepKeysBySequenceId, sequenceIdsByMilestone]);
+  }, [selected, questsByDofus, milestones, visibleProgress, stepKeysBySequenceId, sequenceIdsByMilestone, viewerProfileId, activeCharacterSlot]);
 
   if (dofusStats.length === 0) return null;
 
@@ -258,6 +272,7 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
                 type="button"
                 onClick={() => setOpenDofusId(d.id)}
                 aria-label={`Voir où en sont les membres sur le Dofus ${d.label} — ${d.pct} %, ${d.membersInProgress.length} membre(s) engagé(s)`}
+                aria-pressed={isActive}
                 className={`relative flex flex-col items-center gap-1 p-1.5 text-center cursor-pointer shrink-0 w-[78px] rounded-[4px] border transition-colors ${
                   isActive
                     ? "border-success bg-success/5"
@@ -327,6 +342,14 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
             : ""
         }
         quests={selectedQuestRows}
+        onOpenQuest={
+          onOpenQuest
+            ? (quest) => {
+                setOpenDofusId(null);
+                onOpenQuest(quest.sequenceId ?? quest.id);
+              }
+            : undefined
+        }
         members={
           selected
             ? selected.membersInProgress.map((member) => ({

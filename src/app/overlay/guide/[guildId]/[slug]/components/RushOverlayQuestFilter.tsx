@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { RushQuestCounts, RushQuestFilter } from "@/lib/rush-quest-filter";
 
@@ -24,6 +24,8 @@ export function RushOverlayQuestFilter({
   onChange,
   counts,
   compact = false,
+  hideCompleted = false,
+  onToggleHideCompleted,
 }: {
   value: RushQuestFilter;
   onChange: (value: RushQuestFilter) => void;
@@ -31,6 +33,9 @@ export function RushOverlayQuestFilter({
   counts?: RushQuestCounts;
   /** PiP étroite : un seul dropdown DA, jamais quatre onglets qui wrappent. */
   compact?: boolean;
+  /** Contrôle « masquer les faites » VISIBLE dans la barre de filtres (demande 25/11). */
+  hideCompleted?: boolean;
+  onToggleHideCompleted?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -54,6 +59,7 @@ export function RushOverlayQuestFilter({
 
   if (compact) {
     return (
+      <div className="flex items-center gap-1.5">
       <div className="da-filter-select relative" ref={rootRef}>
         <button
           type="button"
@@ -93,6 +99,19 @@ export function RushOverlayQuestFilter({
           </div>
         )}
       </div>
+      {onToggleHideCompleted ? (
+        <button
+          type="button"
+          onClick={onToggleHideCompleted}
+          aria-pressed={hideCompleted}
+          aria-label={hideCompleted ? "Afficher les quêtes faites" : "Masquer les quêtes faites"}
+          title={hideCompleted ? "Afficher les quêtes faites" : "Masquer les quêtes faites"}
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[4px] border border-border bg-surface text-muted-foreground transition-colors hover:text-foreground"
+        >
+          {hideCompleted ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+        </button>
+      ) : null}
+      </div>
     );
   }
 
@@ -117,6 +136,18 @@ export function RushOverlayQuestFilter({
           </button>
         );
       })}
+      {onToggleHideCompleted ? (
+        <button
+          type="button"
+          onClick={onToggleHideCompleted}
+          aria-pressed={hideCompleted}
+          title={hideCompleted ? "Afficher les quêtes faites" : "Masquer les quêtes faites"}
+          className="ml-auto flex h-7 cursor-pointer items-center gap-1 text-[12px] font-semibold text-muted-foreground transition-colors hover:text-foreground motion-reduce:transition-none"
+        >
+          {hideCompleted ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+          <span className="whitespace-nowrap">{hideCompleted ? "Afficher" : "Masquer"}</span>
+        </button>
+      ) : null}
     </div>
   );
 }

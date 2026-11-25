@@ -38,6 +38,16 @@ export function preparePipDocument(win: Window): Document {
   doc.body.style.backgroundColor = isDark ? "#0b0c10" : "#f3f1e5";
   doc.body.style.color = isDark ? "#f4f4f5" : "#2a3123";
 
+  // Document PiP = document `about:blank` : sans <base>, chaque URL relative
+  // (`/assets/...`, `/uploads/...`, `/api/assets-dofus/...`) se résout contre
+  // `about:blank` et l'image échoue. On ancre le document sur l'URL de l'hôte :
+  // les vignettes Ocre (et tous les assets relatifs) se chargent comme dans la page.
+  if (doc.head && !doc.querySelector("base")) {
+    const base = doc.createElement("base");
+    base.href = document.baseURI;
+    doc.head.prepend(base);
+  }
+
   // Copie des feuilles de style via <style>
   for (const sheet of Array.from(document.styleSheets)) {
     try {

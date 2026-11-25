@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import { ChevronDown, ChevronUp, CheckCheck, Copy, Check } from "lucide-react";
-import { toast } from "sonner";
+import { useOverlayToast } from "@/components/rush/overlay-toast";
 import { cn } from "@/lib/utils";
 import { copyToClipboard } from "@/lib/clipboard";
 import { RUSH_RESOURCES_PICTO, rushResourceKey } from "@/lib/rush-guide-utils";
@@ -46,6 +46,7 @@ export function QuestItemResourceGrid({
 }: QuestItemResourceGridProps) {
   const [filterMode, setFilterMode] = useState<"remaining" | "all">("remaining");
   const [copiedName, setCopiedName] = useState<string | null>(null);
+  const toast = useOverlayToast();
 
   const parsedItems = useMemo(() => {
     return items

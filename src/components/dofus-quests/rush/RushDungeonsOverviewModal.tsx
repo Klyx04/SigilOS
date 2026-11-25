@@ -381,6 +381,17 @@ export function RushDungeonsOverviewModal({
   );
   const rows = useMemo(() => filterRushDungeonsOverview(overview, filter), [overview, filter]);
   const groups = useMemo(() => groupRushDungeonsByBlock(overview, rows), [overview, rows]);
+  // Compteurs des filtres : sans eux, « À faire / Fait » ne dit pas combien de
+  // donjons on va voir avant de cliquer (retour user 25/11/2026).
+  const stateCounts = useMemo(() => {
+    let done = 0;
+    let todo = 0;
+    for (const row of overview.rows) {
+      if (row.totalOccurrences > 0 && row.doneOccurrences >= row.totalOccurrences) done += 1;
+      else todo += 1;
+    }
+    return { done, todo };
+  }, [overview.rows]);
   const membersByKey = useMemo(() => {
     const map = new Map<string, RushOverviewMember>();
     for (const member of members ?? []) map.set(member.key, member);
@@ -441,16 +452,45 @@ export function RushDungeonsOverviewModal({
               {overview.counts.exigencesDone} / {overview.counts.exigences}
             </span>
           </DialogTitle>
+          {/* Progression en tête : la donnée qui donne envie de finir, pas une
+              troisième ligne de chiffres à décrypter (retour user 25/11/2026). */}
+          <div className="mt-2 flex items-center gap-2">
+            <div
+              className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-[2px] bg-elevated"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={Math.max(overview.counts.exigences, 1)}
+              aria-valuenow={overview.counts.exigencesDone}
+              aria-label={labels.title}
+            >
+              <div
+                className="h-full bg-success transition-all"
+                style={{
+                  width: `${
+                    overview.counts.exigences > 0
+                      ? Math.round((overview.counts.exigencesDone / overview.counts.exigences) * 100)
+                      : 0
+                  }%`,
+                }}
+              />
+            </div>
+            <span className="shrink-0 text-[10px] font-semibold tabular-nums text-muted-foreground">
+              {overview.counts.exigences > 0
+                ? Math.round((overview.counts.exigencesDone / overview.counts.exigences) * 100)
+                : 0}
+              %
+            </span>
+          </div>
+          <p className="mt-1 text-[10px] text-muted-foreground">
+            {overview.counts.dungeons} donjons · {overview.counts.occurrences} passages dans les
+            quêtes · {overview.counts.exigences} exigences
+            {routeLabel ? ` · ${routeLabel}` : ""}
+          </p>
         </DialogHeader>
 
         <div className="flex min-h-0 flex-1 flex-col">
           <div className="shrink-0 border-b border-border px-3 py-2">
-            <p className="text-[10px] text-muted-foreground">
-              {overview.counts.dungeons} donjons · {overview.counts.occurrences} occurrences ·{" "}
-              {overview.counts.exigences} exigences
-              {routeLabel ? ` · ${routeLabel}` : ""}
-            </p>
-            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-1.5">
               {(["all", "todo", "done"] as const).map((state) => (
                 <button
                   key={state}
@@ -458,13 +498,20 @@ export function RushDungeonsOverviewModal({
                   onClick={() => setFilter((current) => ({ ...current, state }))}
                   aria-pressed={filter.state === state}
                   className={cn(
-                    "min-h-11 rounded-[4px] border px-2 py-1 text-[11px] font-medium transition-colors sm:min-h-0",
+                    "inline-flex min-h-11 items-center gap-1 rounded-[4px] border px-2 py-1 text-[11px] font-medium transition-colors sm:min-h-0",
                     filter.state === state
                       ? "border-success/40 bg-success/10 text-success"
                       : "border-border text-muted-foreground hover:text-foreground"
                   )}
                 >
                   {labels[state]}
+                  <span className="text-[10px] font-semibold tabular-nums opacity-70">
+                    {state === "all"
+                      ? overview.counts.dungeons
+                      : state === "done"
+                        ? stateCounts.done
+                        : stateCounts.todo}
+                  </span>
                 </button>
               ))}
               <button
@@ -596,10 +643,32 @@ export function RushDungeonsOverviewModal({
                       <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden="true" />
                     )}
                     <span className="truncate text-[11px] font-semibold text-foreground">{block.title}</span>
-                    <span className="ml-auto shrink-0 text-[10px] tabular-nums text-muted-foreground">
-                      {block.exigencesDone} / {block.exigences}
+                    {block.exigences > 0 && block.exigencesDone >= block.exigences ? (
+                      <Check className="h-3 w-3 shrink-0 text-success" aria-label="Bloc terminé" />
+                    ) : null}
+                    <span
+                      className="da-plank ml-auto shrink-0"
+                      data-size="mini"
+                      role="img"
+                      aria-label={`${block.exigencesDone} exigences faites sur ${block.exigences}`}
+                    >
+                      <i />
+                      <b />
+                      <span>
+                        {block.exigencesDone}/{block.exigences}
+                      </span>
                     </span>
                   </button>
+                  {block.exigences > 0 ? (
+                    <div className="h-0.5 bg-elevated" aria-hidden="true">
+                      <div
+                        className="h-full bg-success transition-all"
+                        style={{
+                          width: `${Math.round((block.exigencesDone / block.exigences) * 100)}%`,
+                        }}
+                      />
+                    </div>
+                  ) : null}
                   {isExpanded(block.id) ? (
                     <ul>
                       {blockRows.map((row) => (

@@ -46,6 +46,12 @@ interface RushOverlayDungeonCardProps {
   className?: string;
   /** Masque le titre « Donjons requis » quand le panneau parent porte déjà le sien. */
   hideHeader?: boolean;
+  /**
+   * `stacked` : nom sur toute la largeur, actions (Ocre, succès, Fait / À faire)
+   * sur une 2ᵉ ligne. Obligatoire dans la modale donjon de l'overlay (22 rem) :
+   * en `inline`, le nom du boss était tronqué à « Me… » par les quatre boutons.
+   */
+  layout?: "inline" | "stacked";
   /** Quête concernée : indispensable pour lire/écrire l'état **par occurrence**. */
   sequenceId?: string;
   /** États de ce joueur (`sequenceId::dungeonKey`). */
@@ -80,6 +86,7 @@ export function RushOverlayDungeonCard({
   guildId,
   className,
   hideHeader = false,
+  layout = "inline",
   sequenceId,
   states,
   busyKey = null,
@@ -134,6 +141,7 @@ export function RushOverlayDungeonCard({
                 dj={dj}
                 href={href}
                 isPublic={isPublic}
+                layout={layout}
                 state={state}
                 displayState={displayState}
                 busy={!!key && busyKey === `${sequenceId}::${key}`}
@@ -161,6 +169,7 @@ function DungeonRow({
   dj,
   href,
   isPublic,
+  layout = "inline",
   state,
   displayState,
   busy,
@@ -174,6 +183,7 @@ function DungeonRow({
   dj: DungeonInfo;
   href: string | null;
   isPublic: boolean;
+  layout?: "inline" | "stacked";
   state: RushDungeonState | null;
   displayState: RushDungeonState;
   busy: boolean;
@@ -229,7 +239,12 @@ function DungeonRow({
         )}
       </span>
       <span className="min-w-0 flex-1 text-left">
-        <span className="block truncate text-[13px] font-semibold text-foreground">
+        <span
+          className={cn(
+            "block text-[13px] font-semibold text-foreground",
+            layout === "stacked" ? "line-clamp-2" : "truncate"
+          )}
+        >
           {bossDisplayName}
           {dj.isOptional ? (
             <span className="ml-1 rounded-[3px] border border-border px-1 align-middle text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -237,7 +252,12 @@ function DungeonRow({
             </span>
           ) : null}
         </span>
-        <span className="block truncate text-[11px] text-muted-foreground">
+        <span
+          className={cn(
+            "block text-[11px] text-muted-foreground",
+            layout === "stacked" ? "line-clamp-2" : "truncate"
+          )}
+        >
           {dj.name || "Donjon"}
           {todo.length > 0 ? ` · à faire : ${todo.join(", ")}` : ""}
         </span>
@@ -267,29 +287,8 @@ function DungeonRow({
       />
     </>
   );
-  return (
-    <div
-      ref={rowRef}
-      className={cn(
-        "flex items-center gap-2 rounded-[5px] px-2 py-2 transition-colors",
-        displayState === "done" ? "bg-emerald-500/5" : "hover:bg-elevated",
-        highlighted && "ring-2 ring-danger/50"
-      )}
-    >
-      {href ? (
-        <a
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          title={isPublic ? `Voir la fiche publique de ${bossDisplayName}` : `Ouvrir la fiche boss de ${bossDisplayName}`}
-          className="group flex min-w-0 flex-1 items-center gap-2.5"
-        >
-          {inner}
-        </a>
-      ) : (
-        <div className="group flex min-w-0 flex-1 items-center gap-2.5">{inner}</div>
-      )}
-
+  const actions = (
+    <>
       {/* V-H — le donjon ocre ouvre la fenêtre Ocre (Metamob). L'état est déjà dit
           dans la sous-ligne ; ce bouton compact ne porte que l'action, avec un
           `aria-label` complet (la fenêtre PiP n'a pas de place pour un libellé long). */}
@@ -350,7 +349,7 @@ function DungeonRow({
           qu'on compte le faire. L'absence s'affiche « À faire » mais n'écrit qu'au
           premier clic (le verrou ne lit que les états `done`). */}
       {onSet && (
-        <div className="flex shrink-0 items-center gap-1">
+        <div className={cn("flex shrink-0 items-center gap-1", layout === "stacked" && "ml-auto")}>
           <DungeonStateButton
             active={displayState === "done"}
             tone="emerald"
@@ -369,6 +368,60 @@ function DungeonRow({
           />
         </div>
       )}
+    </>
+  );
+
+  const openable = href ? (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={isPublic ? `Voir la fiche publique de ${bossDisplayName}` : `Ouvrir la fiche boss de ${bossDisplayName}`}
+      className={cn(
+        "group flex min-w-0 flex-1 gap-2.5",
+        layout === "stacked" ? "items-start" : "items-center"
+      )}
+    >
+      {inner}
+    </a>
+  ) : (
+    <div
+      className={cn(
+        "group flex min-w-0 flex-1 gap-2.5",
+        layout === "stacked" ? "items-start" : "items-center"
+      )}
+    >
+      {inner}
+    </div>
+  );
+
+  if (layout === "stacked") {
+    return (
+      <div
+        ref={rowRef}
+        className={cn(
+          "rounded-[5px] px-2 py-2 transition-colors",
+          displayState === "done" ? "bg-emerald-500/5" : "hover:bg-elevated",
+          highlighted && "ring-2 ring-danger/50"
+        )}
+      >
+        {openable}
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5 pl-[3.25rem]">{actions}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      ref={rowRef}
+      className={cn(
+        "flex items-center gap-2 rounded-[5px] px-2 py-2 transition-colors",
+        displayState === "done" ? "bg-emerald-500/5" : "hover:bg-elevated",
+        highlighted && "ring-2 ring-danger/50"
+      )}
+    >
+      {openable}
+      {actions}
     </div>
   );
 }

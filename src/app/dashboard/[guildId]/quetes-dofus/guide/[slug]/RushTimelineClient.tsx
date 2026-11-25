@@ -31,6 +31,7 @@ import { DjPostCreateModal } from "@/components/dungeon-finder/DjPostCreateModal
 import { RushOnboardingWizardModal } from "@/components/dofus-quests/RushOnboardingWizardModal";
 import { RushPenseBeteModal } from "@/components/dofus-quests/rush/RushPenseBeteModal";
 import { RushCollapse } from "@/components/dofus-quests/rush/RushCollapse";
+import { RushBlockDoneSeal } from "@/components/dofus-quests/rush/RushBlockDoneSeal";
 import { RushCombatBanner } from "@/components/dofus-quests/rush/RushCombatBanner";
 import { isRushCombatBlock, isRushInfoBlock, isRushNonQuestBlock, isRushSequenceBannerMarker, rushCombatSequenceType } from "@/lib/rush-block-types";
 import { ResetConfirmModal } from "@/components/dofus-quests/ResetConfirmModal";
@@ -1044,7 +1045,7 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
     <div>
       <div className={`relative rounded-[6px] border overflow-hidden ${
         all
-          ? "border-success/30 bg-surface"
+          ? "rush-block-done"
           : "border-border bg-surface"
       }`}>
         {/* En-tête — MÊME structure que le panneau public : bandeau bg-elevated,
@@ -1061,15 +1062,21 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
               Dofus : son RANG dans le guide en mono (table partagée `rushChapterNumbers`,
               bandeaux exclus — même règle que l'overlay et que le guide public), sans
               boîte non plus. */}
-          <div className="w-11 h-11 flex items-center justify-center shrink-0">
+          <div className={`w-11 h-11 flex items-center justify-center shrink-0${all ? " rush-block-done-medal" : ""}`}>
             {(()=>{const d=ms.dofusId?DOFUS_DEFS.find(x=>x.id===ms.dofusId):null;if(!d)return <span className="font-mono text-sm tabular-nums text-muted-foreground">{blockNumber||""}</span>;return(
               <img src={d.imageUrl} alt="" title={d.label} className="w-9 h-9 object-contain"/>
             );})()}
+            {all && (
+              <span className="rush-block-done-check" aria-hidden="true">
+                <Check />
+              </span>
+            )}
           </div>
           {/* Titre + métadonnées mono — même hiérarchie que le panneau public */}
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-mono text-xs tabular-nums text-muted-foreground">{filteredDone} / {filteredTotal} quêtes ({pctFiltered}%)</span>
+              {all&&<RushBlockDoneSeal/>}
               {ms.isOptional&&<span className="text-[11px] text-muted-foreground">Bonus</span>}
               {isLoading&&<Loader2 className="w-3.5 h-3.5 animate-spin text-success"/>}
             </div>

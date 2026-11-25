@@ -21,9 +21,9 @@ describe("carte Rush — accès visiteur et bon monde", () => {
   it("la puce transmet le monde au menu et au calcul du zaap", () => {
     const chip = read("src/components/dofus-quests/rush/RushCoordinateChip.tsx");
     expect(chip).toContain("worldId={resolvedWorldId");
-    expect(chip).toContain(
-      "resolveMapWorldAction(parsed.x, parsed.y, undefined, resolvedWorldId"
-    );
+    // 25/11/2026 — le zaap du guide est calculé avec la liste DPLN exacte (pure),
+    // jamais avec `resolveMapWorldAction` (zaaps.json, 39 en monde 1 ≠ 37 DPLN).
+    expect(chip).toContain("dplnNearestZaap(parsed.x, parsed.y, resolvedWorldId");
   });
 
   it("les listes passent le worldId du pos_tags à la puce", () => {

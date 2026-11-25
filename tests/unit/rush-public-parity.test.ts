@@ -480,7 +480,7 @@ describe("Donjons cochables — même coquille, même règle, verrou dans les é
     expect(PUB).toMatch(/onClick=\{handleLaunchOverlay\}/);
     expect(PUB).toMatch(/onClick=\{\(\) => setShowResources\(true\)\}/);
     expect(PUB).toMatch(/onClick=\{\(\) => setPenseBeteOpen\(true\)\}/);
-    expect(PUB).toMatch(/onSelect=\{\(\) => setHideDone\(\(v\) => !v\)\}/);
+    expect(PUB).toMatch(/onClick=\{\(\) => setHideDone\(\(value\) => !value\)\}/);
   });
 
   it("le public n'importe AUCUN code serveur et persiste dans le navigateur", () => {

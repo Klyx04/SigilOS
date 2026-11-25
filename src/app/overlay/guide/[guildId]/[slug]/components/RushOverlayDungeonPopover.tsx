@@ -1,36 +1,32 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { createPortal } from "react-dom";
 import { useDaTheme } from "@/components/da/da-theme";
 import { cn } from "@/lib/utils";
 import type { DungeonInfo } from "./overlay-utils";
 import { RushQuestDungeonsPanel } from "@/components/dofus-quests/rush/RushQuestDungeonsPanel";
-import type {
-  RushDungeonMemberState,
-  RushDungeonState,
-  RushDungeonStateMap,
+import {
+  doneDungeonKeysForSequence,
+  sequenceDungeonProgress,
+  type RushDungeonMemberState,
+  type RushDungeonState,
+  type RushDungeonStateMap,
 } from "@/lib/rush-dungeons";
 import type { RushSequence } from "@/types/rush-guide-types";
 
 /**
- * RushOverlayDungeonPopover — la pastille donjon d'une quête ouvre, **AU CLIC**, le panneau
- * des donjons de CETTE quête : chaque donjon porte ses deux coches (`Fait` / `À faire`) et
- * chaque ligne reste un lien vers sa fiche. Le panneau **reste ouvert** jusqu'à la croix.
+ * RushOverlayDungeonPopover — la pastille donjon d'une quête ouvre, **AU CLIC**, une
+ * petite **modale centrée** dans la fenêtre de l'overlay : chaque donjon porte ses deux
+ * coches (`Fait` / `À faire`) et reste un lien vers sa fiche.
  *
- * 🎯 Correction user (21/10/2026) : « au clic sur l'icône donjon la mini modale reste dispo
- * ouverte (avec une croix de fermeture) avec une 2 coche à coté de chaque donjon : fait /
- * à faire, pas besoin d'une nouvelle icône en haut de l'overlay ». Le survol n'ouvre plus
- * rien (une fenêtre qui se referme au moindre mouvement ne permet pas de cocher).
- *
- * Deux choix techniques dictés par la fenêtre PiP (420 px, document séparé) :
- *   · **aucune animation** (pas de `framer-motion`) : une ouverture animée peut rester bloquée
- *     à `opacity: 0` dans un document PiP — l'information doit apparaître, point ;
- *   · **portail dans le document DU NŒUD** (`ownerDocument`, jamais la variable globale
- *     `document`) : dans un bundle JS, `document` reste celui de la page principale, même
- *     quand le nœud vit dans la fenêtre PiP. Le 21/09/2026 la popover se montait donc dans le
- *     `body` de la page principale — « l'aperçu sort complètement de l'overlay ». Même règle
- *     pour les mesures : `ownerDocument.defaultView`.
+ * Deux choix dictés par la PiP :
+ *   · **portail dans le document DU NŒUD** (`ownerDocument`, jamais `document`) : dans
+ *     un bundle JS, `document` reste la page principale ; la popover s'y montait donc
+ *     « n'importe où » hors de la PiP (mesure du 21/09/2026) ;
+ *   · **modale centrée** plutôt qu'ancrée au pixel : la largeur utile d'une PiP est
+ *     faible, une popover ancrée sortait de la fenêtre. Le cadre pulse quand il reste
+ *     un donjon requis.
  */
 export function RushOverlayDungeonPopover({
   seq,
@@ -63,8 +59,7 @@ export function RushOverlayDungeonPopover({
   onEnsureLoaded?: () => void;
   /**
    * Ouverture **contrôlée** : les icônes des donjons manquants de la ligne de quête
-   * ouvrent CE panneau en ciblant leur donjon. Sans cette prop, l'état reste interne
-   * (la pastille `Donjon ×N` continue de fonctionner seule).
+   * ouvrent CETTE modale en ciblant leur donjon. Sans cette prop, l'état reste interne.
    */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -78,9 +73,6 @@ export function RushOverlayDungeonPopover({
   onOpenAchievements?: (dungeonKey: string, dungeon: DungeonInfo) => void;
   children: React.ReactNode;
 }) {
-  // Thème : le portail vit hors de l'arbre de la fenêtre, il réapplique la classe
-  // du thème courant (source unique : le contexte de la DA). `null` = hors
-  // surface de la DA ⇒ on garde le thème sombre, jamais un thème inventé.
   const da = useDaTheme();
   const theme = da?.theme ?? "dark";
   const [internalOpen, setInternalOpen] = useState(false);
@@ -92,44 +84,23 @@ export function RushOverlayDungeonPopover({
     },
     [openProp, onOpenChange]
   );
-  const [position, setPosition] = useState({ top: 0, left: 0, maxHeight: 320 });
-  const triggerRef = useRef<HTMLSpanElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  // Document (et fenêtre) du nœud : ceux de la PiP quand l'overlay y tourne.
+  const triggerRef = React.useRef<HTMLSpanElement>(null);
+  // Document du nœud : celui de la PiP quand l'overlay y tourne.
   const portalDoc = triggerRef.current?.ownerDocument ?? null;
-  const portalWin = portalDoc?.defaultView ?? null;
-
-  const updatePosition = useCallback(() => {
-    const el = triggerRef.current;
-    if (!el) return;
-    const win = el.ownerDocument.defaultView ?? window;
-    const rect = el.getBoundingClientRect();
-    const width = 320;
-    const margin = 8;
-    // En-tête + une ligne par donjon (vignette 36 px + marges). La hauteur est
-    // PLAFONNÉE au viewport : « Les totems de Maïmane » liste ~30 donjons et le
-    // panneau sortait de la PiP sans aucune barre de défilement (mesure 24/11/2026).
-    const estimated = 92 + dungeons.length * 56;
-    const maxHeight = Math.max(180, win.innerHeight - margin * 2);
-    const height = Math.min(estimated, maxHeight);
-    const below = rect.bottom + margin;
-    const top =
-      below + height > win.innerHeight - margin
-        ? Math.max(margin, Math.min(rect.top - height - margin, win.innerHeight - height - margin))
-        : below;
-    const left = Math.max(margin, Math.min(rect.left, win.innerWidth - width - margin));
-    setPosition({ top, left, maxHeight });
-  }, [dungeons.length]);
+  const progress = sequenceDungeonProgress(
+    seq,
+    doneDungeonKeysForSequence(states, seq.id),
+  );
+  const missing = progress.missingBlocks > 0;
 
   const open = useCallback(() => {
     onEnsureLoaded?.();
     setOpen(true);
-    requestAnimationFrame(() => requestAnimationFrame(updatePosition));
-  }, [onEnsureLoaded, setOpen, updatePosition]);
+  }, [onEnsureLoaded, setOpen]);
 
   const toggle = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
+    (event: React.MouseEvent) => {
+      event.stopPropagation();
       if (isOpen) {
         setOpen(false);
         return;
@@ -139,26 +110,7 @@ export function RushOverlayDungeonPopover({
     [isOpen, open, setOpen]
   );
 
-  useEffect(() => {
-    if (!isOpen) return;
-    // Le défilement INTERNE de la liste ne doit pas recalculer la position : sinon
-    // chaque pixel de scroll re-rend les ~30 lignes de Maïmane (mesure 24/11/2026).
-    const handler = (event?: Event) => {
-      const target = event?.target as Node | null;
-      // `resize` a pour cible `window` (pas un Node) : `nodeType` évite un TypeError.
-      if (target && target.nodeType && panelRef.current?.contains(target)) return;
-      updatePosition();
-    };
-    const win = portalWin ?? window;
-    win.addEventListener("scroll", handler, true);
-    win.addEventListener("resize", handler);
-    return () => {
-      win.removeEventListener("scroll", handler, true);
-      win.removeEventListener("resize", handler);
-    };
-  }, [isOpen, updatePosition, portalWin]);
-
-  // Aucun donjon à montrer : le badge se rend tel quel, sans panneau vide.
+  // Aucun donjon à montrer : le badge se rend tel quel, sans modale vide.
   if (dungeons.length === 0) return <>{children}</>;
 
   return (
@@ -173,39 +125,45 @@ export function RushOverlayDungeonPopover({
         {children}
       </button>
 
-      {isOpen && portalDoc && createPortal(
-        <div
-          ref={panelRef}
-          className={cn("rush-carnet-theme fixed z-[999999] pointer-events-auto", theme === "light" && "light")}
-          data-theme={theme}
-          style={{
-            top: position.top,
-            left: position.left,
-            width: 320,
-            maxHeight: position.maxHeight,
-          }}
-        >
+      {isOpen &&
+        portalDoc &&
+        createPortal(
           <div
-            className="rush-carnet overlay-scroll overflow-y-auto overscroll-contain rounded-[6px] bg-elevated p-1.5"
-            style={{ maxHeight: position.maxHeight }}
+            className={cn(
+              "rush-carnet-theme fixed inset-0 z-[999999] flex items-center justify-center bg-black/60 p-3",
+              theme === "light" && "light",
+            )}
+            data-theme={theme}
+            onClick={() => setOpen(false)}
+            role="presentation"
           >
-            <RushQuestDungeonsPanel
-              seq={seq}
-              guildId={guildId}
-              states={states}
-              busyKey={busyKey}
-              others={others}
-              highlightKey={targetKey}
-              onSet={onSet}
-              capturedOcreNames={capturedOcreNames}
-              onOpenOcre={onOpenOcre}
-              onOpenAchievements={onOpenAchievements}
-              onClose={() => setOpen(false)}
-            />
-          </div>
-        </div>,
-        portalDoc.body
-      )}
+            <div
+              onClick={(event) => event.stopPropagation()}
+              className={cn(
+                "rush-carnet overlay-scroll max-h-[calc(100dvh-1.5rem)] w-[min(22rem,calc(100vw-1.5rem))] overflow-y-auto overscroll-contain rounded-[6px] bg-elevated p-1.5",
+                missing && "border-danger/60 da-alert",
+              )}
+            >
+              <RushQuestDungeonsPanel
+                seq={seq}
+                guildId={guildId}
+                states={states}
+                busyKey={busyKey}
+                others={others}
+                highlightKey={targetKey}
+                onSet={onSet}
+                capturedOcreNames={capturedOcreNames}
+                onOpenOcre={onOpenOcre}
+                onOpenAchievements={onOpenAchievements}
+                onClose={() => setOpen(false)}
+                alert={false}
+                layout="stacked"
+                className="border-0 bg-transparent p-0"
+              />
+            </div>
+          </div>,
+          portalDoc.body,
+        )}
     </span>
   );
 }

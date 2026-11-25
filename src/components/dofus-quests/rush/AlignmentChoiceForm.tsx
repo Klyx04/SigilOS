@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { ALIGNMENTS, ORDERS } from "@/lib/dofus-assets";
 import { updateUserProfile, updateMuleAlignment } from "@/server/actions/profile-actions";
-import { toast } from "sonner";
+import { useOverlayToast } from "@/components/rush/overlay-toast";
 import { cn } from "@/lib/utils";
 
 /**
@@ -33,6 +33,7 @@ export function AlignmentChoiceForm({
   onCancel?: () => void;
   className?: string;
 }) {
+  const toast = useOverlayToast();
   const router = useRouter();
   const [camp, setCamp] = useState<string | null>(alignment && alignment !== "neutre" ? alignment : null);
   const [order, setOrder] = useState<string | null>(alignmentOrder ?? null);

@@ -772,6 +772,93 @@ details.da-conseil[open] .da-conseil-body {
   color: var(--da-muted);
 }
 
+/* ─── Bloc validé — sceau et panneau (25/11/2026) ─────────────────────────────
+   Un bloc terminé ne s'éteint pas : il se SCELLE. Bord gauche `--da-ok`,
+   panneau teinté très légèrement, sceau dans l'en-tête et coche sur l'ancre
+   Dofus. L'ancien `opacity-80` grisait le titre : un bloc fini ressemblait à
+   un bloc désactivé. */
+.rush-block-done {
+  border-color: color-mix(in srgb, var(--da-ok) 42%, var(--da-line));
+  box-shadow: inset 3px 0 0 var(--da-ok);
+  background: color-mix(in srgb, var(--da-ok) 6%, var(--da-card));
+}
+
+/* La jauge d'un bloc validé passe au vert : le 100 % se lit sans le chiffre. */
+.rush-block-done-progress > span {
+  background: var(--da-ok);
+}
+
+.rush-block-done-seal {
+  display: inline-flex;
+  align-items: center;
+  gap: .32rem;
+  padding: .1rem .42rem .12rem;
+  border: 1px solid color-mix(in srgb, var(--da-ok) 55%, var(--da-line));
+  border-radius: 3px 9px 3px 9px;
+  background: color-mix(in srgb, var(--da-ok) 14%, var(--da-card));
+  color: var(--da-ok);
+  font: 700 9px/1.5 var(--da-font-title);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.rush-block-done-seal svg {
+  width: 11px;
+  height: 11px;
+  flex: none;
+}
+
+/* Pastille de validation posée sur l'ancre Dofus du bloc. */
+.rush-block-done-medal {
+  position: relative;
+}
+
+.rush-block-done-medal > .rush-block-done-check {
+  position: absolute;
+  right: -.15rem;
+  bottom: -.15rem;
+  display: grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  border: 1px solid var(--da-outline);
+  border-radius: 50%;
+  background: var(--da-ok);
+  color: var(--da-on);
+}
+
+.rush-block-done-medal > .rush-block-done-check svg {
+  width: 9px;
+  height: 9px;
+  stroke-width: 3.5;
+}
+
+/* Sommaire de gauche : un bloc fait garde son libellé lisible et gagne un
+   filet vert — on le repère sans lire le compteur. */
+.da-guide-nav-item[data-done="true"] {
+  color: var(--da-ink);
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--da-ok) 75%, transparent);
+}
+
+.da-guide-nav-item[data-done="true"] .da-medal {
+  border-color: var(--da-ok);
+  background: var(--da-ok-soft);
+  color: var(--da-ok);
+}
+
+/* Barre de chapitre de l'overlay : le bloc courant validé porte le même filet. */
+.da-dock[data-done="true"] {
+  box-shadow: inset 3px 0 0 var(--da-ok);
+}
+
+/* Liste déroulante des chapitres (overlay) : la ligne done reste lisible et
+   teintée — la coche verte seule ne distinguait pas les blocs terminés. */
+.da-dock-option[data-done="true"] {
+  background: color-mix(in srgb, var(--da-ok) 9%, transparent);
+  color: var(--da-ink);
+}
+
 .da-chips {
   display: flex;
   flex-wrap: wrap;

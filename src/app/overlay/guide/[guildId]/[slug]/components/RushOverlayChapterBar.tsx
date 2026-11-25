@@ -102,6 +102,7 @@ export function RushOverlayChapterBar({
   return (
     <nav
       aria-label="Chapitres du guide"
+      data-done={msDone ? "true" : undefined}
       className={cn("da-dock", className)}
     >
       <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -217,6 +218,12 @@ export function RushOverlayChapterBar({
                 Chapitre {chapterPos + 1} / {selectable.length}
               </span>
             )}
+            {msDone && (
+              <Check
+                className="h-3.5 w-3.5 shrink-0 text-[var(--da-ok)]"
+                aria-label="Bloc validé"
+              />
+            )}
             {showProgress && (
               <span
                 className="da-plank shrink-0"
@@ -251,7 +258,7 @@ export function RushOverlayChapterBar({
         >
           <span
             className="relative block h-full bg-gold transition-[width] duration-150 ease-out motion-reduce:transition-none"
-            style={{ width: `${pct}%` }}
+            style={{ width: `${pct}%`, ...(msDone ? { background: "var(--da-ok)" } : {}) }}
           >
             {pct > 0 && (
               <span className="absolute -right-[3px] top-1/2 h-1.5 w-1.5 -translate-y-1/2 rotate-45 bg-gold" />
@@ -288,12 +295,13 @@ export function RushOverlayChapterBar({
                     type="button"
                     role="option"
                     aria-selected={isActive}
+                    data-done={isDone ? "true" : undefined}
                     onClick={() => {
                       onSelectChapter(ms.id);
                       setOpen(false);
                     }}
                     className={cn(
-                      "flex w-full cursor-pointer items-center gap-2 px-2.5 py-2 text-left text-[11px] transition-colors motion-reduce:transition-none",
+                      "da-dock-option flex w-full cursor-pointer items-center gap-2 px-2.5 py-2 text-left text-[11px] transition-colors motion-reduce:transition-none",
                       isActive
                         ? "bg-surface text-foreground"
                         : "text-muted-foreground hover:bg-surface hover:text-foreground"

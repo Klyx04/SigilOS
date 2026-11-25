@@ -72,6 +72,8 @@ export function RushChapterNav({
                 type="button"
                 onClick={() => onSelectMilestone?.(ms.id)}
                 aria-current={active ? "true" : undefined}
+                data-done={isDone ? "true" : undefined}
+                title={isDone ? `${ms.title} — bloc validé` : ms.title}
                 className="da-guide-nav-item"
               >
                 <span className="da-medal" aria-hidden="true">

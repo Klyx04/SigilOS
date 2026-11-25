@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Check, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { useOverlayToast } from "@/components/rush/overlay-toast";
 import { cn } from "@/lib/utils";
 import { displayAchievementDescription } from "@/lib/challenge-description";
 import { DungeonAchievementIcon } from "@/components/succes/achievement-icon";
@@ -135,6 +135,8 @@ export function DungeonAchievementsPanel({
   showDungeonCheck?: boolean;
   className?: string;
 }) {
+  // Overlay ⇒ toaster de la PiP ; page ⇒ toaster global.
+  const toast = useOverlayToast();
   const [data, setData] = useState<DungeonAchievementPanelData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

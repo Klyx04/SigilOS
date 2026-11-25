@@ -501,17 +501,20 @@ export function getSequenceNpc(
 }
 
 /**
- * Détour zaap proposé pour une séquence Rush — **choix God explicite**
- * (`pos_tags.allowZaap`, coché dans la section Destination, ou zaap **manuel**
- * `pos_tags.zaapX/zaapY` saisi en God) — jamais deviné :
- * le bouton `/zaap x,y ; /travel x,y` façon DPLN ne s'affiche que pour les
- * positions où le détour vaut le coup (décision éditoriale, pas calculée).
+ * Détour zaap proposé pour une séquence Rush — **décision DPLN**, jamais
+ * calculée pour une position sans donnée (demande user du 25/11/2026 :
+ * « on ne peut pas inventer des positions avec le zaap »).
+ *
+ * `pos_tags.allowZaap` est posé par le siphon des positions DPLN ; `false`
+ * correspond à une exclusion explicite (`[x,y!]` ou page `.no-auto-zaap`).
+ * Un zaap manuel `zaapX/zaapY` saisi en God reste toujours servi.
  */
 export function isZaapCopyEnabled(seq: RushSequence | null | undefined): boolean {
   const tag = (seq?.activityTags || []).find((t) => t?.type === "pos_tags") as
     | { allowZaap?: unknown; zaapX?: unknown; zaapY?: unknown }
     | undefined;
   if (tag?.allowZaap === true) return true;
+  if (tag?.allowZaap === false) return false;
   return getSequenceManualZaap(seq) !== null;
 }
 

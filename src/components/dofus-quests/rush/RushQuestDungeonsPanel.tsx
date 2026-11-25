@@ -43,6 +43,8 @@ export function RushQuestDungeonsPanel({
   footer,
   className,
   highlightKey = null,
+  alert = true,
+  layout = "inline",
   capturedOcreNames,
   onOpenOcre,
   onOpenAchievements,
@@ -62,6 +64,16 @@ export function RushQuestDungeonsPanel({
   className?: string;
   /** Donjon à mettre en avant à l'ouverture (clic sur son icône dans la ligne de quête). */
   highlightKey?: string | null;
+  /**
+   * Halo d'alerte quand un requis manque. `false` quand un cadre parent porte
+   * déjà l'alerte (popover donjon de l'overlay) : deux halos = double contour.
+   */
+  alert?: boolean;
+  /**
+   * `stacked` : nom du donjon sur toute la largeur, actions sur une 2ᵉ ligne.
+   * Utilisé par la modale donjon de l'overlay (22 rem) — le nom n'est plus tronqué.
+   */
+  layout?: "inline" | "stacked";
   /** V-H — noms des monstres déjà capturés (Metamob) ; absent ⇒ état inconnu. */
   capturedOcreNames?: readonly string[];
   /** V-H — ouvre la fenêtre Ocre depuis un donjon ocre. */
@@ -84,23 +96,27 @@ export function RushQuestDungeonsPanel({
       aria-label="Donjons de cette quête"
       className={cn(
         "rounded-[4px] border border-border bg-surface p-2.5",
-        progress.missingBlocks > 0 &&
-          "ring-2 ring-danger/60 animate-pulse motion-reduce:animate-none",
+        progress.missingBlocks > 0 && alert && "da-alert",
         className
       )}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-semibold text-muted-foreground">
-            Donjons de la quête · {doneBlocks}/{progress.requiredBlocks} exigence{doneBlocks > 1 ? "s" : ""}
+          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+            Donjons de la quête
+          </p>
+          <p className="mt-0.5 text-[12px] font-semibold text-foreground">
+            {doneBlocks}/{progress.requiredBlocks} exigence{doneBlocks > 1 ? "s" : ""}
             {progress.missingBlocks > 0 ? (
-              <span className="text-warning">
-                {` · ${progress.missingBlocks} requis restant${progress.missingBlocks > 1 ? "s" : ""}`}
+              <span className="ml-1 text-warning">
+                {`· ${progress.missingBlocks} requis restant${progress.missingBlocks > 1 ? "s" : ""}`}
               </span>
-            ) : null}
+            ) : (
+              <span className="ml-1 text-success">· tout est fait</span>
+            )}
             {progress.choiceGroups.length > 0 ? (
-              <span className="text-muted-foreground">
-                {` · ${progress.choiceGroups.length} au choix`}
+              <span className="ml-1 font-normal text-muted-foreground">
+                {`· ${progress.choiceGroups.length} au choix`}
               </span>
             ) : null}
           </p>
@@ -130,7 +146,7 @@ export function RushQuestDungeonsPanel({
           onClick={onClose}
           aria-label="Fermer les donjons de cette quête"
           title="Fermer"
-          className="shrink-0 rounded-[3px] p-0.5 text-muted-foreground transition-colors hover:bg-elevated hover:text-foreground"
+          className="grid h-6 w-6 shrink-0 place-items-center rounded-[4px] border border-border text-muted-foreground transition-colors hover:bg-elevated hover:text-foreground"
         >
           <X className="h-3.5 w-3.5" aria-hidden="true" />
         </button>
@@ -140,6 +156,7 @@ export function RushQuestDungeonsPanel({
         dungeons={dungeons}
         guildId={guildId}
         hideHeader
+        layout={layout}
         className="mt-1.5 border-0 bg-transparent p-0"
         sequenceId={seq.id}
         states={states}

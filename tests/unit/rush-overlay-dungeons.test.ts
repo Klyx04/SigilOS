@@ -127,8 +127,8 @@ describe("Badge donjon — compteur, picto du jeu, popover branchée", () => {
     // 0 scroll ». Le panneau calculait sa hauteur (92 + N × 56) sans la borner au
     // viewport : il sortait de la PiP, aucune barre de défilement n'existait.
     const pop = codeOf(POPOVER);
-    expect(pop).toMatch(/maxHeight/);
-    expect(pop).toMatch(/win\.innerHeight - margin \* 2/);
+    expect(pop).toMatch(/max-h-\[calc\(100dvh-1\.5rem\)\]/);
+    expect(pop).toMatch(/100dvh/);
     expect(pop).toMatch(/overflow-y-auto/);
     expect(pop).toMatch(/overscroll-contain/);
     // Scrollbar visible dans la PiP (le défaut peut être invisible au survol).
@@ -142,14 +142,33 @@ describe("Badge donjon — compteur, picto du jeu, popover branchée", () => {
     expect(pop).toMatch(/ownerDocument/);
     expect(pop).toMatch(/portalDoc\.body/);
     expect(pop).not.toMatch(/document\.body/);
-    // Les mesures aussi doivent venir de la fenêtre du nœud.
-    expect(pop).toMatch(/ownerDocument\.defaultView/);
+    // La modale est centrée en unités du document porteur, jamais mesurée sur `window`.
+    expect(pop).toMatch(/100dvh/);
     expect(pop).not.toMatch(/window\.innerWidth/);
     expect(pop).not.toMatch(/window\.innerHeight/);
   });
 
   it("l'overlay transmet sa guilde aux lignes de quête (destinations correctes)", () => {
     expect(codeOf(OVERLAY).split("guildId={guildId}").length - 1).toBeGreaterThanOrEqual(2);
+  });
+
+  it("un seul contour d'alerte : le panneau interne n'ajoute pas son halo", () => {
+    // Mesure du 25/11/2026 : popover `da-alert` + panneau `da-alert` = double contour
+    // autour de la modale donjon d'un boss non validé.
+    const pop = codeOf(POPOVER);
+    const panel = codeOf("src/components/dofus-quests/rush/RushQuestDungeonsPanel.tsx");
+    expect(pop).toContain("alert={false}");
+    expect(panel).toContain('progress.missingBlocks > 0 && alert && "da-alert"');
+  });
+
+  it("le nom du boss n'est pas tronqué par les actions dans la modale étroite", () => {
+    const pop = codeOf(POPOVER);
+    const card = codeOf(
+      "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayDungeonCard.tsx"
+    );
+    expect(pop).toContain('layout="stacked"');
+    expect(card).toContain('layout === "stacked" ? "line-clamp-2" : "truncate"');
+    expect(card).toContain("pl-[3.25rem]");
   });
 
   it("le picto du donjon existe dans les assets", () => {

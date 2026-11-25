@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import { Loader2, X } from "lucide-react";
 import { getMonsterFicheBySegment } from "@/server/actions/game-data-actions";
@@ -33,6 +34,12 @@ const MonsterFicheView = dynamic(
  *
  * Le modal vit **dans** le portail du guide (comme le détail de quête) : pas de
  * Radix, pas de portail vers `<body>`, donc le thème de la PiP est conservé.
+ *
+ * ⚠️ Mesure du 25/11/2026 : le tag de combat est rendu dans une carte
+ * (`transform`/`stacking context`). Un `position: fixed` posé **dans** cette carte
+ * reste relatif à son ancêtre : les quêtes et l'aside passaient au-dessus de la fiche.
+ * On porte donc la fiche dans le `<body>` du **document propriétaire** (page hôte ou
+ * PiP) via un marqueur, ce qui conserve le thème et couvre réellement la surface.
  */
 export function RushMonsterFicheModal({
     slug,
@@ -46,6 +53,13 @@ export function RushMonsterFicheModal({
     const [fiche, setFiche] = useState<MonsterFichePayload | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const markerRef = useRef<HTMLSpanElement>(null);
+    const [host, setHost] = useState<HTMLElement | null>(null);
+
+    useEffect(() => {
+        const doc = markerRef.current?.ownerDocument ?? document;
+        setHost(doc.body);
+    }, []);
 
     useEffect(() => {
         let alive = true;
@@ -69,20 +83,25 @@ export function RushMonsterFicheModal({
     }, [slug]);
 
     useEffect(() => {
+        const doc = host?.ownerDocument ?? document;
         const onKey = (event: KeyboardEvent) => {
             if (event.key === "Escape") onClose();
         };
-        window.addEventListener("keydown", onKey);
-        return () => window.removeEventListener("keydown", onKey);
-    }, [onClose]);
+        doc.addEventListener("keydown", onKey);
+        return () => doc.removeEventListener("keydown", onKey);
+    }, [host, onClose]);
 
     return (
-        <div
-            className="fixed inset-0 z-[130] flex items-center justify-center p-3"
-            role="dialog"
-            aria-modal="true"
-            aria-label={`Fiche de ${name}`}
-        >
+        <>
+            <span ref={markerRef} hidden />
+            {host
+                ? createPortal(
+                    <div
+                        className="fixed inset-0 z-[130] flex items-center justify-center p-3"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label={`Fiche de ${name}`}
+                    >
             <button
                 type="button"
                 aria-label="Fermer la fiche"
@@ -119,6 +138,10 @@ export function RushMonsterFicheModal({
                     {fiche && !loading && <MonsterFicheView fiche={fiche} locale="fr" />}
                 </div>
             </div>
-        </div>
+                    </div>,
+                    host
+                )
+                : null}
+        </>
     );
 }

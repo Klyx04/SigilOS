@@ -68,6 +68,13 @@ import { OverlayToaster } from "@/components/rush/overlay-toast";
 import { RushOverlayQuestFilter } from "./components/RushOverlayQuestFilter";
 import { countRushQuests, matchesRushQuestFilter, nextQuestId, type RushQuestCounts, type RushQuestFilter } from "@/lib/rush-quest-filter";
 import { RushOverlayQuestListItem } from "./components/RushOverlayQuestListItem";
+import { RushChoiceGroupCard } from "@/components/dofus-quests/rush/RushChoiceGroupCard";
+import {
+  applyChoiceExclusivity,
+  choiceRepresentatives,
+  collapseChoiceGroups,
+  stepCounts,
+} from "@/lib/rush-choice-groups";
 import { RushOverlayQuestDetailModal } from "./components/RushOverlayQuestDetailModal";
 import { RushOverlayReturnToast } from "./components/RushOverlayReturnToast";
 import { RushOverlayFooter } from "./components/RushOverlayFooter";
@@ -688,12 +695,20 @@ export default function GuideOverlayClient({
     () => bannersForChapter(rawMilestones, currentMs?.id),
     [rawMilestones, currentMs?.id]
   );
-  const totalSteps = useMemo(() => milestones.reduce((acc, ms) => acc + contentSeqs(ms.sequences).length, 0), [milestones]);
-  const completedSteps = useMemo(() => {
-    let n = 0;
-    for (const ms of milestones) n += completedStepsByMs.get(ms.id)?.size ?? 0;
-    return n;
+  // Une étape à variantes exclusives compte pour UNE, terminée dès qu'une variante
+  // est cochée : même règle que le serveur (`stepCounts`).
+  const stepProgress = useMemo(() => {
+    let total = 0;
+    let done = 0;
+    for (const ms of milestones) {
+      const counts = stepCounts(contentSeqs(ms.sequences), completedStepsByMs.get(ms.id) || []);
+      total += counts.total;
+      done += counts.done;
+    }
+    return { total, done };
   }, [milestones, completedStepsByMs]);
+  const totalSteps = stepProgress.total;
+  const completedSteps = stepProgress.done;
   const overallPct = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
 
   // ─── Quête Ocre (Metamob) ─────────────────────────────────────────────────
@@ -1140,14 +1155,22 @@ export default function GuideOverlayClient({
     async (ms: RushMilestone) => {
       if (loadingIds.has(ms.id)) return;
       const was = completedIds.has(ms.id);
-      const scope = (ms.sequences || [])
-        .filter((sequence) => !isInfoSequence(sequence))
-        .map((sequence) => sequence.id);
-      // Ressources : valider le chapitre coche toutes ses ressources ; l'invalider les
-      // décoche. Écho optimiste de la règle serveur, persisté pour l'invité.
+      const contentSeqs = (ms.sequences || []).filter((sequence) => !isInfoSequence(sequence));
+      const scope = contentSeqs.map((sequence) => sequence.id);
+      // Une étape à variantes exclusives ne coche qu'UNE variante : le serveur applique
+      // la même réduction ; l'écho optimiste ne montre pas les trois validées.
+      const checked = was
+        ? []
+        : choiceRepresentatives(contentSeqs, scope, completedStepsByMs.get(ms.id) || new Set());
+      const checkedSet = new Set(checked);
+      // Ressources : valider le chapitre coche celles des quêtes réellement validées ;
+      // l'invalider les décoche. Écho optimiste de la règle serveur, persisté pour l'invité.
       const resourceBefore = resourceChecks;
       const nextResourceChecks = (ms.sequences || []).reduce(
-        (acc, s) => applyQuestResourceChecks(acc, (s as any).activityTags, !was),
+        (acc, s) =>
+          was || checkedSet.has(s.id)
+            ? applyQuestResourceChecks(acc, (s as any).activityTags, !was)
+            : acc,
         resourceChecks
       );
       setResourceChecks(nextResourceChecks);
@@ -1163,7 +1186,7 @@ export default function GuideOverlayClient({
       const prevSteps = new Map(completedStepsByMs);
       setCompletedStepsByMs((prev) => {
         const n = new Map(prev);
-        n.set(ms.id, was ? new Set<string>() : new Set(ms.sequences.map((s) => s.id)));
+        n.set(ms.id, new Set(checked));
         return n;
       });
       if (isGuest) {
@@ -1177,7 +1200,7 @@ export default function GuideOverlayClient({
             prevSteps.forEach((set, k) => {
               stepsObj[k] = Array.from(set);
             });
-            stepsObj[ms.id] = was ? [] : ms.sequences.map((s) => s.id);
+            stepsObj[ms.id] = was ? [] : checked;
             localStorage.setItem(`${storagePrefix}steps`, JSON.stringify(stepsObj));
 
             if (!was && bookmarksByMs.get(ms.id)) {
@@ -1314,7 +1337,8 @@ export default function GuideOverlayClient({
 
   const handleToggleSeq = useCallback(
     async (ms: RushMilestone, seqId: string) => {
-      const cur = new Set(completedStepsByMs.get(ms.id) || []);
+      const prevSet = new Set(completedStepsByMs.get(ms.id) || []);
+      let cur = new Set(prevSet);
       const was = cur.has(seqId);
       if (!was) {
         const seqObj = ms.sequences.find((s) => s.id === seqId);
@@ -1332,7 +1356,11 @@ export default function GuideOverlayClient({
       }
       was ? cur.delete(seqId) : cur.add(seqId);
       const contentSeqs = ms.sequences.filter((s) => !isInfoSequence(s));
-      const allChecked = contentSeqs.length > 0 && contentSeqs.every((s) => cur.has(s.id));
+      // Étape à variantes exclusives : cocher une variante retire ses sœurs (écho
+      // optimiste identique au serveur) ; le bloc se termine dès qu'une est cochée.
+      if (!was) cur = new Set(applyChoiceExclusivity(contentSeqs, Array.from(cur), [seqId]));
+      const counts = stepCounts(contentSeqs, cur);
+      const allChecked = counts.total > 0 && counts.done === counts.total;
       const prevMap = new Map(completedStepsByMs);
       const prevActive = completedIds.has(ms.id);
       // Cascade décoche : décocher la cible décoche aussi les quêtes qui en dépendent.
@@ -1383,7 +1411,8 @@ export default function GuideOverlayClient({
           const reg = m.sequences.filter((s) => !isInfoSequence(s));
           const steps = new Set(completedStepsByMs.get(mid) || []);
           for (const cid of set) steps.delete(cid);
-          const done = reg.length > 0 && reg.every((s) => steps.has(s.id));
+          const cascadeCounts = stepCounts(reg, steps);
+          const done = cascadeCounts.total > 0 && cascadeCounts.done === cascadeCounts.total;
           done ? n.add(mid) : n.delete(mid);
         }
         return n;
@@ -1411,7 +1440,8 @@ export default function GuideOverlayClient({
               const reg = m.sequences.filter((s) => !isInfoSequence(s));
               const steps = new Set(completedStepsByMs.get(mid) || []);
               for (const cid of set) steps.delete(cid);
-              const done = reg.length > 0 && reg.every((s) => steps.has(s.id));
+              const cascadeCounts = stepCounts(reg, steps);
+              const done = cascadeCounts.total > 0 && cascadeCounts.done === cascadeCounts.total;
               done ? nextCompleted.add(mid) : nextCompleted.delete(mid);
             }
             localStorage.setItem(`${storagePrefix}completed_ms`, JSON.stringify(Array.from(nextCompleted)));
@@ -1779,6 +1809,67 @@ export default function GuideOverlayClient({
     return <DofusObtainedBanner key={ms.id} milestone={ms} surface="pip" className="my-3" />;
   };
 
+  /**
+   * Une ligne de la liste du chapitre : encart info/combat, ou carte de quête.
+   * Extrait pour être rendu **une fois par variante** à l'intérieur de la carte
+   * d'une étape à choix, sans dupliquer la logique (elle utilise le chapitre courant).
+   */
+  const renderOverlaySequence = (seq: RushSequence) => {
+    if (!currentMs) return null;
+    // Les séquences info (conseils/bandeaux) ne sont pas des quêtes cochables.
+    if (isInfoSequence(seq)) {
+      // Combat tactique / semi-tactique DANS le bloc : bandeau `pip` partagé,
+      // rien à cocher — marqueur `activityTags` (22/11/2026).
+      const combatSeq = rushCombatSequenceType(seq);
+      if (combatSeq) {
+        return (
+          <RushCombatBanner
+            type={combatSeq}
+            title={seq.subGuideName}
+            bodyText={seq.tips}
+            surface="pip"
+            className="my-2"
+          />
+        );
+      }
+      // Bandeau d'une séquence informative : composant PARTAGÉ (dashboard,
+      // guide public, overlay) — rien à cocher, ce n'est pas une quête.
+      return <RushInfoSequenceBanner seq={seq} accentColor={currentMs.accentColor} collapsible />;
+    }
+    const isSeqDone = currentMsDoneSeqs.has(seq.id);
+    const gate = getSeqGate(seq);
+    const isBookmarked = bookmarkSeqId === seq.id;
+    return (
+      <RushOverlayQuestListItem
+        seq={seq}
+        guildId={guildId}
+        milestoneId={currentMs.id}
+        dungeonActions={dungeonActions}
+        onOpenAchievements={achievementHandler}
+        isDone={isSeqDone}
+        isNext={nextSeqId === seq.id}
+        isBookmarked={isBookmarked}
+        isLocked={gate.locked}
+        prereqs={gate.prereqs}
+        missingDungeons={gate.missingDungeons}
+        guideQuests={guideQuests}
+        guideMilestones={milestones}
+        successValidation={successValidation}
+        onGoToQuest={handleGoToDungeonStep}
+        onGoToPrereq={handleGoToPrereq}
+        onToggle={() => handleToggleSeq(currentMs, seq.id)}
+        onBookmark={() => handleBookmark(currentMs, seq.id)}
+        onOpenDetail={() => setDetailSeq({ ms: currentMs, seq })}
+        bookmarkers={bookmarkersBySeq.get(seq.id) || []}
+        onOpenBookmarkers={() => openSeqMembers(seq)}
+        capturedOcreNames={capturedOcreNames}
+        onOpenOcre={openOcre}
+        alignmentLabel={alignmentSeries.get(seq.id)?.label ?? null}
+        choiceGroups={gate.choiceGroups}
+      />
+    );
+  };
+
   // ─── Rendu COMMUN ─────────────────────────────────────────────────────────
   // La fenêtre source et la fenêtre PiP (always-on-top) affichent le même
   // contenu. Seules les actions liées au cycle de vie de la fenêtre (fermer /
@@ -2052,65 +2143,23 @@ export default function GuideOverlayClient({
                           {group.label}
                         </div>
                       )}
-                      {group.sequences.map((seq) => {
-                // Les séquences info (conseils/bandeaux) ne sont pas des quêtes cochables.
-                if (isInfoSequence(seq)) {
-                  // Combat tactique / semi-tactique DANS le bloc : bandeau `pip` partagé,
-                  // rien à cocher — marqueur `activityTags` (22/11/2026).
-                  const combatSeq = rushCombatSequenceType(seq);
-                  if (combatSeq) {
-                    return (
-                      <RushCombatBanner
-                        key={seq.id}
-                        type={combatSeq}
-                        title={seq.subGuideName}
-                        bodyText={seq.tips}
-                        surface="pip"
-                        className="my-2"
-                      />
-                    );
-                  }
-                  // Bandeau d'une séquence informative : composant PARTAGÉ (dashboard,
-                  // guide public, overlay) — rien à cocher, ce n'est pas une quête.
-                  return (
-                    <RushInfoSequenceBanner key={seq.id} seq={seq} accentColor={currentMs.accentColor} collapsible />
-                  );
-                }
-                const isSeqDone = currentMsDoneSeqs.has(seq.id);
-                const gate = getSeqGate(seq);
-                const isBookmarked = bookmarkSeqId === seq.id;
-                return (
-                  <React.Fragment key={seq.id}>
-                    <RushOverlayQuestListItem
-                      seq={seq}
-                      guildId={guildId}
-                      milestoneId={currentMs.id}
-                      dungeonActions={dungeonActions}
-                      onOpenAchievements={achievementHandler}
-                      isDone={isSeqDone}
-                      isNext={nextSeqId === seq.id}
-                      isBookmarked={isBookmarked}
-                      isLocked={gate.locked}
-                      prereqs={gate.prereqs}
-                      missingDungeons={gate.missingDungeons}
-                      guideQuests={guideQuests}
-                      guideMilestones={milestones}
-                      successValidation={successValidation}
-                      onGoToQuest={handleGoToDungeonStep}
-                      onGoToPrereq={handleGoToPrereq}
-                      onToggle={() => handleToggleSeq(currentMs, seq.id)}
-                      onBookmark={() => handleBookmark(currentMs, seq.id)}
-                      onOpenDetail={() => setDetailSeq({ ms: currentMs, seq })}
-                      bookmarkers={bookmarkersBySeq.get(seq.id) || []}
-                      onOpenBookmarkers={() => openSeqMembers(seq)}
-                      capturedOcreNames={capturedOcreNames}
-                      onOpenOcre={openOcre}
-                      alignmentLabel={alignmentSeries.get(seq.id)?.label ?? null}
-                      choiceGroups={gate.choiceGroups}
-                    />
-                  </React.Fragment>
-                );
-                      })}
+                      {collapseChoiceGroups(group.sequences).map((item) =>
+                        item.kind === "choice" ? (
+                          <RushChoiceGroupCard
+                            key={`choice:${item.group}`}
+                            group={item.group}
+                            label={item.label}
+                            note={item.note}
+                            count={item.sequences.length}
+                          >
+                            {item.sequences.map((seq) => (
+                              <React.Fragment key={seq.id}>{renderOverlaySequence(seq)}</React.Fragment>
+                            ))}
+                          </RushChoiceGroupCard>
+                        ) : (
+                          <React.Fragment key={item.seq.id}>{renderOverlaySequence(item.seq)}</React.Fragment>
+                        )
+                      )}
                     </React.Fragment>
                   ))}
                 </div>

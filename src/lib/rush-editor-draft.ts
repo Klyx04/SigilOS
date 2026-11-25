@@ -32,6 +32,10 @@ export const rushEditorDraftSchema = z.object({
     brakName: DraftField,
     brakTips: DraftField,
     isSuccess: z.boolean(),
+    /** Étape à variantes exclusives (facultatif : les brouillons antérieurs restent lisibles). */
+    choiceGroup: z.string().max(48).optional(),
+    choiceGroupLabel: z.string().max(160).optional(),
+    choiceGroupNote: z.string().max(320).optional(),
 });
 
 export type RushEditorDraft = z.infer<typeof rushEditorDraftSchema>;

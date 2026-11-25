@@ -227,10 +227,10 @@ describe("rush-import — liens de quête (allowlist d'hôte)", () => {
 describe("importRushGuide — garde de l'action serveur", () => {
   const code = readFileSync(path.join(process.cwd(), "src/server/actions/optimized-guide-actions.ts"), "utf8");
   const start = code.indexOf("export async function importRushGuide");
-  // Fenêtre du corps de l'import. Élargie de 5 200 à 6 800 le 17/11/2026 : l'ajout des
-  // **métadonnées de bloc typé** (type, chapitre, description, image, liens) a allongé
-  // la création du jalon, sans changer les gardes vérifiées ci-dessous.
-  const body = code.slice(start, start + 6800);
+  // Fenêtre du corps de l'import. Élargie de 5 200 à 6 800 le 17/11/2026 (métadonnées de
+  // bloc typé), puis à 7 600 le 25/11/2026 (libellé et note de l'étape à choix) : la
+  // création du jalon s'allonge, les gardes vérifiées ci-dessous sont inchangées.
+  const body = code.slice(start, start + 7600);
 
   it("est protégée par le guard Rush et rend le plan sans écrire quand `apply` est faux", () => {
     expect(start).toBeGreaterThan(-1);

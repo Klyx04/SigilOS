@@ -20,7 +20,14 @@ import {
   normalizeRushDungeonName,
   resolveRushDungeonByName,
 } from "@/lib/rush-dungeon-names";
-import { applyChoiceExclusivity, choiceGroupTag, stepCounts } from "@/lib/rush-choice-groups";
+import {
+  applyChoiceExclusivity,
+  choiceGroupMetaTags,
+  choiceGroupTag,
+  choiceRepresentatives,
+  stepCounts,
+  stripChoiceGroupTags,
+} from "@/lib/rush-choice-groups";
 import { normalizeAlignmentCamp, parseRouteVariants } from "@/lib/rush-route";
 import { parseRushQuestConstraints } from "@/lib/rush-constraints-schema";
 import { alignmentCountForCamp, alignmentTagCamp, isSequenceBlockedByPrereqs } from "@/lib/rush-guide-utils";
@@ -1046,6 +1053,14 @@ export async function toggleMilestoneProgress(
   const previous = snapshot.byMilestone.get(milestoneId);
   const previousSteps = previous?.completedSteps ?? [];
   const wasFullCompleted = previous?.isCompleted ?? false;
+  // Une étape à variantes exclusives ne valide qu'UNE variante : cocher le bloc ne
+  // doit pas inscrire les trois ids (elles apparaîtraient toutes validées, et
+  // l'exclusivité ne voudrait plus rien dire). Le choix déjà posé est conservé.
+  const targetContentSeqs = targetMilestone.sequences.filter((sequence) => !isInfoSequenceRow(sequence));
+  const checkIds = isCompleted
+    ? choiceRepresentatives(targetContentSeqs, targetIds, previousSteps)
+    : targetIds;
+  const checkIdSet = new Set(checkIds);
 
   // ── Validation d'un BLOC : AUCUN verrou de donjon ni de prérequis ───────────
   // Décision user du 20/11/2026 : un membre déjà en cours sur Sylvestre ne doit pas
@@ -1064,16 +1079,16 @@ export async function toggleMilestoneProgress(
         milestones: cascadeMilestones(guide),
         completed: snapshot.completed,
         targetMilestoneId: milestoneId,
-        targetSequenceIds: targetIds,
+        targetSequenceIds: checkIds,
       })
     : null;
 
   // La coche de donjons couvre le périmètre **et** les prérequis que la cascade vient
   // de valider : sans eux, un prérequis coché resterait « fait » avec un donjon manquant.
   const scopeSequences = targetMilestone.sequences.filter((sequence) =>
-    targetIdSet.has(sequence.id)
+    (isCompleted ? checkIdSet : targetIdSet).has(sequence.id)
   );
-  const dungeonSequenceIds = new Set([...targetIds, ...(cascade?.added ?? [])]);
+  const dungeonSequenceIds = new Set([...checkIds, ...(cascade?.added ?? [])]);
   const dungeonSequenceList = [...dungeonSequenceIds]
     .map((sequenceId) => dungeonSequences.get(sequenceId))
     .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
@@ -1082,13 +1097,14 @@ export async function toggleMilestoneProgress(
     : [];
 
   const nextSteps = isCompleted
-    ? [...new Set([...previousSteps, ...targetIds])]
+    ? [...new Set([...previousSteps, ...checkIds])]
     : previousSteps.filter((id) => !targetIdSet.has(id));
   const nextStepSet = new Set(nextSteps);
-  // `isCompleted` stocké = **tout le bloc** (toutes les branches). La route se déduit
-  // côté client à partir de `completedSteps` et de ses séquences visibles.
-  const fullCompleted =
-    targetContentIds.length > 0 && targetContentIds.every((id) => nextStepSet.has(id));
+  // `isCompleted` stocké = **tout le bloc** (toutes les branches), une étape à
+  // variantes exclusives comptant pour une. La route se déduit côté client à partir
+  // de `completedSteps` et de ses séquences visibles.
+  const fullCounts = stepCounts(targetContentSeqs, nextStepSet);
+  const fullCompleted = fullCounts.total > 0 && fullCounts.done === fullCounts.total;
 
   const progress = await db.playerGuideProgress.upsert({
     where: {
@@ -4571,6 +4587,14 @@ export async function upsertRushSequence(data: {
   icon?: string | null;
   metamobMonsterId?: number | null;
   activityTags?: Array<{ type: string; name?: string; level?: number }>;
+  /**
+   * Étape à variantes exclusives (Brak 55/66) : fournis, ces trois champs sont
+   * **autoritaires** — les tags `choice_group*` existants sont remplacés, jamais
+   * empilés. Absents, `activityTags` est écrit tel quel (compatibilité studio).
+   */
+  choiceGroup?: string | null;
+  choiceGroupLabel?: string | null;
+  choiceGroupNote?: string | null;
 }) {
   await requireRushAccess();
 
@@ -4636,6 +4660,26 @@ export async function upsertRushSequence(data: {
     throw new Error("Variantes de texte invalides (2 camps, nom ≤ 200, conseils ≤ 4000).");
   }
 
+  /**
+   * Variantes exclusives : trois champs bornés, formés par la règle pure. Fournis,
+   * ils remplacent les tags `choice_group*` (édition God autoritaire) ; absents, les
+   * tags reçus sont conservés — aucun client existant ne perd ses données.
+   */
+  const choiceProvided =
+    data.choiceGroup !== undefined ||
+    data.choiceGroupLabel !== undefined ||
+    data.choiceGroupNote !== undefined;
+  const activityTags = choiceProvided
+    ? [
+        ...(choiceGroupTag(data.choiceGroup) ?? []),
+        ...choiceGroupMetaTags({
+          label: (data.choiceGroupLabel ?? "").slice(0, 160),
+          note: (data.choiceGroupNote ?? "").slice(0, 320),
+        }),
+        ...stripChoiceGroupTags(data.activityTags ?? []),
+      ]
+    : (data.activityTags ?? []);
+
   let seq;
   // Champs communs (sans dungeonId — géré différemment selon create/update)
   const commonFields = {
@@ -4655,7 +4699,7 @@ export async function upsertRushSequence(data: {
     isSuccess: data.isSuccess ?? false,
     icon: data.icon ?? null,
     metamobMonsterId: data.metamobMonsterId ?? null,
-    activityTags: data.activityTags ?? [],
+    activityTags,
     dungeonIds: data.dungeonIds ?? undefined,
     // Absent ⇒ la colonne n'est pas touchée (on ne « dé-optionnalise » pas par oubli).
     ...(dungeonOptionalIds !== undefined ? { dungeonOptionalIds } : {}),
@@ -5433,9 +5477,11 @@ const RushImportSequenceSchema = z.object({
   alignOrderCode: z.string().trim().max(48).nullish(),
   alignLevelReq: z.number().int().min(1).max(200).nullish(),
   classReq: z.string().trim().max(32).nullish(),
-  // Étape à variantes exclusives : la valeur est bornée ici, le tag est construit par la
-  // règle pure `choiceGroupTag` (une seule source pour la convention).
+  // Étape à variantes exclusives : les valeurs sont bornées ici, les tags sont construits
+  // par la règle pure `choiceGroupTag` / `choiceGroupMetaTags` (une seule convention).
   choiceGroup: z.string().trim().max(48).nullish(),
+  choiceGroupLabel: z.string().trim().max(160).nullish(),
+  choiceGroupNote: z.string().trim().max(320).nullish(),
   // Liens de fiche : bornés ici, **validés** (hôte + https) par `safeRushGuideLink`.
   dofusdbUrl: z.string().trim().max(500).nullish(),
   dofuspourlesnoobsUrl: z.string().trim().max(500).nullish(),
@@ -5649,6 +5695,10 @@ export async function importRushGuide(raw: unknown, apply = false) {
         // Les tags du seed (ressources, combats, donjons, métiers) sont bornés par Zod.
         activityTags: [
           ...(choiceGroupTag(sequence.choiceGroup) ?? []),
+          ...choiceGroupMetaTags({
+            label: sequence.choiceGroupLabel,
+            note: sequence.choiceGroupNote,
+          }),
           ...(sequence.activityTags ?? []),
         ],
         // Liens : allowlist d'hôte (`https` seulement) — même règle que le dry-run.

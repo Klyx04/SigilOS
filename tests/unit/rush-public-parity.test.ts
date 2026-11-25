@@ -42,7 +42,11 @@ describe("Prérequis — le public refuse EXACTEMENT ce que l'interne refuse", (
   it("la validation est gardée fail-closed dans les TROIS chemins d'écriture", () => {
     // étape · chapitre entier · lot de quêtes
     expect(PUB).toMatch(/if \(!was && isStepLocked\(seqId\)\)/);
-    expect(PUB).toMatch(/if \(completeAll && !current\.has\(s\.id\) && isStepLocked\(s\.id\)\) return;/);
+    // Chapitre entier : les candidates sont filtrées AVANT la validation (une quête
+    // verrouillée n'est jamais cochée en lot) ; les variantes exclusives sont ensuite
+    // réduites à un représentant.
+    expect(PUB).toMatch(/const candidates = chapterSteps[\s\S]{0,160}!isStepLocked\(s\.id\)/);
+    expect(PUB).toMatch(/choiceRepresentatives\(chapterSteps, candidates, current\)/);
     expect(PUB).toMatch(/isSequenceBlockedByPrereqs\(s, completedSeqIds, milestones\)/);
   });
 

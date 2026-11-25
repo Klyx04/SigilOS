@@ -124,8 +124,10 @@ describe("Guide public — les encarts sont dans le flux et hors des compteurs",
   });
 
   it("la progression les exclut partout (guide, chapitre, bloc)", () => {
-    // Compteur global du guide.
-    expect(code).toMatch(/acc \+ \(ms\.sequences\?\.filter\(\(s\) => !isInfoSequence\(s\)\)\.length \|\| 0\)/);
+    // Compteur global du guide : les étapes sont filtrées AVANT `stepCounts` (une
+    // étape à variantes exclusives compte pour une, un encart ne compte jamais).
+    expect(code).toMatch(/const steps = \(ms\.sequences \?\? \[\]\)\.filter\(\(s\) => !isInfoSequence\(s\)\);/);
+    expect(code).toMatch(/stepCounts\(steps, completedStepsByMs\.get\(ms\.id\) \|\| \[\]\)/);
     // Chapitre (en-tête + pourcentage).
     expect(code).toMatch(/const chapterSteps = sequences\.filter\(\(s\) => !isInfoSequence\(s\)\);/);
     // Bloc de quête : « n/N », en-tête, « Valider tout le bloc », repère.
@@ -135,8 +137,8 @@ describe("Guide public — les encarts sont dans le flux et hors des compteurs",
     // décompte par chapitre est désormais porté par le rail de droite.
     // Milestone terminé / validation globale.
     expect(code).toMatch(/const steps = ms\.sequences\.filter\(\(s\) => !isInfoSequence\(s\)\);/);
-    expect(code).toMatch(/ms\.sequences\.filter\(\(s\) => !isInfoSequence\(s\)\)\.forEach/);
-    expect(code).toMatch(/ms\.sequences\.filter\(\(s\) => !isInfoSequence\(s\)\)\.map\(\(s\) => s\.id\)/);
+    expect(code).toMatch(/const chapterSteps = ms\.sequences\.filter\(\(s\) => !isInfoSequence\(s\)\);/);
+    expect(code).toMatch(/const relevant = ms\.sequences\.filter\(\(s\) => !isInfoSequence\(s\)\);/);
   });
 
   it("un bloc fait uniquement d'encarts ne montre pas d'en-tête de quête vide", () => {

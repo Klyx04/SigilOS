@@ -22,8 +22,26 @@ import type { RushActivityTag } from "@/types/rush-guide-types";
 /** Type de tag qui porte l'appartenance à une étape à choix. */
 export const CHOICE_GROUP_TAG = "choice_group" as const;
 
+/** Libellé éditable de la carte de choix (ex. « Étape 55 · choisissez votre variante »). */
+export const CHOICE_GROUP_LABEL_TAG = "choice_group_label" as const;
+
+/** Note éditable de la carte (ex. « Quêtes identiques, seul le nom change. »). */
+export const CHOICE_GROUP_NOTE_TAG = "choice_group_note" as const;
+
 /** Longueur maximale d'un identifiant de groupe (bornage, comme partout dans le module). */
 export const MAX_CHOICE_GROUP_LENGTH = 48;
+
+/** Bornes des textes de la carte — même esprit que les autres champs du studio. */
+export const MAX_CHOICE_GROUP_LABEL_LENGTH = 160;
+export const MAX_CHOICE_GROUP_NOTE_LENGTH = 320;
+
+/**
+ * Note par défaut quand God n'en pose pas : c'est la phrase mesurée sur DPLN
+ * (« Ces trois quêtes seront identiques, juste le nom change ! »). Elle ne dit
+ * jamais quelle variante choisir — le joueur a joué la sienne.
+ */
+export const DEFAULT_CHOICE_GROUP_NOTE =
+  "Ces quêtes sont identiques, seul le nom change. Cochez celle que vous avez jouée.";
 
 type TaggedSequence = { id: string; activityTags?: unknown };
 
@@ -50,6 +68,169 @@ export function siblingChoiceIds(
     return sequences
         .filter((s) => s.id !== seq.id && getChoiceGroup(s) === group)
         .map((s) => s.id);
+}
+
+/** Texte borné d'un tag de carte (libellé ou note), ou `null`. */
+function readChoiceTagText(
+    seq: TaggedSequence | null | undefined,
+    type: string,
+    maxLength: number
+): string | null {
+    const tags = Array.isArray(seq?.activityTags) ? (seq!.activityTags as RushActivityTag[]) : [];
+    const tag = tags.find((t) => t?.type === type);
+    const raw = typeof tag?.name === "string" ? tag.name.trim() : "";
+    if (!raw) return null;
+    return raw.slice(0, maxLength);
+}
+
+/**
+ * Textes éditables d'une variante : libellé et note de la carte de choix.
+ *
+ * La convention reste **sans migration** — deux tags `choice_group_label` /
+ * `choice_group_note` à côté du tag `choice_group`. Une variante peut porter les
+ * textes ; les autres les héritent par `choiceGroupMetaForGroup`, donc God peut les
+ * écrire sur n'importe quelle ligne du groupe sans dupliquer la donnée.
+ */
+export function getChoiceGroupMeta(seq: TaggedSequence | null | undefined): {
+    label: string | null;
+    note: string | null;
+} {
+    return {
+        label: readChoiceTagText(seq, CHOICE_GROUP_LABEL_TAG, MAX_CHOICE_GROUP_LABEL_LENGTH),
+        note: readChoiceTagText(seq, CHOICE_GROUP_NOTE_TAG, MAX_CHOICE_GROUP_NOTE_LENGTH),
+    };
+}
+
+/**
+ * Textes du groupe, lus sur **n'importe quelle** variante : le premier libellé /
+ * la première note non vides gagnent. Deux surfaces qui rendent le même groupe
+ * lisent donc la même carte, même si God a écrit les textes sur une seule ligne.
+ */
+export function choiceGroupMetaForGroup(
+    sequences: readonly TaggedSequence[],
+    group: string
+): { label: string | null; note: string | null } {
+    let label: string | null = null;
+    let note: string | null = null;
+    for (const seq of sequences) {
+        if (getChoiceGroup(seq) !== group) continue;
+        const meta = getChoiceGroupMeta(seq);
+        if (!label && meta.label) label = meta.label;
+        if (!note && meta.note) note = meta.note;
+        if (label && note) break;
+    }
+    return { label, note };
+}
+
+/** Tags de texte bornés — `null`/vide ⇒ aucun tag (on n'écrit pas une coquille vide). */
+export function choiceGroupMetaTags(input: {
+    label?: string | null;
+    note?: string | null;
+}): RushActivityTag[] {
+    const out: RushActivityTag[] = [];
+    const label = typeof input.label === "string" ? input.label.trim() : "";
+    const note = typeof input.note === "string" ? input.note.trim() : "";
+    if (label) out.push({ type: CHOICE_GROUP_LABEL_TAG, name: label.slice(0, MAX_CHOICE_GROUP_LABEL_LENGTH) });
+    if (note) out.push({ type: CHOICE_GROUP_NOTE_TAG, name: note.slice(0, MAX_CHOICE_GROUP_NOTE_LENGTH) });
+    return out;
+}
+
+/** Retire les trois tags de choix d'une liste — utilisé par l'édition God (remplacement net). */
+export function stripChoiceGroupTags(tags: unknown): RushActivityTag[] {
+    const list = Array.isArray(tags) ? (tags as RushActivityTag[]) : [];
+    return list.filter(
+        (tag) =>
+            tag?.type !== CHOICE_GROUP_TAG &&
+            tag?.type !== CHOICE_GROUP_LABEL_TAG &&
+            tag?.type !== CHOICE_GROUP_NOTE_TAG
+    );
+}
+
+/** Élément d'affichage : une séquence seule, ou **une** carte pour N variantes. */
+export type RushChoiceGroupItem<T extends TaggedSequence> =
+    | { kind: "sequence"; seq: T }
+    | {
+          kind: "choice";
+          group: string;
+          label: string | null;
+          note: string | null;
+          sequences: T[];
+      };
+
+/**
+ * Regroupe les variantes d'une liste **dans l'ordre du guide** : la carte prend la
+ * place de la première variante, les suivantes ne sont plus rendues séparément.
+ *
+ * Une variante **seule** (route filtrée par cité/Ordre, recherche) redevient une
+ * ligne normale : une carte « choisissez » à une seule option n'a aucun sens.
+ */
+export function collapseChoiceGroups<T extends TaggedSequence>(
+    sequences: readonly T[]
+): RushChoiceGroupItem<T>[] {
+    const membersByGroup = new Map<string, T[]>();
+    for (const seq of sequences) {
+        const group = getChoiceGroup(seq);
+        if (!group) continue;
+        const list = membersByGroup.get(group);
+        if (list) list.push(seq);
+        else membersByGroup.set(group, [seq]);
+    }
+
+    const emitted = new Set<string>();
+    const out: RushChoiceGroupItem<T>[] = [];
+    for (const seq of sequences) {
+        const group = getChoiceGroup(seq);
+        if (!group) {
+            out.push({ kind: "sequence", seq });
+            continue;
+        }
+        if (emitted.has(group)) continue;
+        emitted.add(group);
+        const members = membersByGroup.get(group) ?? [seq];
+        if (members.length === 1) {
+            out.push({ kind: "sequence", seq });
+            continue;
+        }
+        const meta = choiceGroupMetaForGroup(sequences, group);
+        out.push({ kind: "choice", group, label: meta.label, note: meta.note, sequences: members });
+    }
+    return out;
+}
+
+/**
+ * Réduit une liste d'ids de validation à **une variante par groupe**.
+ *
+ * Utilisé par la validation de bloc : le serveur ne doit pas cocher les trois
+ * variantes (sinon les trois lignes apparaissent validées, et l'exclusivité ne veut
+ * plus rien dire). Une variante déjà cochée est conservée ; sinon la première dans
+ * l'ordre du guide gagne. Les ids hors groupe sont rendus intacts, dans l'ordre reçu.
+ */
+export function choiceRepresentatives(
+    sequences: readonly TaggedSequence[],
+    ids: readonly string[],
+    completedIds: Iterable<string> | null | undefined
+): string[] {
+    const completed = completedIds instanceof Set ? completedIds : new Set(completedIds ?? []);
+    const wanted = new Set(ids);
+    const byId = new Map(sequences.map((seq) => [seq.id, seq]));
+    const winnerByGroup = new Map<string, string>();
+
+    for (const seq of sequences) {
+        if (!wanted.has(seq.id)) continue;
+        const group = getChoiceGroup(seq);
+        if (!group) continue;
+        const current = winnerByGroup.get(group);
+        if (!current) {
+            winnerByGroup.set(group, seq.id);
+            continue;
+        }
+        if (!completed.has(current) && completed.has(seq.id)) winnerByGroup.set(group, seq.id);
+    }
+
+    return ids.filter((id) => {
+        const group = getChoiceGroup(byId.get(id));
+        return !group || winnerByGroup.get(group) === id;
+    });
 }
 
 export type RushChoiceStepCounts = {

@@ -111,7 +111,14 @@ import { normalizeAlignmentCamp } from "@/lib/rush-route";
 import { normalizeOrderCode } from "@/lib/rush-order-codes";
 import { RushAlignmentBadge } from "@/components/dofus-quests/rush/RushAlignmentBadge";
 import { RushPrereqChoiceHint } from "@/components/dofus-quests/rush/RushPrereqChoiceHint";
+import { RushChoiceGroupCard } from "@/components/dofus-quests/rush/RushChoiceGroupCard";
 import { getPrereqChoiceGroups } from "@/lib/rush-prereq-expr";
+import {
+  applyChoiceExclusivity,
+  choiceRepresentatives,
+  collapseChoiceGroups,
+  stepCounts,
+} from "@/lib/rush-choice-groups";
 import { useRushDungeonStates } from "@/hooks/use-rush-dungeon-states";
 import { RushQuestDungeonsPanel } from "@/components/dofus-quests/rush/RushQuestDungeonsPanel";
 import { OCRE_TOTAL_STEPS, toOcrePanelData } from "@/lib/ocre-soul-stones";
@@ -1010,27 +1017,45 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
   useEffect(()=>{if(focusedSeqId&&ms.sequences.some((s:any)=>s.id===focusedSeqId))setExpanded(true);},[focusedSeqId,ms.sequences]);
   if(hideDone&&isCompleted&&!isSearching)return null;
   const nonInfoSeqs = ms.sequences.filter((s:any)=>!isInfoSequence(s));
-  const cs=nonInfoSeqs.filter((s:any)=>isCompleted||completedStepsSet.has(s.id)).length;
-  const totalQuests=nonInfoSeqs.length;
+  // Le bloc est terminé quand TOUTES ses **étapes** le sont. Une étape à variantes
+  // exclusives compte pour une seule (`stepCounts`), et `isCompleted` (serveur) couvre
+  // toutes les branches : on le projette sur les ids réels pour compter comme l'UI.
+  const completedForCount: Set<string> = isCompleted
+    ? new Set(nonInfoSeqs.map((s:any)=>s.id))
+    : completedStepsSet;
+  const counts = stepCounts(nonInfoSeqs as any[], completedForCount);
+  // Le VOCABULAIRE du Rush reste « quêtes » : une étape à variantes exclusives est
+  // une quête à choix, pas un objet d'un autre nom.
+  const filteredDone = counts.done;
+  const filteredTotal = counts.total;
   // Bloc à UNE seule quête : sa position s'affiche dès l'en-tête replié, comme côté
   // public où chaque quête porte la sienne. Bloc à plusieurs quêtes : aucune (on
   // n'invente pas « une » position de bloc). Règle pure : `blockHeaderCoord`.
   const soloQuest = nonInfoSeqs.length === 1 ? nonInfoSeqs[0] : null;
   const headerCoord = blockHeaderCoord(nonInfoSeqs as any[]);
   const guildId = React.useContext(GuildIdCtx);
-  const all=isCompleted||(totalQuests>0&&cs===totalQuests);
-  const pct = totalQuests>0?Math.round((cs/totalQuests)*100):0;
+  const all = isCompleted || (counts.total > 0 && counts.done === counts.total);
+  const pct = counts.total > 0 ? Math.round((counts.done / counts.total) * 100) : 0;
   const c=accentColor||"#10b981";
-  const visibleSeqs = ms.sequences.filter((s:any)=>!hideDone||!completedStepsSet.has(s.id));
+  // « Masquer les étapes faites » ne sépare JAMAIS une étape à choix : ses variantes
+  // restent ensemble, ou disparaissent ensemble dès qu'une est validée.
+  const doneChoiceIds = new Set<string>();
+  for (const item of collapseChoiceGroups(ms.sequences as any[])) {
+    if (item.kind !== "choice") continue;
+    if (item.sequences.some((s:any)=>completedForCount.has(s.id))) {
+      for (const s of item.sequences) doneChoiceIds.add(s.id);
+    }
+  }
+  const visibleSeqs = hideDone
+    ? ms.sequences.filter((s:any)=>!completedForCount.has(s.id) && !doneChoiceIds.has(s.id))
+    : ms.sequences;
   const firstVisibleSeqId = visibleSeqs.find((s:any)=>!isInfoSequence(s))?.id;
   // La page serveur a déjà projeté la **route** (camp / Ordre / classe) :
   // `ms.sequences` ne contient que les quêtes de la route. Plus de filtre d'Ordre
   // local dans le bloc ; il ne reste que « masquer les quêtes terminées ».
   const filteredNonInfo = visibleSeqs.filter((s:any)=>!isInfoSequence(s));
-  const filteredTotal = filteredNonInfo.length;
-  const filteredDone = filteredNonInfo.filter((s:any)=>isCompleted||completedStepsSet.has(s.id)).length;
-  const allFiltered = isCompleted || (filteredTotal > 0 && filteredDone === filteredTotal);
-  const pctFiltered = filteredTotal > 0 ? Math.round((filteredDone / filteredTotal) * 100) : 0;
+  const filteredCounts = stepCounts(filteredNonInfo as any[], completedForCount);
+  const allFiltered = isCompleted || (filteredCounts.total > 0 && filteredCounts.done === filteredCounts.total);
   // Le bloc contient-il des quêtes d'Ordre ? Sans Ordre choisi, la route montre
   // encore toutes les branches : on ne propose pas « Valider » sur ce mélange.
   const hasOrderQuests = nonInfoSeqs.some((s:any)=>!!s.alignOrderCode);
@@ -1040,6 +1065,22 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
   const alignmentGroups = visibleSeqs.every((s:any)=>alignmentSeries.has(s.id))
     ? groupByAlignmentSeries(visibleSeqs, alignmentSeries)
     : [{ key:"ordre-du-guide", camp:null, label:null, sequences:visibleSeqs }];
+
+  /** Une ligne de séquence, dans sa forme actuelle (info, combat ou quête). */
+  const renderSequence = (s:any) => (
+    isInfoSequence(s) ? (
+      // Combat tactique / semi-tactique POSÉ DANS LE BLOC (22/11/2026) :
+      // même rangée qu'une quête, même bandeau que le bloc autonome —
+      // marqueur `activityTags`, non cochable et hors progression.
+      rushCombatSequenceType(s) ? (
+        <RushCombatBanner type={rushCombatSequenceType(s)!} title={s.subGuideName} bodyText={s.tips} surface="page" className="my-2" />
+      ) : (
+        <RushInfoSequenceBanner seq={s} accentColor={c} />
+      )
+    ) : (
+      <SequenceRow seq={s} ms={ms} isSeqCompleted={completedStepsSet.has(s.id)} focusedSeqId={focusedSeqId} accentColor={c} onToggleSeq={()=>onToggleSequence(ms,s.id)} onDungeonClick={onDungeonClick} isFirstVisible={s.id===firstVisibleSeqId} hideSeqCompleted={hideDone}/>
+    )
+  );
 
   return (
     <div>
@@ -1075,7 +1116,7 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
           {/* Titre + métadonnées mono — même hiérarchie que le panneau public */}
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-mono text-xs tabular-nums text-muted-foreground">{filteredDone} / {filteredTotal} quêtes ({pctFiltered}%)</span>
+              <span className="font-mono text-xs tabular-nums text-muted-foreground">{filteredDone} / {filteredTotal} quêtes ({pct}%)</span>
               {all&&<RushBlockDoneSeal/>}
               {ms.isOptional&&<span className="text-[11px] text-muted-foreground">Bonus</span>}
               {isLoading&&<Loader2 className="w-3.5 h-3.5 animate-spin text-success"/>}
@@ -1126,7 +1167,7 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
           </div>
         </div>
         {/* Barre de progression du bloc (la donnée, pas une décoration) */}
-        <div className="h-1.5 bg-elevated" role="progressbar" aria-valuenow={pctFiltered} aria-valuemin={0} aria-valuemax={100} aria-label={`Progression — ${ms.title}`}>
+        <div className="h-1.5 bg-elevated" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`Progression — ${ms.title}`}>
           <div className="h-full bg-success transition-all duration-300" style={{width:`${pct}%`}}/>
         </div>
         {/* Expanded content */}
@@ -1149,20 +1190,21 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
                             {group.label}
                           </p>
                         )}
-                        {group.sequences.map((s:any)=>(
-                      isInfoSequence(s) ? (
-                        // Combat tactique / semi-tactique POSÉ DANS LE BLOC (22/11/2026) :
-                        // même rangée qu'une quête, même bandeau que le bloc autonome —
-                        // marqueur `activityTags`, non cochable et hors progression.
-                        rushCombatSequenceType(s) ? (
-                          <RushCombatBanner key={s.id} type={rushCombatSequenceType(s)!} title={s.subGuideName} bodyText={s.tips} surface="page" className="my-2" />
-                        ) : (
-                          <RushInfoSequenceBanner key={s.id} seq={s} accentColor={c} />
-                        )
+                        {collapseChoiceGroups(group.sequences as any[]).map((item:any)=>
+                      item.kind === "choice" ? (
+                        <RushChoiceGroupCard
+                          key={`choice:${item.group}`}
+                          group={item.group}
+                          label={item.label}
+                          note={item.note}
+                          count={item.sequences.length}
+                        >
+                          {item.sequences.map((s:any)=><React.Fragment key={s.id}>{renderSequence(s)}</React.Fragment>)}
+                        </RushChoiceGroupCard>
                       ) : (
-                        <SequenceRow key={s.id} seq={s} ms={ms} isSeqCompleted={completedStepsSet.has(s.id)} focusedSeqId={focusedSeqId} accentColor={c} onToggleSeq={()=>onToggleSequence(ms,s.id)} onDungeonClick={onDungeonClick} isFirstVisible={s.id===firstVisibleSeqId} hideSeqCompleted={hideDone}/>
+                        <React.Fragment key={item.seq.id}>{renderSequence(item.seq)}</React.Fragment>
                       )
-                        ))}
+                        )}
                       </React.Fragment>
                     ))}
                     </DaRail>
@@ -1183,8 +1225,18 @@ const ChapterBlock = memo(function ChapterBlock({ chapterNum,label,showHeader=tr
       return ms.sequences.some((s:any) => searchFilter.has(s.id));
     });
   }, [milestones, searchFilter]);
-  const totalQuests = filteredMilestones.filter((m:any)=>m.type!=="INFO").reduce((acc:number,m:any)=>acc+m.sequences.filter((s:any)=>!isInfoSequence(s)).length,0);
-  const ci = filteredMilestones.filter((m:any)=>m.type!=="INFO").reduce((acc:number,m:any)=>{const doneSet=completedStepsByMs.get(m.id);return acc+m.sequences.filter((s:any)=>!isInfoSequence(s)&&(completedIds.has(m.id)||doneSet?.has(s.id))).length;},0);
+  // Une étape à variantes exclusives compte pour UNE : le compteur du chapitre passe
+  // par la même règle que le bloc et le serveur (`stepCounts`).
+  const chapterCounts = filteredMilestones
+    .filter((m:any)=>m.type!=="INFO")
+    .reduce((acc:{total:number;done:number},m:any)=>{
+      const steps=m.sequences.filter((s:any)=>!isInfoSequence(s));
+      const doneSet:Set<string>=completedIds.has(m.id)?new Set(steps.map((s:any)=>s.id)):(completedStepsByMs.get(m.id)||new Set());
+      const c=stepCounts(steps,doneSet);
+      return {total:acc.total+c.total,done:acc.done+c.done};
+    },{total:0,done:0});
+  const totalQuests = chapterCounts.total;
+  const ci = chapterCounts.done;
   const ti = totalQuests;
   const all = ti > 0 && ci === ti;
   // Chapitre à UN seul bloc dont le titre est identique au label : inutile de dire
@@ -2152,7 +2204,8 @@ const timelineItems=useMemo(()=>{
     if (liveRefreshTimer.current != null) window.clearTimeout(liveRefreshTimer.current);
   }, []);
   const handleToggleSequence=useCallback(async(ms:Milestone,seqId:string)=>{
-    const cur=new Set(completedStepsByMs.get(ms.id)||[]);
+    const prevSet=new Set(completedStepsByMs.get(ms.id)||[]);
+    let cur=new Set(prevSet);
     const was=cur.has(seqId);
     if(!was&&blockedSeqIds.has(seqId)){toast.warning("Terminez d'abord les prérequis de cette quête.");return;}
     // Verrou de DONJONS (validation UNITAIRE) : seuls les donjons REQUIS de CETTE quête
@@ -2175,9 +2228,13 @@ const timelineItems=useMemo(()=>{
       }
     }
     was?cur.delete(seqId):cur.add(seqId);
-    const arr=Array.from(cur);
     const regularSeqs=ms.sequences.filter((s:any)=>!isInfoSequence(s));
-    const allChecked=regularSeqs.length>0&&regularSeqs.every((s:any)=>cur.has(s.id));
+    // Étape à variantes exclusives : cocher une variante retire ses sœurs de l'écho
+    // optimiste (le serveur applique la même règle). Une étape compte pour une.
+    if(!was) cur=new Set(applyChoiceExclusivity(regularSeqs,Array.from(cur),[seqId]));
+    const arr=Array.from(cur);
+    const stepCount=stepCounts(regularSeqs,cur);
+    const allChecked=stepCount.total>0&&stepCount.done===stepCount.total;
     const wasMilestoneCompleted=completedIds.has(ms.id);
     // Cascade décoche : décocher la cible décoche aussi les quêtes qui en dépendent.
     const cascadeMsIds=new Map<string,Set<string>>();
@@ -2222,7 +2279,8 @@ const timelineItems=useMemo(()=>{
         const reg=(m.sequences||[]).filter((s:any)=>!isInfoSequence(s));
         const steps=new Set(completedStepsByMs.get(mid)||[]);
         for(const cid of set)steps.delete(cid);
-        const done=reg.length>0&&reg.every((s:any)=>steps.has(s.id));
+        const stepCount=stepCounts(reg,steps);
+        const done=stepCount.total>0&&stepCount.done===stepCount.total;
         done?n.add(mid):n.delete(mid);
       }
       return n;
@@ -2258,7 +2316,7 @@ const timelineItems=useMemo(()=>{
         if(res.isCompleted&&!wasMilestoneCompleted){const _ce=lastMsOfChapterIds.has(ms.id);toast.success("✅ Bloc validé !",{duration:1500});if(_ce)setCelebrate({msId:ms.id,title:`Chapitre ${ms.chapter} terminé ✓`,tint:"#56d4ad"});}
         else{toast.success(was?"Décocher":"✅ Validée !",{duration:1500});}
       }else{
-        setCompletedStepsByMs(prev=>{const n=new Map(prev);was?cur.add(seqId):cur.delete(seqId);n.set(ms.id,cur);return n;});
+        setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,prevSet);return n;});
         // Retour arrière sur l'état AVANT le geste : `allChecked` est calculé APRÈS la
         // mutation, il ne peut donc pas servir de référence (un refus serveur — donjon
         // requis manquant — marquait sinon le bloc comme terminé).
@@ -2267,12 +2325,54 @@ const timelineItems=useMemo(()=>{
       }
     }catch{
       setResourceChecks(resourceBefore);
-      setCompletedStepsByMs(prev=>{const n=new Map(prev);was?cur.add(seqId):cur.delete(seqId);n.set(ms.id,cur);return n;});
+      setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,prevSet);return n;});
       setCompletedIds(prev=>{const n=new Set(prev);wasMilestoneCompleted?n.add(ms.id):n.delete(ms.id);return n;});
       toast.error("Erreur réseau");
     }finally{setLoading(ms.id,false);}
   },[completedStepsByMs,completedIds,bookmarksByMs,guildId,effectiveAltPseudo,setLoading,blockedSeqIds,allCompletedSeqIds,milestones,dungeonsState.states,dungeonsState.refresh,resourceChecks,scheduleLiveRefresh]);
-  const handleToggle=useCallback(async(ms:Milestone)=>{const was=completedIds.has(ms.id);const scope=(ms.sequences||[]).filter((s:any)=>!isInfoSequence(s)).map((s:any)=>s.id);const resourceBefore=resourceChecks;setResourceChecks((ms.sequences||[]).reduce((acc:Set<string>,s:any)=>applyQuestResourceChecks(acc,s.activityTags,!was),resourceChecks));setCompletedIds(prev=>{const n=new Set(prev);was?n.delete(ms.id):n.add(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,was?new Set():new Set(ms.sequences.map(s=>s.id)));return n;});setLoading(ms.id,true);try{const res=await toggleMilestoneProgress(guildId,ms.id,!was,effectiveAltPseudo,scope);if(!(res as any).success){setResourceChecks(resourceBefore);setCompletedIds(prev=>{const n=new Set(prev);was?n.add(ms.id):n.delete(ms.id);return n;});toast.error((res as any)?.error || "Erreur");}else{ if(!was){const isChapterEnd=lastMsOfChapterIds.has(ms.id);if(isChapterEnd)setCelebrate({msId:ms.id,title:`Chapitre ${ms.chapter} terminé ✓`,tint:"#56d4ad"}); if(bookmarksByMs.get(ms.id)){setBookmarksByMs(prev=>{const n=new Map(prev);n.delete(ms.id);return n;}); setRushBookmark(guildId,ms.id,null,effectiveAltPseudo).catch(()=>{});}} toast.success(was?"Décochée":"✅ Bloc validé !",{duration:1500}); scheduleLiveRefresh(); void dungeonsState.refresh(); }}catch{setResourceChecks(resourceBefore);toast.error("Erreur réseau");}finally{setLoading(ms.id,false);}},[completedIds,bookmarksByMs,guildId,effectiveAltPseudo,setLoading,resourceChecks,scheduleLiveRefresh,dungeonsState.refresh]);
+  const handleToggle=useCallback(async(ms:Milestone)=>{
+    const was=completedIds.has(ms.id);
+    const contentSeqs=(ms.sequences||[]).filter((s:any)=>!isInfoSequence(s));
+    const scope=contentSeqs.map((s:any)=>s.id);
+    // Une étape à choix ne coche qu'UNE variante (déjà cochée si possible) : le
+    // serveur applique la même réduction, l'écho optimiste ne doit pas montrer les
+    // trois lignes validées.
+    const checked=was?[]:choiceRepresentatives(contentSeqs,scope,new Set());
+    const checkedSet=new Set(checked);
+    const resourceBefore=resourceChecks;
+    const resourceSeqs=was?contentSeqs:contentSeqs.filter((s:any)=>checkedSet.has(s.id));
+    setResourceChecks(resourceSeqs.reduce((acc:Set<string>,s:any)=>applyQuestResourceChecks(acc,s.activityTags,!was),resourceChecks));
+    setCompletedIds(prev=>{const n=new Set(prev);was?n.delete(ms.id):n.add(ms.id);return n;});
+    setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,new Set(checked));return n;});
+    const prevSteps=new Set(completedStepsByMs.get(ms.id)||[]);
+    setLoading(ms.id,true);
+    try{
+      const res=await toggleMilestoneProgress(guildId,ms.id,!was,effectiveAltPseudo,scope);
+      if(!(res as any).success){
+        setResourceChecks(resourceBefore);
+        setCompletedIds(prev=>{const n=new Set(prev);was?n.add(ms.id):n.delete(ms.id);return n;});
+        setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,prevSteps);return n;});
+        toast.error((res as any)?.error || "Erreur");
+      }else{
+        if(!was){
+          const isChapterEnd=lastMsOfChapterIds.has(ms.id);
+          if(isChapterEnd)setCelebrate({msId:ms.id,title:`Chapitre ${ms.chapter} terminé ✓`,tint:"#56d4ad"});
+          if(bookmarksByMs.get(ms.id)){
+            setBookmarksByMs(prev=>{const n=new Map(prev);n.delete(ms.id);return n;});
+            setRushBookmark(guildId,ms.id,null,effectiveAltPseudo).catch(()=>{});
+          }
+        }
+        toast.success(was?"Décochée":"✅ Bloc validé !",{duration:1500});
+        scheduleLiveRefresh();
+        void dungeonsState.refresh();
+      }
+    }catch{
+      setResourceChecks(resourceBefore);
+      setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,prevSteps);return n;});
+      setCompletedIds(prev=>{const n=new Set(prev);was?n.add(ms.id):n.delete(ms.id);return n;});
+      toast.error("Erreur réseau");
+    }finally{setLoading(ms.id,false);}
+  },[completedIds,bookmarksByMs,guildId,effectiveAltPseudo,setLoading,resourceChecks,scheduleLiveRefresh,dungeonsState.refresh,completedStepsByMs]);
   const handleReset=useCallback(async(ms:Milestone)=>{setCompletedIds(prev=>{const n=new Set(prev);n.delete(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,new Set);return n;});setLoading(ms.id,true);try{await resetMilestoneProgress(guildId,ms.id,effectiveAltPseudo);toast.success("Réinitialisée");scheduleLiveRefresh();void dungeonsState.refresh();}catch{setCompletedIds(prev=>new Set([...prev,ms.id]));toast.error("Erreur reset");}finally{setLoading(ms.id,false);}},[guildId,effectiveAltPseudo,setLoading,scheduleLiveRefresh,dungeonsState.refresh]);
 
   // ─── Bookmark par séquence ─────────────────────────────────────────────

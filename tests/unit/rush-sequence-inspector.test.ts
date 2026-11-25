@@ -48,11 +48,12 @@ describe("inspecteur quête — trois groupes, un seul ordre", () => {
     expect(positions).toEqual([...positions].sort((a, b) => a - b));
   });
 
-  it("aucune section n'a disparu : les onze accordéons sont là", () => {
+  it("aucune section n'a disparu : les douze accordéons sont là", () => {
     // 9 sections historiques + « Texte par camp » (lot 4, 12/11/2026 : une seule quête,
-    // deux textes — le bon sort selon la cité du joueur) + « Conditions » (V2, 12/11/2026 :
-    // horaire, joueurs, métiers, sorts, notes — des infos, jamais un blocage).
-    expect((STUDIO.match(/toggleSection\("/g) ?? []).length).toBe(11);
+    // deux textes - le bon sort selon la cité du joueur) + « Conditions » (V2, 12/11/2026 :
+    // horaire, joueurs, métiers, sorts, notes - des infos, jamais un blocage) +
+    // « Étape à choix exclusifs » (25/11/2026 : carte 55/66 + textes, sans migration).
+    expect((STUDIO.match(/toggleSection\("/g) ?? []).length).toBe(12);
   });
 
   it("aucun titre de section ne porte de numéro (les 3 groupes les remplacent)", () => {

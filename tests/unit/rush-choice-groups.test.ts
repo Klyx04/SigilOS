@@ -1,9 +1,16 @@
 import { describe, it, expect } from "vitest";
 import {
     applyChoiceExclusivity,
+    choiceGroupMetaForGroup,
+    choiceGroupMetaTags,
+    choiceRepresentatives,
+    collapseChoiceGroups,
     getChoiceGroup,
+    getChoiceGroupMeta,
     siblingChoiceIds,
     stepCounts,
+    stripChoiceGroupTags,
+    DEFAULT_CHOICE_GROUP_NOTE,
     MAX_CHOICE_GROUP_LENGTH,
 } from "@/lib/rush-choice-groups";
 import type { RushActivityTag } from "@/types/rush-guide-types";
@@ -83,6 +90,76 @@ describe("rush-choice-groups — une étape, N variantes exclusives", () => {
         expect(applyChoiceExclusivity(block, ["magnanime"], [])).toEqual(["magnanime"]);
         // Hors groupe : aucune interférence.
         expect(applyChoiceExclusivity(block, ["supermilicien", "kamas"], ["supermilicien"])).toEqual([
+            "supermilicien",
+            "kamas",
+        ]);
+    });
+});
+
+describe("carte de choix — regroupement et représentants", () => {
+    const withTexts = (id: string, group: string, label?: string, note?: string) => ({
+        id,
+        activityTags: [
+            { type: "choice_group", name: group },
+            ...(label ? [{ type: "choice_group_label", name: label }] : []),
+            ...(note ? [{ type: "choice_group_note", name: note }] : []),
+        ],
+    });
+
+    it("regroupe les variantes à la place de la première, dans l'ordre du guide", () => {
+        const block = [seq("avant"), withTexts("magnanime", "55"), withTexts("kamas", "55"), seq("apres")];
+        const items = collapseChoiceGroups(block);
+        expect(items.map((item) => item.kind)).toEqual(["sequence", "choice", "sequence"]);
+        const card = items[1];
+        if (card.kind !== "choice") throw new Error("carte attendue");
+        expect(card.group).toBe("55");
+        expect(card.sequences.map((s) => s.id)).toEqual(["magnanime", "kamas"]);
+    });
+
+    it("une variante seule redevient une ligne normale (route filtrée, recherche)", () => {
+        expect(collapseChoiceGroups([withTexts("magnanime", "55")])[0]?.kind).toBe("sequence");
+    });
+
+    it("lit le libellé et la note sur n'importe quelle sœur, sans les dupliquer", () => {
+        const block = [
+            withTexts("magnanime", "55"),
+            withTexts("kamas", "55", "Étape 55 · au choix", "Quêtes identiques, seul le nom change."),
+            withTexts("assassinat", "55"),
+        ];
+        expect(getChoiceGroupMeta(block[0]!)).toEqual({ label: null, note: null });
+        expect(choiceGroupMetaForGroup(block, "55")).toEqual({
+            label: "Étape 55 · au choix",
+            note: "Quêtes identiques, seul le nom change.",
+        });
+        expect(choiceGroupMetaTags({ label: "  ", note: "" })).toEqual([]);
+        expect(choiceGroupMetaTags({ label: "Étape 55", note: DEFAULT_CHOICE_GROUP_NOTE })).toHaveLength(2);
+    });
+
+    it("remplace les trois tags de choix sans toucher aux autres", () => {
+        const tags = [
+            { type: "item", name: "Gelée" },
+            { type: "choice_group", name: "55" },
+            { type: "choice_group_label", name: "Étape 55" },
+            { type: "choice_group_note", name: "Note" },
+        ];
+        expect(stripChoiceGroupTags(tags)).toEqual([{ type: "item", name: "Gelée" }]);
+        expect(stripChoiceGroupTags(null)).toEqual([]);
+    });
+
+    it("ne garde qu'un représentant par groupe, en préférant une variante déjà cochée", () => {
+        const block = [
+            seq("magnanime", "55"),
+            seq("kamas", "55"),
+            seq("assassinat", "55"),
+            seq("supermilicien"),
+        ];
+        const all = block.map((s) => s.id);
+        // Rien de coché : la première dans l'ordre du guide gagne.
+        expect(choiceRepresentatives(block, all, [])).toEqual(["magnanime", "supermilicien"]);
+        // Une variante déjà cochée est conservée (on ne change pas son choix).
+        expect(choiceRepresentatives(block, all, ["kamas"])).toEqual(["kamas", "supermilicien"]);
+        // Hors groupe : rendu intact, dans l'ordre reçu.
+        expect(choiceRepresentatives(block, ["supermilicien", "kamas"], [])).toEqual([
             "supermilicien",
             "kamas",
         ]);

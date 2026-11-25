@@ -170,8 +170,17 @@ import {
 } from "@/lib/rush-alignment-series";
 import { RushAlignmentBadge } from "@/components/dofus-quests/rush/RushAlignmentBadge";
 import { RushPrereqChoiceHint } from "@/components/dofus-quests/rush/RushPrereqChoiceHint";
+import { RushChoiceGroupCard } from "@/components/dofus-quests/rush/RushChoiceGroupCard";
 import { SuccessChip } from "@/components/dofus-quests/rush/SuccessChip";
 import { getPrereqChoiceGroups } from "@/lib/rush-prereq-expr";
+import {
+  applyChoiceExclusivity,
+  choiceRepresentatives,
+  choiceGroupMetaForGroup,
+  collapseChoiceGroups,
+  getChoiceGroup,
+  stepCounts,
+} from "@/lib/rush-choice-groups";
 import { DaRail } from "@/components/da/da-rail";
 import { DaThemeProvider } from "@/components/da/da-theme";
 import { daScopeProps } from "@/lib/da-scope";
@@ -208,6 +217,10 @@ interface QuestBlock {
   isDone: boolean;
   doneCount: number;
   totalCount: number;
+  /** Étape à variantes exclusives : N quêtes, une seule jouée, comptée pour 1. */
+  choiceGroup?: string | null;
+  choiceLabel?: string | null;
+  choiceNote?: string | null;
 }
 
 function groupSequencesIntoQuests(
@@ -221,6 +234,8 @@ function groupSequencesIntoQuests(
   // tête de bloc est collée au bloc qui la suit (même règle que les bannières du dashboard) ;
   // une info de fin reste dans le dernier bloc.
   let pendingInfo: RushSequence[] = [];
+  /** Groupes de choix déjà repliés : la carte prend la place de la première variante. */
+  const seenChoice = new Set<string>();
 
   for (const seq of sequences) {
     if (isInfoSequence(seq)) {
@@ -228,6 +243,43 @@ function groupSequencesIntoQuests(
       else pendingInfo.push(seq);
       continue;
     }
+
+    // Étape à variantes exclusives : UN bloc pour N quêtes. Les variantes ne sont
+    // jamais des étapes séparées (sinon la progression ne peut pas atteindre 100 %).
+    const choiceGroup = getChoiceGroup(seq);
+    if (choiceGroup) {
+      if (seenChoice.has(choiceGroup)) continue;
+      seenChoice.add(choiceGroup);
+      const members = sequences.filter(
+        (candidate) => !isInfoSequence(candidate) && getChoiceGroup(candidate) === choiceGroup
+      );
+      const meta = choiceGroupMetaForGroup(members, choiceGroup);
+      const block: QuestBlock = {
+        questName: "Étape à choix",
+        questRef: `choice:${choiceGroup}`,
+        sequences: [...pendingInfo, ...members],
+        dofusdbUrl: null,
+        dofuspourlesnoobsUrl: null,
+        dungeons: [],
+        isDone: false,
+        doneCount: 0,
+        totalCount: 0,
+        choiceGroup,
+        choiceLabel: meta.label,
+        choiceNote: meta.note,
+      };
+      pendingInfo = [];
+      blocks.push(block);
+      currentBlock = block;
+      for (const member of members) {
+        const djs = member.dungeons && member.dungeons.length > 0 ? member.dungeons : member.dungeon ? [member.dungeon] : [];
+        for (const dj of djs) {
+          if (!block.dungeons.some((d) => d.id === dj.id)) block.dungeons.push(dj);
+        }
+      }
+      continue;
+    }
+
     const qName = seq.subGuideName || seq.subGuideRef || "Étape";
     const qRef = seq.subGuideRef || qName;
 
@@ -279,8 +331,11 @@ function groupSequencesIntoQuests(
 
   for (const b of blocks) {
     const steps = b.sequences.filter((s) => !isInfoSequence(s));
-    b.totalCount = steps.length;
-    b.doneCount = steps.filter((s) => doneSteps.has(s.id)).length;
+    // Une étape à variantes exclusives compte pour UNE (`stepCounts`), terminée dès
+    // qu'une variante est validée — même règle que le serveur et le guide membre.
+    const counts = stepCounts(steps, doneSteps);
+    b.totalCount = counts.total;
+    b.doneCount = counts.done;
     b.isDone = b.totalCount > 0 && b.doneCount === b.totalCount;
   }
 
@@ -1051,22 +1106,22 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
   // Les séquences info (encarts) ne sont pas des étapes : elles ne comptent PAS dans la
   // progression — avant, elles étaient comptées mais jamais affichées, donc le guide ne
   // pouvait jamais atteindre 100 %.
-  const totalSequences = useMemo(
-    () =>
-      milestones.reduce(
-        (acc, ms) => acc + (ms.sequences?.filter((s) => !isInfoSequence(s)).length || 0),
-        0
-      ),
-    [milestones]
-  );
+  // Une étape à variantes exclusives compte pour UNE, terminée dès qu'une variante
+  // est cochée : `stepCounts` porte la règle (aucune copie locale).
+  const progressCounts = useMemo(() => {
+    let total = 0;
+    let done = 0;
+    for (const ms of milestones) {
+      const steps = (ms.sequences ?? []).filter((s) => !isInfoSequence(s));
+      const counts = stepCounts(steps, completedStepsByMs.get(ms.id) || []);
+      total += counts.total;
+      done += counts.done;
+    }
+    return { total, done };
+  }, [milestones, completedStepsByMs]);
 
-  const completedCount = useMemo(() => {
-    let count = 0;
-    completedStepsByMs.forEach((set) => {
-      count += set.size;
-    });
-    return count;
-  }, [completedStepsByMs]);
+  const totalSequences = progressCounts.total;
+  const completedCount = progressCounts.done;
 
   const progressPercent = totalSequences > 0 ? Math.round((completedCount / totalSequences) * 100) : 0;
 
@@ -1248,7 +1303,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
   // Toggle step
   const handleToggleStep = useCallback(
     (msId: string, seqId: string) => {
-      const current = new Set(completedStepsByMs.get(msId) || []);
+      let current = new Set(completedStepsByMs.get(msId) || []);
       const was = current.has(seqId);
 
       // 🚫 Même refus que le guide interne : un prérequis non terminé verrouille la
@@ -1266,6 +1321,14 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
       }
 
       was ? current.delete(seqId) : current.add(seqId);
+      if (!was) {
+        // Étape à variantes exclusives : une seule variante cochée (écho identique
+        // au serveur). Sans ceci, les trois lignes apparaîtraient validées.
+        const blockSeqs = (milestones.find((m) => m.id === msId)?.sequences || []).filter(
+          (s) => !isInfoSequence(s)
+        );
+        current = new Set(applyChoiceExclusivity(blockSeqs, Array.from(current), [seqId]));
+      }
       if (was) clearDungeonStatesOnInvalidate(seqId);
 
       // Ressources : valider coche les ressources de la quête, invalider les décoche.
@@ -1292,7 +1355,8 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
         // Seules les étapes cochables comptent : un encart info n'est jamais validé, donc
         // sans ce filtre un bloc contenant un encart ne serait jamais « terminé ».
         const steps = ms.sequences.filter((s) => !isInfoSequence(s));
-        const allDone = steps.length > 0 && steps.every((s) => current.has(s.id));
+        const counts = stepCounts(steps, current);
+        const allDone = counts.total > 0 && counts.done === counts.total;
         setCompletedIds((prev) => {
           const next = new Set(prev);
           allDone ? next.add(msId) : next.delete(msId);
@@ -1318,11 +1382,20 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
       const before = new Set(current);
       // Jamais les encarts info : ils n'ont pas de case à cocher. Et jamais une quête
       // verrouillée : « Tout valider » ne contourne pas les prérequis.
-      ms.sequences.filter((s) => !isInfoSequence(s)).forEach((s) => {
-        if (completeAll && !current.has(s.id) && isStepLocked(s.id)) return;
-        // La validation par BLOC bypass le verrou donjon (décision 20/11) :
-        // on ne filtre pas sur `isSeqBlockedByDungeon` ici.
-        completeAll ? current.add(s.id) : current.delete(s.id);
+      const chapterSteps = ms.sequences.filter((s) => !isInfoSequence(s));
+      const candidates = chapterSteps
+        .filter((s) => !current.has(s.id) && !isStepLocked(s.id))
+        .map((s) => s.id);
+      // Une seule variante par étape à choix (celle déjà cochée si possible).
+      const toCheck = new Set(choiceRepresentatives(chapterSteps, candidates, current));
+      chapterSteps.forEach((s) => {
+        if (completeAll) {
+          // La validation par BLOC bypass le verrou donjon (décision 20/11) :
+          // on ne filtre pas sur `isSeqBlockedByDungeon` ici.
+          if (toCheck.has(s.id) || current.has(s.id)) current.add(s.id);
+        } else {
+          current.delete(s.id);
+        }
       });
 
       // Une quête invalidée remet ses donjons à « À faire ».
@@ -1372,7 +1445,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
     (msId: string, seqIds: string[], completeAll: boolean) => {
       // Une quête verrouillée par un prérequis n'est jamais cochée en lot (même règle
       // que le guide interne) : on filtre la cible AVANT d'écrire quoi que ce soit.
-      const targets = completeAll
+      const unlocked = completeAll
         ? seqIds.filter((id) => {
             const s = seqById.get(id);
             if (!s || completedSeqIds.has(id)) return true;
@@ -1380,6 +1453,14 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
             return !isSequenceBlockedByPrereqs(s, completedSeqIds, milestones);
           })
         : seqIds;
+      // Une étape à variantes exclusives ne valide qu'UNE variante (la première, ou
+      // celle déjà cochée) : `seqIds` peut les contenir toutes.
+      const blockSeqs = (milestones.find((m) => m.id === msId)?.sequences || []).filter(
+        (s) => !isInfoSequence(s)
+      );
+      const targets = completeAll
+        ? choiceRepresentatives(blockSeqs, unlocked, completedSeqIds)
+        : unlocked;
       // Ressources : les quêtes réellement basculées cochent/décochent leurs ressources.
       for (const id of targets) {
         const s = seqById.get(id);
@@ -1415,8 +1496,9 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
           if (completeAll) doneSet.add(id);
           else doneSet.delete(id);
         });
-        const relevant = ms.sequences.filter((s) => !isInfoSequence(s)).map((s) => s.id);
-        const allDone = relevant.length > 0 && relevant.every((id) => doneSet.has(id));
+        const relevant = ms.sequences.filter((s) => !isInfoSequence(s));
+        const counts = stepCounts(relevant, doneSet);
+        const allDone = counts.total > 0 && counts.done === counts.total;
         setCompletedIds((prev) => {
           const next = new Set(prev);
           allDone ? next.add(msId) : next.delete(msId);
@@ -3106,6 +3188,18 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                             Le fil de sève est porté par le chapitre entier (un seul rail) :
                             ici on ne garde que la liste, sans padding horizontal, pour que les
                             nœuds soient alignés sur le tracé. */}
+                        {/* Étape à variantes exclusives : N quêtes, une seule jouée. Le
+                            bloc est déjà compté pour 1 ; la carte explique pourquoi. */}
+                        {block.choiceGroup && (
+                          <div className="px-1 pt-2">
+                            <RushChoiceGroupCard
+                              group={block.choiceGroup}
+                              label={block.choiceLabel ?? null}
+                              note={block.choiceNote ?? null}
+                              count={blockSteps.length}
+                            />
+                          </div>
+                        )}
                         <div className={blockItems.length > 1 ? "py-2 pr-2 sm:py-3 sm:pr-3 space-y-2.5" : "py-2 pr-2 sm:py-3 sm:pr-3"}>
                           {blockItems.map((seq) => {
                             const stepDone = doneSteps.has(seq.id);
@@ -3266,11 +3360,16 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                                           className="h-4 w-4 shrink-0 self-center object-contain opacity-90"
                                           loading="lazy"
                                         />
-                                        {/* Nom de quête (blocs mono-étape : pas d'en-tête, la ligne porte le nom) */}
-                                        {isSingleStep && (
+                                        {/* Nom de quête : blocs mono-étape (pas d'en-tête) ET
+                                            étapes à choix (l'en-tête dit « Étape à choix », la
+                                            ligne doit nommer la variante). */}
+                                        {(isSingleStep || !!block.choiceGroup) && (
                                           <>
                                             <RushAlignmentBadge label={blockAlignmentLabel} />
                                             {(() => {
+                                              const rowQuestName = block.choiceGroup
+                                                ? seq.subGuideName || seq.subGuideRef || block.questName
+                                                : block.questName;
                                               const primaryUrl = (seq as any).dofuspourlesnoobsUrl || (seq as any).dofusdbUrl || block.dofuspourlesnoobsUrl || block.dofusdbUrl || null;
                                               // `min-w` : dans un `flex-wrap` bourré de chips `shrink-0`, le nom
                                               // est le SEUL élément compressible — il s'écrasait à un caractère par
@@ -3287,7 +3386,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                                                     className={`${cls} hover:text-warning transition-colors`}
                                                     title={`Ouvrir sur ${(seq as any).dofuspourlesnoobsUrl || block.dofuspourlesnoobsUrl ? "DofusPourLesNoobs" : "DofusDB"}`}
                                                   >
-                                                    {block.questName}
+                                                    {rowQuestName}
                                                   </a>
                                                 );
                                               }
@@ -3296,9 +3395,9 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                                                   type="button"
                                                   onClick={() => setDetailModalSeq({ milestone: ms, sequence: seq })}
                                                   className={`${cls} cursor-pointer text-left transition-colors hover:text-warning`}
-                                                  aria-label={`Voir les détails de ${block.questName}`}
+                                                  aria-label={`Voir les détails de ${rowQuestName}`}
                                                 >
-                                                  {block.questName}
+                                                  {rowQuestName}
                                                 </button>
                                               );
                                             })()}

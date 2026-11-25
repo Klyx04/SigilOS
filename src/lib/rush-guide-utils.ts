@@ -9,6 +9,7 @@ import {
   readPrereqExprGroups,
   resolvePrereqAlternative,
 } from "@/lib/rush-prereq-expr";
+import { getChoiceGroup } from "@/lib/rush-choice-groups";
 const LOCAL_ASSET_PREFIXES = ["/uploads/assets-dofus/", "/assets-dofus/"];
 
 /**
@@ -554,6 +555,12 @@ type PrereqCandidate = {
   name: string;
   /** Libellé normalisé (casse + espaces insécables). */
   label: string;
+  /**
+   * Groupe de choix exclusif de la cible, ou `null`. Un prérequis qui vise une
+   * variante (ex. « Le magnanime ») est satisfait par **n'importe laquelle** de
+   * ses sœurs : elles racontent la même étape, seul le nom change.
+   */
+  choiceGroup: string | null;
 };
 
 /** Index des cibles possibles d'un prérequis : les séquences des VRAIS chapitres. */
@@ -567,10 +574,32 @@ function prereqCandidates(allMilestones: RushMilestone[]): PrereqCandidate[] {
         milestoneId: ms.id,
         name: seq.subGuideName || seq.subGuideRef || seq.id,
         label: normPrereqName(seq.subGuideName || seq.subGuideRef),
+        choiceGroup: getChoiceGroup(seq),
       });
     }
   }
   return out;
+}
+
+/**
+ * La cible d'un prérequis est-elle satisfaite par une **variante sœur** ?
+ *
+ * Mesure du 25/11/2026 : « Supermilicien » porte `prereq_text: "Le magnanime"` et
+ * « Contre-espion » porte `prereq_text: "Les ordres sont-ils les ordres ?"`. Sans
+ * cette règle, un joueur qui choisit « Les kamas résolvent tout » (ou « On m'appelle
+ * l'Escargot ») resterait bloqué à vie sur la quête suivante.
+ */
+function isPrereqSatisfiedByChoice(
+  hit: PrereqCandidate,
+  allMilestones: RushMilestone[],
+  completed: Set<string>
+): boolean {
+  if (!hit.choiceGroup) return false;
+  const milestone = allMilestones.find((ms) => ms.id === hit.milestoneId);
+  if (!milestone) return false;
+  return milestone.sequences.some(
+    (seq) => getChoiceGroup(seq) === hit.choiceGroup && completed.has(seq.id)
+  );
 }
 
 /** Un succès attaché à une quête (tag `succes` : id officiel, nom, icône du client). */
@@ -792,9 +821,15 @@ export function isSequenceBlockedByPrereqs(
   for (const tag of tags) {
     const hit = resolvePrereqTag(tag, candidates);
     if (!hit || hit.seqId === seq.id) continue;
-    // Cible connue et non cochée ⇒ bloqué. Un prérequis introuvable ne bloque pas :
-    // il est signalé dans le studio, il ne peut pas verrouiller une quête à vie.
-    if (!allCompletedSeqIds.has(hit.seqId)) return true;
+    // Cible connue et non cochée ⇒ bloqué, SAUF si une variante sœur de la même étape
+    // exclusive est validée (elles sont interchangeables). Un prérequis introuvable ne
+    // bloque pas : il est signalé dans le studio, il ne peut pas verrouiller à vie.
+    if (
+      !allCompletedSeqIds.has(hit.seqId) &&
+      !isPrereqSatisfiedByChoice(hit, allMilestones, allCompletedSeqIds)
+    ) {
+      return true;
+    }
   }
   return false;
 }

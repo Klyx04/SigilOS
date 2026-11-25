@@ -589,6 +589,60 @@ details.da-conseil[open] .da-conseil-body {
   transform: rotate(3deg) translateY(-1px);
 }
 
+/* ── Étape à variantes exclusives ────────────────────────────────────────── */
+/* Une seule étape, N quêtes dont une seule est jouée : la carte le dit AVANT les
+   lignes, qui gardent leur anatomie (nœud + carte) et tous leurs gestes. */
+.da-choice {
+  position: relative;
+  margin: 0 0 .75rem;
+}
+
+.da-choice-head {
+  margin-left: 2.5rem;
+  margin-bottom: .5rem;
+  padding: .55rem .7rem .5rem .8rem;
+  border-left: 3px solid var(--da-acc);
+  border-radius: 4px 12px 4px 12px;
+  background: color-mix(in srgb, var(--da-acc) 9%, var(--da-card));
+}
+
+.da-choice-kicker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .45rem;
+}
+
+.da-choice-badge {
+  color: var(--da-acc-ink);
+  font: 700 9px/1 var(--da-font-text);
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.da-choice-count {
+  color: var(--da-muted);
+  font: 600 10px/1 var(--da-font-mono);
+}
+
+.da-choice-title {
+  margin: .25rem 0 0;
+  color: var(--da-ink);
+  font: 700 13px/1.25 var(--da-font-text);
+}
+
+.da-choice-note {
+  margin: .15rem 0 0;
+  color: var(--da-muted);
+  font: 500 11.5px/1.45 var(--da-font-text);
+}
+
+.da-choice .da-row:last-child { margin-bottom: 0; }
+
+@media (max-width: 480px) {
+  .da-choice-head { margin-left: 0; }
+}
+
 /* ── Fil de sève + nœud + carte ──────────────────────────────────────────── */
 .da-rail {
   position: relative;

@@ -125,6 +125,13 @@ import {
   rushEditorDraftKey,
   serializeRushEditorDraft,
 } from "@/lib/rush-editor-draft";
+import {
+  choiceGroupMetaTags,
+  choiceGroupTag,
+  getChoiceGroup,
+  getChoiceGroupMeta,
+  stripChoiceGroupTags,
+} from "@/lib/rush-choice-groups";
 import { RushBranchesCockpit, type RushQuestRouteTarget } from "@/components/god/rush-editor/panels/RushBranchesCockpit";
 import { RushProblemsPanel } from "@/components/god/rush-editor/panels/RushProblemsPanel";
 import { analyzeRushEditorProblems, countRushEditorProblems } from "@/lib/rush-editor-problems";
@@ -4140,6 +4147,18 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
   const [bontaTips, setBontaTips] = useState(draft ? draft.bontaTips : initialVariants.bontarien?.tips ?? "");
   const [brakName, setBrakName] = useState(draft ? draft.brakName : initialVariants.brakmarien?.name ?? "");
   const [brakTips, setBrakTips] = useState(draft ? draft.brakTips : initialVariants.brakmarien?.tips ?? "");
+  // Étape à variantes exclusives : le groupe vit dans `activityTags` (sans migration).
+  // God édite le groupe + les deux textes de la carte ; la convention d'écriture reste
+  // `choiceGroupTag` / `choiceGroupMetaTags` (une seule source avec l'import).
+  const initialChoiceGroup = useMemo(() => getChoiceGroup(seq) ?? "", [seq]);
+  const initialChoiceMeta = useMemo(() => getChoiceGroupMeta(seq), [seq]);
+  const [choiceGroup, setChoiceGroup] = useState(draft?.choiceGroup ?? initialChoiceGroup);
+  const [choiceGroupLabel, setChoiceGroupLabel] = useState(
+    draft?.choiceGroupLabel ?? initialChoiceMeta.label ?? ""
+  );
+  const [choiceGroupNote, setChoiceGroupNote] = useState(
+    draft?.choiceGroupNote ?? initialChoiceMeta.note ?? ""
+  );
   const [alignReq, setAlignReq] = useState(draft?.alignReq ?? (seq.alignReq || ""));
   const [alignOrderCode, setAlignOrderCode] = useState(draft?.alignOrderCode ?? (normalizeOrderCode(seq.alignOrderCode) ?? (seq.alignOrderCode || "")));
   const [alignLevelReq, setAlignLevelReq] = useState(draft?.alignLevelReq ?? (seq.alignLevelReq ? String(seq.alignLevelReq) : ""));
@@ -4197,6 +4216,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
     resources: false,
     links: false,
     variants: false,
+    choices: false,
     route: false,
     hints: false,
     advanced: false,
@@ -4652,9 +4672,44 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
   }, [bontaName, bontaTips, brakName, brakTips]);
   const hasVariants = Object.keys(nextVariants).length > 0;
 
+  /**
+   * Tags de choix exclusif — construits par la règle pure, puis **remplacés** dans la
+   * liste : changer le groupe ou vider un texte ne laisse jamais un ancien tag derrière.
+   * Les autres tags (items, combats, donjons…) sont conservés tels quels.
+   */
+  const choiceTags = useMemo(
+    () => [
+      ...(choiceGroupTag(choiceGroup) ?? []),
+      ...choiceGroupMetaTags({ label: choiceGroupLabel, note: choiceGroupNote }),
+    ],
+    [choiceGroup, choiceGroupLabel, choiceGroupNote]
+  );
+  const effectiveActivityTags = useMemo(
+    () => [...choiceTags, ...stripChoiceGroupTags(activityTags)],
+    [choiceTags, activityTags]
+  );
+
+  /** Variantes déjà présentes dans le même groupe (lecture seule, pour ne pas se tromper). */
+  const choiceSiblings = useMemo(() => {
+    const group = choiceGroup.trim();
+    if (!group) return [];
+    return (milestones ?? []).flatMap((m) =>
+      (m.sequences ?? [])
+        .filter((candidate) => candidate.id !== seq.id && getChoiceGroup(candidate) === group)
+        .map((candidate) => ({
+          id: candidate.id,
+          name: candidate.subGuideName || candidate.subGuideRef,
+          block: m.title,
+        }))
+    );
+  }, [choiceGroup, milestones, seq.id]);
+
   const isDirty = useMemo(() => {
     return (
       name !== (seq.subGuideName || seq.subGuideRef) ||
+      choiceGroup !== initialChoiceGroup ||
+      choiceGroupLabel !== (initialChoiceMeta.label ?? "") ||
+      choiceGroupNote !== (initialChoiceMeta.note ?? "") ||
       dofusdbUrl !== (seq.dofusdbUrl || "") ||
       noobsUrl !== (seq.dofuspourlesnoobsUrl || "") ||
       tips !== (seq.tips || "") ||
@@ -4676,7 +4731,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
       optionalDungeonIds.slice().sort().join(",") !==
         (seq.dungeons ?? []).filter((d: any) => d.isOptional).map((d: any) => d.id).sort().join(",")
     );
-  }, [name, dofusdbUrl, noobsUrl, tips, constraints, initialConstraints, nextVariants, initialVariants, alignReq, alignOrderCode, alignLevelReq, classReq, questDbIds, note, isSuccess, icon, metamobMonsterId, optionalDungeonIds, seq]);
+  }, [name, dofusdbUrl, noobsUrl, tips, constraints, initialConstraints, nextVariants, initialVariants, alignReq, alignOrderCode, alignLevelReq, classReq, questDbIds, note, isSuccess, icon, metamobMonsterId, optionalDungeonIds, seq, choiceGroup, choiceGroupLabel, choiceGroupNote, initialChoiceGroup, initialChoiceMeta]);
 
   // E1 — l'inspecteur tient la garde de saisie : le formulaire lui signale son état.
   useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
@@ -4713,12 +4768,15 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
           brakName,
           brakTips,
           isSuccess,
+          choiceGroup,
+          choiceGroupLabel,
+          choiceGroupNote,
         })
       );
     } catch {
       /* stockage indisponible : on continue sans brouillon */
     }
-  }, [isDirty, seq.id, name, note, tips, dofusdbUrl, noobsUrl, alignReq, alignOrderCode, alignLevelReq, classReq, metamobMonsterId, icon, bontaName, bontaTips, brakName, brakTips, isSuccess]);
+  }, [isDirty, seq.id, name, note, tips, dofusdbUrl, noobsUrl, alignReq, alignOrderCode, alignLevelReq, classReq, metamobMonsterId, icon, bontaName, bontaTips, brakName, brakTips, isSuccess, choiceGroup, choiceGroupLabel, choiceGroupNote]);
 
   /** Restaure les valeurs de la base et jette le brouillon (geste explicite). */
   const discardDraft = () => {
@@ -4745,6 +4803,9 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
     setBontaTips(v.bontarien?.tips ?? "");
     setBrakName(v.brakmarien?.name ?? "");
     setBrakTips(v.brakmarien?.tips ?? "");
+    setChoiceGroup(initialChoiceGroup);
+    setChoiceGroupLabel(initialChoiceMeta.label ?? "");
+    setChoiceGroupNote(initialChoiceMeta.note ?? "");
     setDraftRestored(false);
   };
 
@@ -4782,8 +4843,8 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
     isSuccess,
     icon: icon.trim() || null,
     metamobMonsterId: metamobMonsterId ? parseInt(metamobMonsterId, 10) : null,
-    activityTags: activityTags as RushActivityTag[],
-  }), [seq.id, seq.subGuideRef, seq.order, name, note, selectedDungeons, dofusdbUrl, noobsUrl, tips, alignReq, alignOrderCode, alignLevelReq, classReq, isSuccess, icon, metamobMonsterId, activityTags]);
+    activityTags: effectiveActivityTags as RushActivityTag[],
+  }), [seq.id, seq.subGuideRef, seq.order, name, note, selectedDungeons, dofusdbUrl, noobsUrl, tips, alignReq, alignOrderCode, alignLevelReq, classReq, isSuccess, icon, metamobMonsterId, effectiveActivityTags]);
 
   /** Bloc qui porte la quête éditée : la fiche « Détails » y lit son titre et son illustration. */
   const previewMilestone: RushMilestone = useMemo(() => {
@@ -4841,7 +4902,12 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
       isSuccess,
       icon: icon.trim() || null,
       metamobMonsterId: metamobMonsterId ? parseInt(metamobMonsterId, 10) : null,
-      activityTags,
+      // Choix exclusif : les trois champs sont autoritaires (vide = effacer le tag).
+      // `activityTags` porte déjà la forme finale pour l'aperçu ; le serveur re-borne.
+      choiceGroup: choiceGroup.trim() || null,
+      choiceGroupLabel: choiceGroupLabel.trim() || null,
+      choiceGroupNote: choiceGroupNote.trim() || null,
+      activityTags: effectiveActivityTags,
     });
   };
 
@@ -4857,6 +4923,7 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
     activities: !alignmentSet && !metierTag && !hasSuccessTag,
     resources: requiredItems.length === 0,
     links: !dofusdbUrl.trim() && !noobsUrl.trim() && !icon.trim(),
+    choices: !choiceGroup.trim(),
     route: !alignReq && !alignOrderCode && !alignLevelReq && !classReq,
     hints: !tips.trim(),
     variants: !hasVariants,
@@ -5338,6 +5405,93 @@ function SequenceEditForm({ seq, milestoneId, isPending, onSave, onCancel, onMov
                 />
               </div>
             ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── Étape à variantes exclusives (Brak 55/66) ── */}
+      <div className={sectionClass(emptySections.choices)}>
+        <button
+          type="button"
+          onClick={() => toggleSection("choices")}
+          className="w-full flex items-center justify-between p-2.5 text-left text-xs font-bold text-foreground hover:text-foreground transition-colors"
+        >
+          <span className="flex items-center gap-2 font-mono uppercase text-caption tracking-wider text-primary/90">
+            🔀 Étape à choix exclusifs
+          </span>
+          <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${openSections.choices ? "rotate-180" : ""}`} />
+        </button>
+        {openSections.choices && (
+          <div className="p-3 pt-0 space-y-2 border-t border-border">
+            <p className="text-caption text-muted-foreground leading-relaxed">
+              Une étape = N quêtes dont <strong>une seule</strong> est jouée. Donne le même
+              groupe à chaque variante (ex. <code>55</code>) : le guide les comptera pour
+              une étape et cocher l&apos;une décochera les autres.
+            </p>
+            <div>
+              <label className="text-caption font-semibold text-muted-foreground uppercase tracking-wide mb-1 block">
+                Groupe de choix
+              </label>
+              <input
+                value={choiceGroup}
+                onChange={(e) => setChoiceGroup(e.target.value)}
+                maxLength={48}
+                className="w-full bg-background/80 border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary/50"
+                placeholder="ex. 55 — vide = quête normale"
+                aria-label="Groupe de choix exclusif"
+              />
+            </div>
+            {choiceGroup.trim() && (
+              <>
+                <div>
+                  <label className="text-caption font-semibold text-muted-foreground uppercase tracking-wide mb-1 block">
+                    Libellé de la carte
+                  </label>
+                  <input
+                    value={choiceGroupLabel}
+                    onChange={(e) => setChoiceGroupLabel(e.target.value)}
+                    maxLength={160}
+                    className="w-full bg-background/80 border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary/50"
+                    placeholder="ex. Étape 55 — choisissez votre variante"
+                    aria-label="Libellé de la carte de choix"
+                  />
+                </div>
+                <div>
+                  <label className="text-caption font-semibold text-muted-foreground uppercase tracking-wide mb-1 block">
+                    Condition / note
+                  </label>
+                  <textarea
+                    value={choiceGroupNote}
+                    onChange={(e) => setChoiceGroupNote(e.target.value)}
+                    maxLength={320}
+                    rows={2}
+                    className="w-full bg-background/80 border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none resize-none focus:border-primary/50"
+                    placeholder="ex. Ces quêtes sont identiques, seul le nom change."
+                    aria-label="Note de la carte de choix"
+                  />
+                </div>
+                <div className="rounded-lg border border-border bg-surface/60 p-2">
+                  <p className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">
+                    Variantes déjà dans le groupe ({choiceSiblings.length})
+                  </p>
+                  {choiceSiblings.length > 0 ? (
+                    <ul className="mt-1 space-y-0.5">
+                      {choiceSiblings.map((sibling) => (
+                        <li key={sibling.id} className="truncate text-caption text-foreground">
+                          • {sibling.name}
+                          <span className="text-subtle-foreground"> — {sibling.block}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-1 text-caption text-subtle-foreground">
+                      Aucune autre quête ne porte encore ce groupe. Donne-lui le même code
+                      sur chaque variante.
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>

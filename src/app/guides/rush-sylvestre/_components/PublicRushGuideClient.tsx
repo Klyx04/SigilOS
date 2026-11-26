@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import React, { useState, useCallback, useMemo, useEffect, useRef, useDeferredValue } from "react";
 import Link from "next/link";
 import { createPortal } from "react-dom";
 import {
@@ -32,6 +32,7 @@ import {
   Upload,
   Compass,
   Eye,
+  ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -167,6 +168,7 @@ import { RushBlockDoneSeal } from "@/components/dofus-quests/rush/RushBlockDoneS
 // Sommaire au langage du dock — composant PARTAGÉ (public en E2, interne en E4).
 import { RushChapterNav } from "@/components/dofus-quests/rush/RushChapterNav";
 import { resolveRushDaTheme } from "@/lib/rush-da-theme";
+import { buildRushResumeChoices } from "@/lib/rush-resume";
 import {
   alignmentSectionFor,
   buildAlignmentSeries,
@@ -1093,6 +1095,27 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
     return () => clearTimeout(t);
   }, [bookmarksByMs]);
 
+  // Tous les repères encore valides : 2+ ⇒ le popup d'arrivée propose le choix
+  // au lieu de pointer arbitrairement le premier repère (26/11/2026).
+  const resumeBookmarkChoices = useMemo(
+    () =>
+      buildRushResumeChoices({
+        milestones: milestones.map((ms) => ({
+          id: ms.id,
+          title: ms.title,
+          sequences: (ms.sequences ?? []).map((seq) => ({
+            id: seq.id,
+            name: seq.subGuideName || seq.subGuideRef || "Quête",
+            isInfo: isInfoSequence(seq),
+          })),
+        })),
+        bookmarks: bookmarksByMs,
+        isDone: (milestoneId, seqId) =>
+          completedStepsByMs.get(milestoneId)?.has(seqId) ?? false,
+      }),
+    [milestones, bookmarksByMs, completedStepsByMs]
+  );
+
   // Cross-window sync (broadcast channel between page and floating overlay)
   useGuideProgressSync(
     // Canal par PERSONNAGE (le préfixe porte l'emplacement) : deux personnages
@@ -1105,6 +1128,12 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
 
   // Filters & UI State
   const [searchQuery, setSearchQuery] = useState("");
+  /**
+   * La frappe reste immédiate dans le champ ; le filtrage lit une valeur différée.
+   * Même correction que le dashboard et l'overlay (26/11/2026) : chaque touche
+   * re-filtrait tous les blocs de quête du guide visible.
+   */
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const [hideDone, setHideDone] = useState(false);
   const [showResources, setShowResources] = useState(false);
   const [expandedMs, setExpandedMs] = useState<Set<string>>(() => new Set(milestones.map((ms) => ms.id)));
@@ -1860,7 +1889,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
     return out;
   }, [milestones]);
 
-  const isSearching = searchQuery.trim().length > 0;
+  const isSearching = deferredSearchQuery.trim().length > 0;
 
   const currentPageIndex = useMemo(() => {
     const idx = chapterPages.findIndex((p) => p.ms.id === pageChapterId);
@@ -2866,8 +2895,8 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
           let questBlocks = groupSequencesIntoQuests(sequences, doneSteps);
 
           // Filtrage par recherche
-          if (searchQuery.trim().length > 0) {
-            const q = searchQuery.toLowerCase();
+          if (deferredSearchQuery.trim().length > 0) {
+            const q = deferredSearchQuery.toLowerCase();
             questBlocks = questBlocks.filter(
               (b) =>
                 b.questName.toLowerCase().includes(q) ||
@@ -2884,8 +2913,8 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
           // ⚠️ Une recherche montre AUSSI les blocs faits : masquer pendant une
           // recherche ferait croire que la quête n'existe pas (parité dashboard).
           const hiddenDoneBlocks =
-            hideDone && !searchQuery.trim() ? questBlocks.filter((b) => b.isDone).length : 0;
-          if (hideDone && !searchQuery.trim()) {
+            hideDone && !deferredSearchQuery.trim() ? questBlocks.filter((b) => b.isDone).length : 0;
+          if (hideDone && !deferredSearchQuery.trim()) {
             questBlocks = questBlocks.filter((b) => !b.isDone);
           }
 
@@ -2915,10 +2944,10 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
               });
           });
 
-          if (questBlocks.length === 0 && (searchQuery.trim().length > 0 || hideDone)) {
+          if (questBlocks.length === 0 && (deferredSearchQuery.trim().length > 0 || hideDone)) {
             // Une recherche sans résultat garde le message global ; « masquer les
             // étapes faites » ne doit JAMAIS laisser une grande zone noire.
-            if (searchQuery.trim().length > 0) return null;
+            if (deferredSearchQuery.trim().length > 0) return null;
             const allChapterDone =
               chapterSteps.length > 0 && chapterSteps.every((s) => doneSteps.has(s.id));
             const doneCount = chapterSteps.filter((s) => doneSteps.has(s.id)).length;
@@ -3413,7 +3442,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                                   />
                                 );
                               }
-                              return <RushInfoSequenceBanner key={seq.id} seq={seq} accentColor={ms.accentColor} />;
+                              return <RushInfoSequenceBanner key={seq.id} seq={seq} accentColor={ms.accentColor} viewer="visitor" />;
                             }
 
                             // Extraction et séparation des tags d'items pour ne PAS polluer la ligne
@@ -3905,7 +3934,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                                       {isHintsOpen && (
                                         <div className="space-y-1.5 px-2.5 pb-2.5">
                                           {chips.length > 0 && (
-                                            <RushQuestConstraints constraints={chips} />
+                                            <RushQuestConstraints constraints={chips} viewer="visitor" />
                                           )}
                                           {parsedTip.rest && (
                                             <p className={cn("text-xs leading-relaxed text-muted-foreground", stepDone && "line-through")}>
@@ -3951,7 +3980,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                             );
                           })}
                           {blockChildren.map((child) => (
-                            <RushBlockChild key={child.id} child={child} surface="page" />
+                            <RushBlockChild key={child.id} child={child} surface="page" viewer="visitor" />
                           ))}
                         </div>
                       </div>
@@ -4082,31 +4111,67 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
 
       {/* ── POPUP « REPRENDRE ? » (retour avec repère local) ── */}
       {continueModalOpen &&
+        resumeBookmarkChoices.length > 0 &&
         (() => {
-          const bmEntry = Array.from(bookmarksByMs.entries())[0];
-          if (!bmEntry) return null;
-          const ms = milestones.find((m) => m.id === bmEntry[0]);
-          if (!ms) return null;
+          const single = resumeBookmarkChoices[0];
+          const multi = resumeBookmarkChoices.length > 1;
           return (
             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60" onClick={() => setContinueModalOpen(false)}>
               <div className="reg-panel-strong bg-background p-5 max-w-sm w-full mx-4" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center gap-3 mb-3">
                   <Flag className="w-5 h-5 text-success" aria-hidden="true" />
-                  <h3 className="text-sm font-semibold text-foreground">Reprendre ?</h3>
+                  <h3 className="text-sm font-semibold text-foreground">{multi ? "Reprendre où ?" : "Reprendre ?"}</h3>
                 </div>
-                <p className="text-xs text-muted-foreground mb-4">
-                  Tu étais à <strong className="text-foreground">{ms.title}</strong>.
-                </p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      scrollToStep(bmEntry[1]);
-                      setContinueModalOpen(false);
-                    }}
-                    className="reg-btn reg-btn-primary flex-1 text-sm"
-                  >
-                    Reprendre
-                  </button>
+                {multi ? (
+                  <ul className="max-h-[240px] space-y-0.5 overflow-y-auto">
+                    {resumeBookmarkChoices.map((choice) => (
+                      <li key={`${choice.milestoneId}::${choice.seqId}`}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            scrollToStep(choice.seqId);
+                            setContinueModalOpen(false);
+                          }}
+                          aria-label={`Reprendre ${choice.name} — ${choice.blockTitle}`}
+                          className="flex w-full items-center gap-2 rounded-[4px] px-2 py-1.5 text-left transition-colors hover:bg-surface"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src="/assets/icons/icone-quete.png"
+                            alt=""
+                            aria-hidden="true"
+                            className="h-3.5 w-3.5 shrink-0 object-contain"
+                          />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-xs font-semibold text-foreground">
+                              {choice.name}
+                            </span>
+                            <span className="block truncate text-[10px] text-muted-foreground">
+                              {choice.blockTitle}
+                            </span>
+                          </span>
+                          <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-xs text-muted-foreground mb-4">
+                    Tu étais à <strong className="text-foreground">{single.blockTitle}</strong>.
+                  </p>
+                )}
+                <div className="flex gap-2 mt-4">
+                  {!multi && (
+                    <button
+                      onClick={() => {
+                        scrollToStep(single.seqId);
+                        setContinueModalOpen(false);
+                      }}
+                      className="reg-btn reg-btn-primary flex-1 text-sm"
+                    >
+                      Reprendre
+                    </button>
+                  )}
                   <button
                     onClick={() => setContinueModalOpen(false)}
                     className="reg-btn reg-btn-secondary text-sm"

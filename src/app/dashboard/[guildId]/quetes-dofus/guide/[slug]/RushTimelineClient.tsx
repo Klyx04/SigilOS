@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useCallback, useMemo, useRef, memo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef, memo, useDeferredValue } from "react";
 import { createPortal } from "react-dom";
 import { GameIcon } from "@/components/shared/game-icon";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
@@ -9,7 +9,7 @@ import {
   BookmarkCheck, Loader2, CheckCheck,
   Sparkles, Construction, Sword, Lock, MapPin, Plus,
   Pencil, Crown, ChevronRight, ListCollapse, Info, Check, Search, X, CircleHelp, ClipboardList,
-  Settings2, Ghost, Maximize2, Lightbulb, DoorOpen
+  Settings2, Ghost, Maximize2, Lightbulb
 } from "lucide-react";
 
 import Link from "next/link";
@@ -81,6 +81,7 @@ import { DaThemeProvider } from "@/components/da/da-theme";
 import { useDaTheme } from "@/components/da/da-theme";
 import { daScopeProps } from "@/lib/da-scope";
 import { resolveRushDaTheme } from "@/lib/rush-da-theme";
+import { buildRushResumeChoices } from "@/lib/rush-resume";
 import { RushOverlayQuestDetailModal } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestDetailModal";
 // Modale « Ressources à prévoir » + agrégation : SOURCE UNIQUE partagée avec
 // l'overlay et la page publique (mêmes clés de coche des deux côtés).
@@ -317,6 +318,9 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
   const resourceChecks = React.useContext(ResourceChecksCtx);
   const onToggleResourceCheck = React.useContext(OnToggleResourceCheckCtx);
   const router = useRouter();
+  // Menu « Chercher un groupe » : une grille bento, pas un dropdown vertical — au-delà
+  // de 5 donjons, la liste déroulante devenait illisible (retour user 26/11/2026).
+  const [dungeonSearchOpen, setDungeonSearchOpen] = useState(false);
   /**
    * Quêtes du guide (id → nom + état) pour la fiche d'un succès. Construite par ligne
    * (53 entrées) : aucune requête, aucun état partagé de plus.
@@ -837,34 +841,86 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
                   );
                 }
                 return (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        type="button"
-                        aria-label="Chercher un groupe pour un donjon de cette quête"
-                        className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
-                      >
-                        <GameIcon src="crossed-swords.png" className="h-3 w-3" />
-                        Chercher un groupe
-                        <ChevronDown className="h-3 w-3 opacity-60" aria-hidden="true" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                      align="start"
-                      className="z-[120] min-w-[200px] rounded-[4px] border-border bg-background/95 p-1.5 text-foreground"
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setDungeonSearchOpen(true)}
+                      aria-label="Chercher un groupe pour un donjon de cette quête"
+                      aria-haspopup="dialog"
+                      className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
                     >
-                      {searchable.map((dungeon) => (
-                        <DropdownMenuItem
-                          key={dungeon.id}
-                          onClick={() => onDungeonClick(dungeon.id as string, questName)}
-                          className="cursor-pointer gap-2 text-xs"
-                        >
-                          <DoorOpen className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-                          <span className="min-w-0 truncate">{dungeon.name || dungeon.bossName || "Donjon"}</span>
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                      <GameIcon src="crossed-swords.png" className="h-3 w-3" />
+                      Chercher un groupe
+                      <ChevronDown className="h-3 w-3 opacity-60" aria-hidden="true" />
+                    </button>
+                    <Dialog open={dungeonSearchOpen} onOpenChange={setDungeonSearchOpen}>
+                      <DialogContent
+                        {...daScope}
+                        overlayClassName="da-modal-scrim"
+                        className="da-modal da-portal gap-0 p-0 sm:max-w-lg"
+                      >
+                        <DialogHeader className="da-modal-head">
+                          <DialogTitle className="da-modal-title flex items-center gap-2">
+                            <GameIcon src="crossed-swords.png" className="h-4 w-4" />
+                            Chercher un groupe
+                          </DialogTitle>
+                        </DialogHeader>
+                        <div className="px-4 pb-4">
+                          <p className="mb-2 text-[11px] text-muted-foreground">
+                            {questName} · {searchable.length} donjon{searchable.length > 1 ? "s" : ""}
+                          </p>
+                          {/* Bento : une carte par donjon, deux colonnes dès que la place
+                              le permet. La grille scrolle au lieu d'allonger la modale. */}
+                          <div className="grid max-h-[min(60vh,26rem)] grid-cols-1 gap-1.5 overflow-y-auto overscroll-contain sm:grid-cols-2">
+                            {searchable.map((dungeon) => (
+                              <button
+                                key={dungeon.id}
+                                type="button"
+                                onClick={() => {
+                                  setDungeonSearchOpen(false);
+                                  onDungeonClick(dungeon.id as string, questName);
+                                }}
+                                className="group flex min-h-11 min-w-0 items-center gap-2 rounded-[5px] border border-border bg-surface p-2 text-left transition-colors hover:border-border-strong hover:bg-elevated"
+                              >
+                                {dungeon.imageUrl ? (
+                                  // Vraie vignette du donjon : même asset que la pastille
+                                  // et la fiche, jamais un glyphe d'interface.
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img
+                                    src={dungeon.imageUrl}
+                                    alt=""
+                                    className="h-10 w-10 shrink-0 rounded-[4px] border border-border object-contain"
+                                    loading="lazy"
+                                  />
+                                ) : (
+                                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[4px] border border-border bg-background">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                      src="/assets/dofus-ui/pictos/donjon.png"
+                                      alt=""
+                                      className="h-5 w-5 object-contain"
+                                      loading="lazy"
+                                    />
+                                  </span>
+                                )}
+                                <span className="min-w-0 flex-1">
+                                  <span className="block truncate text-xs font-semibold text-foreground">
+                                    {dungeon.name || dungeon.bossName || "Donjon"}
+                                  </span>
+                                  {dungeon.bossName && dungeon.name ? (
+                                    <span className="block truncate text-[10px] text-muted-foreground">
+                                      {dungeon.bossName}
+                                    </span>
+                                  ) : null}
+                                </span>
+                                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  </>
                 );
               })()
             }
@@ -1027,10 +1083,10 @@ function CollapsibleHints({ tipsText, note, constraints }: { tipsText: string; n
       {open && (
         <div className="space-y-1.5 pt-2">
           {tipsText && (
-            <RushDofusDexTip text={tipsText} constraints={constraints} className="text-xs leading-relaxed text-muted-foreground" />
+            <RushDofusDexTip text={tipsText} constraints={constraints} className="text-xs leading-relaxed text-muted-foreground" viewer="member" />
           )}
           {!tipsText && constraints && hasRushHints({ constraints }) && (
-            <RushTipLines text="" constraints={constraints} className="text-xs leading-relaxed text-muted-foreground" />
+            <RushTipLines text="" constraints={constraints} className="text-xs leading-relaxed text-muted-foreground" viewer="member" />
           )}
           {note && (
             <p className="text-[11px] leading-relaxed text-muted-foreground">Note : {note}</p>
@@ -1060,8 +1116,9 @@ function InfoBanner({ milestone }: { milestone: Milestone }) {
       title={hasTitle ? milestone.title : null}
       imageUrl={milestone.imageUrl}
       accentColor={milestone.accentColor}
+      viewer="member"
     >
-      <RushTipLines text={content} />
+      <RushTipLines text={content} viewer="member" />
     </RushInfoBanner>
   );
 }
@@ -1155,7 +1212,7 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
       rushCombatSequenceType(s) ? (
         <RushCombatBanner type={rushCombatSequenceType(s)!} title={s.subGuideName} bodyText={s.tips} surface="page" className="my-2" />
       ) : (
-        <RushInfoSequenceBanner seq={s} accentColor={c} />
+        <RushInfoSequenceBanner seq={s} accentColor={c} viewer="member" />
       )
     ) : (
       <SequenceRow seq={s} ms={ms} isSeqCompleted={completedStepsSet.has(s.id)} focusedSeqId={focusedSeqId} accentColor={c} onToggleSeq={()=>onToggleSequence(ms,s.id)} onDungeonClick={onDungeonClick} isFirstVisible={s.id===firstVisibleSeqId} hideSeqCompleted={hideDone}/>
@@ -1187,7 +1244,7 @@ const MilestoneRow = memo(function MilestoneRow({ ms, isCompleted, completedStep
     childrenAfterSequenceId.set(anchor.id, list);
   }
   const renderChild = (child: RushMilestoneChild) => (
-    <RushBlockChild key={child.id} child={child} surface="page" />
+    <RushBlockChild key={child.id} child={child} surface="page" viewer="member" />
   );
   const renderSequenceWithChild = (s:any) => (
     <>
@@ -2778,6 +2835,26 @@ const timelineItems=useMemo(()=>{
   }, [bookmarksByMs, activeMsId, milestones]);
   const effectiveBookmarkSeqId = primaryBookmark?.seqId || null;
   const bookmarkedMsId = primaryBookmark?.msId || null;
+  // Tous les repères encore valides : avec 2+, « Reprendre » ouvre le sélecteur
+  // au lieu de choisir arbitrairement le repère du bloc actif / le premier.
+  const resumeBookmarkChoices = useMemo(
+    () =>
+      buildRushResumeChoices({
+        milestones: milestones.map((ms) => ({
+          id: ms.id,
+          title: ms.title,
+          sequences: (ms.sequences ?? []).map((seq) => ({
+            id: seq.id,
+            name: seq.subGuideName || seq.subGuideRef || "Quête",
+            isInfo: isInfoSequence(seq),
+          })),
+        })),
+        bookmarks: bookmarksByMs,
+        isDone: (milestoneId, seqId) =>
+          completedStepsByMs.get(milestoneId)?.has(seqId) ?? false,
+      }),
+    [milestones, bookmarksByMs, completedStepsByMs]
+  );
 
   // ─── Temps réel (Phase 1) : useGuidePresence (même hook que Ganymède) ───────
   const guideLive = useGuidePresence({
@@ -2933,10 +3010,21 @@ const timelineItems=useMemo(()=>{
 
   // ─── Search state ───────────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState("");
+  /**
+   * La frappe reste immédiate dans le champ ; le filtrage lit une valeur différée.
+   * Mesure du 26/11/2026 : chaque touche normalisait et rescannait tous les champs
+   * de toutes les quêtes (nom, tips, note, donjons, tags), ce qui rendait la
+   * recherche pâteuse sur un guide de 400+ quêtes.
+   */
+  const deferredSearchQuery = useDeferredValue(searchQuery);
 
-  // resumeRush priorité : 1) bookmarkedSeqId 2) activeSeqId 3) toast
+  // resumeRush priorité : plusieurs repères ⇒ sélecteur ; sinon 1) repère 2) activeSeqId 3) toast
   const resumeRush = useCallback(() => {
     if (searchQuery) setSearchQuery("");
+    if (resumeBookmarkChoices.length > 1) {
+      setContinueModalOpen(true);
+      return;
+    }
     if (effectiveBookmarkSeqId) {
       scrollToSequence(effectiveBookmarkSeqId);
     } else if (activeSeqId) {
@@ -2944,13 +3032,13 @@ const timelineItems=useMemo(()=>{
     } else {
       toast("Aucune étape à reprendre", { duration: 2000 });
     }
-  }, [effectiveBookmarkSeqId, activeSeqId, scrollToSequence, searchQuery]);
+  }, [resumeBookmarkChoices.length, effectiveBookmarkSeqId, activeSeqId, scrollToSequence, searchQuery]);
   const normalizeSearch = useCallback((s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim(), []);
 
-  const searchResults = useMemo(() => {
-    if (!searchQuery.trim()) return null;
-    const q = normalizeSearch(searchQuery);
-    const matchingSeqIds = new Set<string>();
+  // Index construit UNE fois par guide : la frappe ne relit plus ni ne normalise
+  // chaque champ à chaque touche (même correction que l'overlay).
+  const searchIndex = useMemo(() => {
+    const out: { seqId: string; haystack: string }[] = [];
     for (const ms of milestones) {
       if (isRushNonQuestBlock(ms.type)) continue;
       for (const seq of ms.sequences) {
@@ -2960,13 +3048,24 @@ const timelineItems=useMemo(()=>{
           ...(seq.dungeons || []).flatMap(d => [d.name, d.bossName]),
           ...(seq.activityTags || []).flatMap(t => [t.name, t.type])
         ];
-        if (fields.some(f => f && normalizeSearch(f).includes(q))) {
-          matchingSeqIds.add(seq.id);
-        }
+        out.push({
+          seqId: seq.id,
+          haystack: fields.filter((f): f is string => !!f).map(normalizeSearch).join("\n"),
+        });
       }
     }
+    return out;
+  }, [milestones, normalizeSearch]);
+
+  const searchResults = useMemo(() => {
+    if (!deferredSearchQuery.trim()) return null;
+    const q = normalizeSearch(deferredSearchQuery);
+    const matchingSeqIds = new Set<string>();
+    for (const entry of searchIndex) {
+      if (entry.haystack.includes(q)) matchingSeqIds.add(entry.seqId);
+    }
     return matchingSeqIds;
-  }, [searchQuery, milestones, normalizeSearch]);
+  }, [deferredSearchQuery, searchIndex, normalizeSearch]);
 
   // ─── Page courante (pagination par bloc) ────────────────────────────────────
   // Défaut : le bloc du repère « Je suis ici », sinon le premier bloc non terminé — on
@@ -3411,7 +3510,7 @@ const timelineItems=useMemo(()=>{
     {searchResults !== null && (
       <div className="flex items-center justify-between px-1">
         <p className="text-caption text-muted-foreground font-mono">
-          {searchResults.size} quête(s) trouvée(s) pour « {searchQuery} »
+          {searchResults.size} quête(s) trouvée(s) pour « {deferredSearchQuery} »
         </p>
         <button onClick={() => setSearchQuery("")}
           className="text-caption text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2"
@@ -3586,19 +3685,46 @@ const timelineItems=useMemo(()=>{
     )}
     {djModal.open&&<DjPostCreateModal isOpen={true} onClose={()=>setDjModal({open:false})} onCreated={()=>{}} guildId={guildId} initialDungeonId={djModal.dungeonId} initialQuestName={djModal.questName}/>}
     {wizardOpen&&<RushOnboardingWizardModal isOpen={true} guildId={guildId} onClose={handleWizardClose} onDismiss={handleWizardDismiss} initialStep={wizardStep} onStepChange={handleWizardStep} hasNoClassDeclared={!selectedClassDeclared} characters={(()=>{const mainChar={id:"PRINCIPAL",name:currentUserProfile?.pseudoDofus||"Principal",isMule:false,dofusClass:currentUserProfile?.dofusClass,level:200};const mappedMules=(mules||[]).map((m:any)=>({id:m.pseudo||m.id,name:m.pseudo||m.id,isMule:true,dofusClass:m.classe||null,level:m.level||200}));return[mainChar,...mappedMules];})()} selectedCharacter={selectedCharacter} onSelectCharacter={handleWizardSelectCharacter} metamobPseudo={currentUserProfile?.metamobPseudo} onOpenMetamobLink={() => setMetamobLinkOpen(true)} currentAlignment={resolvedCharacterInfo.alignment} currentAlignmentOrder={resolvedCharacterInfo.alignmentOrder} onResetAlignment={handleResetAlignment} launchConfig={rushUIConfig?.launch} onResetCharacter={handleResetCharacter} resettingId={resettingCharId}/>}
-    {continueModalOpen&&bookmarkedMsId&&(()=>{
-      const ms=milestones.find(m=>m.id===bookmarkedMsId);if(!ms)return null;
+    {continueModalOpen&&resumeBookmarkChoices.length>0&&(()=>{
+      const single=resumeBookmarkChoices[0];
+      const multi=resumeBookmarkChoices.length>1;
       return<div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center bg-black/60" onClick={()=>setContinueModalOpen(false)}>
         <div {...daScope} className="da-modal da-portal max-w-sm mx-4" onClick={e=>e.stopPropagation()}>
           <div className="da-modal-head">
             <div className="flex items-center gap-3">
               <Flag className="w-5 h-5 text-success" aria-hidden="true"/>
-              <h3 className="da-modal-title">Reprendre ?</h3>
+              <h3 className="da-modal-title">{multi?"Reprendre où ?":"Reprendre ?"}</h3>
             </div>
           </div>
-          <p className="da-modal-body text-xs text-muted-foreground">Tu étais à <strong className="text-foreground">{ms.title}</strong>.</p>
+          {multi?(
+            <div className="da-modal-body space-y-1">
+              <p className="text-xs text-muted-foreground">Tu as plusieurs repères « je suis ici ».</p>
+              <ul className="max-h-[240px] space-y-0.5 overflow-y-auto">
+                {resumeBookmarkChoices.map((choice)=>(
+                  <li key={`${choice.milestoneId}::${choice.seqId}`}>
+                    <button
+                      type="button"
+                      onClick={()=>{scrollToSequence(choice.seqId);setContinueModalOpen(false);}}
+                      aria-label={`Reprendre ${choice.name} — ${choice.blockTitle}`}
+                      className="flex w-full items-center gap-2 rounded-[4px] px-2 py-1.5 text-left transition-colors hover:bg-elevated"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src="/assets/icons/icone-quete.png" alt="" aria-hidden="true" className="h-3.5 w-3.5 shrink-0 object-contain" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-xs font-semibold text-foreground">{choice.name}</span>
+                        <span className="block truncate text-[10px] text-muted-foreground">{choice.blockTitle}</span>
+                      </span>
+                      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ):(
+            <p className="da-modal-body text-xs text-muted-foreground">Tu étais à <strong className="text-foreground">{single.blockTitle}</strong>.</p>
+          )}
           <div className="da-modal-foot">
-            <button onClick={()=>{ensureMsFor(bookmarkedMsId);const el=document.querySelector(`[data-ms-id="${bookmarkedMsId}"]`);if(el)el.scrollIntoView({behavior:"smooth",block:"center"});setContinueModalOpen(false);}} className="flex-1 px-4 py-2.5 rounded-[4px] bg-success text-success-foreground text-caption font-medium">Reprendre</button>
+            {!multi&&<button onClick={()=>{scrollToSequence(single.seqId);setContinueModalOpen(false);}} className="flex-1 px-4 py-2.5 rounded-[4px] bg-success text-success-foreground text-caption font-medium">Reprendre</button>}
             <button onClick={()=>setContinueModalOpen(false)} className="px-4 py-2.5 rounded-[4px] bg-elevated hover:bg-muted text-muted-foreground text-caption font-medium">Plus tard</button>
           </div>
         </div>

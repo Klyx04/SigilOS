@@ -16,13 +16,17 @@ import { RushCombatBanner } from "./RushCombatBanner";
 import { RushInfoBanner } from "./RushInfoBanner";
 import { RushSeparatorBanner } from "./RushSeparatorBanner";
 import { RushTipLines } from "./RushTipLines";
+import type { RushTagViewer } from "./RushTagBadge";
 
 export function RushBlockChild({
   child,
   surface = "page",
+  viewer = "preview",
 }: {
   child: RushMilestoneChild;
   surface?: "pip" | "page";
+  /** Surface des fiches de monstre incluses dans le texte : interne ou publique. */
+  viewer?: RushTagViewer;
 }) {
   if (child.type === "INFO") {
     const content = child.tips || child.description || child.title || "";
@@ -32,8 +36,9 @@ export function RushBlockChild({
         imageUrl={child.imageUrl}
         accentColor={child.accentColor}
         collapsible={surface === "pip"}
+        viewer={viewer}
       >
-        <RushTipLines text={content} />
+        <RushTipLines text={content} viewer={viewer} />
       </RushInfoBanner>
     );
   }

@@ -49,11 +49,13 @@ describe("Rangée d'actions de l'overlay", () => {
     expect(html(0, 0)).not.toContain("da-badge");
   });
 
-  it("l'overlay monte la rangée et reprend la LISTE, jamais la fenêtre", () => {
+  it("l'overlay monte la rangée et reprend par la règle pure, jamais la fenêtre", () => {
     const shell = readFileSync(SHELL, "utf8");
     expect(shell).toMatch(/<RushOverlayActions/);
-    // Le nœud du dock porte lui aussi un `data-state` : la cible est la liste.
-    expect(shell).toMatch(/listRef\.current/);
+    // La cible de « Reprendre » est calculée par `findRushResumeTarget` (repère,
+    // puis prochaine quête du bloc, puis guide entier) — plus un `querySelector`
+    // sur le premier `data-state` venu, qui pouvait ne rien trouver.
+    expect(shell).toContain("findRushResumeTarget");
     expect(shell).toMatch(/<main ref=\{listRef\}/);
     expect(shell).toMatch(/setShowResources\(true\)/);
   });

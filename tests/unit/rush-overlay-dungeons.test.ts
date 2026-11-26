@@ -122,6 +122,42 @@ describe("Badge donjon — compteur, picto du jeu, popover branchée", () => {
     expect(pop).toMatch(/createPortal/);
   });
 
+  it("la phrase « Donjons requis non validés » ouvre le panneau, sans vignette dans la ligne", () => {
+    // Retour user du 26/11/2026 : pas d'icônes de donjons requis dans la ligne,
+    // la phrase elle-même ouvre le détail ; elle s'aligne sur « Terminer : <quête> »
+    // avec une couleur distincte (donjon = verrou de jeu, quête = étape du guide).
+    expect(code).not.toContain("MissingDungeonThumb");
+    expect(code).not.toMatch(/dungeonKeyOf/);
+    expect(code).toMatch(
+      /className="group inline-flex max-w-full items-center gap-1 rounded-\[3px\] px-1\.5 py-0\.5 text-left text-\[11px\][\s\S]{0,260}Donjons requis non validés/
+    );
+    expect(code).toMatch(/text-danger group-hover:underline/);
+    expect(code).toMatch(/setDungeonTarget\(missingDungeons\[0\]\?\.key \?\? null\)/);
+    expect(code).toMatch(/setDungeonPanelOpen\(true\)/);
+    expect(code).toMatch(/aria-haspopup="dialog"/);
+  });
+
+  it("se ferme dès qu'un « Fait » complète les donjons requis de la quête", () => {
+    // Retour user du 26/11/2026 : la petite modale restait ouverte après la coche.
+    // On attend que la progression retombe à 0 requis manquant (un seul donjon,
+    // le dernier d'une liste, ou le membre choisi d'un groupe « au choix »).
+    const pop = codeOf(POPOVER);
+    expect(pop).toContain("setPendingClose(true)");
+    expect(pop).toMatch(/progress\.missingBlocks === 0/);
+    expect(pop).toMatch(/setOpen\(false\)/);
+    expect(pop).toContain("onSet={onSet ? handleSet : undefined}");
+  });
+
+  it("la ligne referme le panneau quand le dernier requis est coché (même après déverrouillage)", () => {
+    // La popover est remontée quand la quête passe de « verrouillée » à « à faire » :
+    // son état local serait perdu. Le drapeau vit donc dans la ligne et se ferme dès
+    // que `missingDungeons` tombe à zéro.
+    const src = codeOf(ITEM);
+    expect(src).toContain("dungeonCloseOnComplete");
+    expect(src).toMatch(/if \(missingDungeons\.length > 0\) return;/);
+    expect(src).toContain("setDungeonPanelOpen(false)");
+  });
+
   it("la popover plafonne sa hauteur et défile (Maïmane : ~30 donjons)", () => {
     // Mesure du 24/11/2026 : « détail des dj dans Totem de Maïmane côté overlay,
     // 0 scroll ». Le panneau calculait sa hauteur (92 + N × 56) sans la borner au

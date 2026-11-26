@@ -438,11 +438,11 @@ describe("DA Gouache Wakfu — dock (E1e)", () => {
         // `RushTipLines` est la brique unique des conseils (overlay + dashboard) :
         // elle découpe sur les `·` et rend un `<li>` par conseil.
         expect(readFileSync("src/components/dofus-quests/rush/RushInfoBanner.tsx", "utf8")).toMatch(
-            /<RushTipLines text=\{bodyText\} \/>/
+            /<RushTipLines text=\{bodyText\} viewer=\{viewer\} \/>/
         );
         expect(
             readFileSync("src/components/dofus-quests/rush/RushInfoSequenceBanner.tsx", "utf8")
-        ).toMatch(/<RushTipLines text=\{text\} \/>/);
+        ).toMatch(/<RushTipLines text=\{text\} viewer=\{viewer\} \/>/);
         // La puce de la DA remplace la pastille ronde de la brique.
         expect(css).toMatch(/\.da-conseil-body li > span\[aria-hidden="true"\]:first-child\s*\{\s*display:\s*none/);
     });
@@ -627,9 +627,9 @@ describe("DA Gouache Wakfu — les modales du Rush passent à la DA (E3c)", () =
         }
     });
 
-    it("la timeline porte la portée sur ses quatre modales (3 Radix + « Reprendre ? »)", () => {
+    it("la timeline porte la portée sur ses cinq modales (4 Radix + « Reprendre ? »)", () => {
         const src = readFileSync(GUIDE, "utf8");
-        expect((src.match(/da-modal da-portal/g) ?? []).length).toBe(4);
+        expect((src.match(/da-modal da-portal/g) ?? []).length).toBe(5);
         expect(src).toMatch(/<DaThemeProvider value=\{daThemeValue\}>/);
     });
 

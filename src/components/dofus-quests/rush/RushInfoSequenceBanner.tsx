@@ -4,6 +4,7 @@ import React from "react";
 import { cn } from "@/lib/utils";
 import type { RushSequence } from "@/types/rush-guide-types";
 import { RushTipLines } from "./RushTipLines";
+import type { RushTagViewer } from "./RushTagBadge";
 import {
   infoBannerTone,
   RUSH_INFO_TONE_ICON,
@@ -31,6 +32,7 @@ export function RushInfoSequenceBanner({
   accentColor,
   className,
   collapsible = false,
+  viewer = "preview",
 }: {
   seq: RushSequence;
   /** Couleur du bloc, utilisée seulement si la séquence n'a pas la sienne. */
@@ -41,6 +43,8 @@ export function RushInfoSequenceBanner({
    * Faux par défaut ⇒ dashboard et guide public strictement inchangés.
    */
   collapsible?: boolean;
+  /** Surface des fiches de monstre incluses dans le texte : interne ou publique. */
+  viewer?: RushTagViewer;
 }) {
   const tag = (seq.activityTags || []).find((t) => t.type === "info_sequence");
   const rawColor = tag?.color || accentColor || "";
@@ -62,7 +66,7 @@ export function RushInfoSequenceBanner({
           <span>{tone.label}</span>
         </summary>
         <div className="da-conseil-body">
-          <RushTipLines text={text} />
+          <RushTipLines text={text} viewer={viewer} />
         </div>
       </details>
     );
@@ -88,7 +92,7 @@ export function RushInfoSequenceBanner({
           {tone.label}
         </span>
         <div className="whitespace-pre-line text-xs leading-relaxed text-foreground/90 font-medium">
-          <RushTipLines text={text} />
+          <RushTipLines text={text} viewer={viewer} />
         </div>
       </div>
     </div>

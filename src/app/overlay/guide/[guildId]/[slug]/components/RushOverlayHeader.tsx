@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ExternalLink, Eye, EyeOff, HelpCircle, RotateCcw, Crown, Users, Check, X, MoreVertical, Bug } from "lucide-react";
+import { ExternalLink, Eye, EyeOff, HelpCircle, RotateCcw, Crown, Users, Check, X, MoreVertical, Bug, Search } from "lucide-react";
 import { getClass } from "@/lib/dofus-assets";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +26,14 @@ interface RushOverlayHeaderProps {
   character?: { pseudo: string; classe: string | null; isMain: boolean };
   /** Réinitialise toute la progression du guide */
   onResetGuide?: () => void;
+  /** Ouvre / replie la recherche (loupe de l'en-tête micro). */
+  onOpenSearch?: () => void;
+  /** État de la recherche, pour `aria-expanded`. */
+  searchOpen?: boolean;
+  /** Réinitialise le bloc courant (menu ⋮ en mode tight, confirmation en 2 temps). */
+  onResetChapter?: () => void;
+  /** Titre du bloc courant, pour nommer l'action destructive dans le menu. */
+  activeChapterTitle?: string;
   className?: string;
   /** Overlay réduit (largeur/hauteur) : masque le contenu secondaire et groupe les actions. */
   isNarrow?: boolean;
@@ -89,6 +97,10 @@ export function RushOverlayHeader({
   onOpenFeedback,
   character,
   onResetGuide,
+  onOpenSearch,
+  searchOpen = false,
+  onResetChapter,
+  activeChapterTitle,
   className,
   isNarrow: isNarrowProp,
   density,
@@ -104,6 +116,8 @@ export function RushOverlayHeader({
 }: RushOverlayHeaderProps) {
   // Confirmation en 2 temps du reset (évite le reset accidentel).
   const [confirmReset, setConfirmReset] = useState(false);
+  // Même confirmation pour le reset DU BLOC, déplacé dans le menu ⋮ en tight.
+  const [chapterResetArmed, setChapterResetArmed] = useState(false);
   // Menu « plus » : regroupe les actions secondaires quand l'overlay est étroit.
   const [moreOpen, setMoreOpen] = useState(false);
   // Détection de largeur étroite → on groupe les actions secondaires dans un menu ⋯.
@@ -149,6 +163,193 @@ export function RushOverlayHeader({
     "p-1.5 rounded-[4px] border border-border bg-elevated text-muted-foreground transition-colors hover:border-border-strong hover:bg-surface hover:text-foreground motion-reduce:transition-none";
   const actionBtnGold =
     "p-1.5 rounded-[4px] border border-border bg-elevated text-gold transition-colors hover:border-border-strong hover:bg-surface motion-reduce:transition-none";
+
+  /**
+   * En-tête **micro** (PiP tight) : 34 px, jauge 2 px collée en bas, œuf + % +
+   * compteur à gauche, loupe + ⋮ à droite. Le reset du bloc et les actions rares
+   * vivent dans le ⋮ ; le titre du chapitre et ses 10/12 restent dans le dock.
+   * La structure wide/normal ci-dessous est inchangée.
+   */
+  if (compact) {
+    return (
+      <header className={cn("da-hero shrink-0", className)} data-density="micro">
+        <div className="da-hero-img" data-block={block ?? "emeraude"} aria-hidden="true" />
+        <h1 className="sr-only">{guideName}</h1>
+
+        <div className="da-micro-row">
+          <div className="da-micro-left">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={dofusImageUrl}
+              alt="Dofus"
+              width={22}
+              height={22}
+              className="da-micro-egg"
+            />
+            <span className="da-micro-pct">{overallPct} %</span>
+            <span className="da-micro-count">{completedSteps}/{totalSteps}</span>
+          </div>
+
+          <div className="da-micro-actions relative">
+            {onOpenSearch && (
+              <button
+                type="button"
+                onClick={onOpenSearch}
+                aria-label="Rechercher"
+                aria-expanded={searchOpen}
+                title="Rechercher (raccourci /)"
+                className="da-micro-btn"
+              >
+                <Search className="h-3.5 w-3.5" aria-hidden="true" />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setChapterResetArmed(false);
+                setMoreOpen((o) => !o);
+              }}
+              aria-label="Plus d'options"
+              aria-expanded={moreOpen}
+              title="Plus d'options"
+              className="da-micro-btn"
+            >
+              <MoreVertical className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+
+            {moreOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => {
+                    setMoreOpen(false);
+                    setChapterResetArmed(false);
+                  }}
+                />
+                <div className="absolute top-full right-0 mt-1 z-50 max-h-[70vh] w-56 overflow-y-auto rounded-[6px] border border-border-strong bg-elevated py-1">
+                  <button type="button" onClick={() => { setMoreOpen(false); onOpenTutorial(); }} className={menuItemCls}>
+                    <HelpCircle className="w-3.5 h-3.5" /> Aide / tutoriel
+                  </button>
+                  <button type="button" onClick={() => { setMoreOpen(false); openFeedback(); }} className={menuItemCls}>
+                    <Bug className="w-3.5 h-3.5" /> Signaler un bug
+                  </button>
+                  <a
+                    href={isGuest ? `/guides/${guideSlug}` : `/dashboard/${guildId}/quetes-dofus/guide/${guideSlug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setMoreOpen(false)}
+                    className={menuItemCls}
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" /> Guide complet
+                  </a>
+                  {onOpenAlignment && (
+                    <button type="button" onClick={() => { setMoreOpen(false); onOpenAlignment(); }} className={menuItemCls}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src="/ordres/neutre.png" alt="" className="w-3.5 h-3.5 object-contain" /> Alignement
+                    </button>
+                  )}
+                  {onOpenOcre && (
+                    <button type="button" onClick={() => { setMoreOpen(false); onOpenOcre(); }} className={menuItemCls}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src="/assets/dofus/icons/archimonster.png" alt="" className="w-3.5 h-3.5 object-contain" /> Quête Ocre{ocre ? ` · ${ocre.missing}` : ""}
+                    </button>
+                  )}
+                  {onOpenMetamob && (
+                    <button type="button" onClick={() => { setMoreOpen(false); onOpenMetamob(); }} className={menuItemCls}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src="/assets/dofus/icons/archimonster.png" alt="" className="w-3.5 h-3.5 object-contain" /> Metamob
+                    </button>
+                  )}
+                  {onOpenDungeons && (
+                    <button type="button" onClick={() => { setMoreOpen(false); onOpenDungeons(); }} className={menuItemCls}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src="/assets/dofus-ui/pictos/donjon.png" alt="" className="w-3.5 h-3.5 object-contain" /> Donjons{dungeonsPending ? ` · ${dungeonsPending}` : ""}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => { setMoreOpen(false); onToggleHideCompleted(); }}
+                    className={menuItemCls}
+                  >
+                    {hideCompleted ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    {hideCompleted ? "Afficher les terminées" : "Masquer les terminées"}
+                  </button>
+
+                  {onResetChapter && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!chapterResetArmed) {
+                          setChapterResetArmed(true);
+                          return;
+                        }
+                        setChapterResetArmed(false);
+                        setMoreOpen(false);
+                        onResetChapter();
+                      }}
+                      className={cn(
+                        menuItemCls,
+                        chapterResetArmed ? "text-danger" : "hover:text-danger",
+                      )}
+                      title={activeChapterTitle ? `Réinitialiser « ${activeChapterTitle} »` : "Réinitialiser le bloc courant"}
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      {chapterResetArmed ? "Confirmer le reset du bloc" : "Réinitialiser ce bloc"}
+                    </button>
+                  )}
+
+                  {confirmReset ? (
+                    <div className="flex items-center gap-2 px-3 py-2 text-[11px] font-semibold text-danger">
+                      <span className="min-w-0 flex-1">Reset du guide ?</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onResetGuide?.();
+                          setConfirmReset(false);
+                          setMoreOpen(false);
+                        }}
+                        aria-label="Confirmer la réinitialisation du guide"
+                        className="rounded p-0.5 hover:bg-danger/20"
+                      >
+                        <Check className="h-3 w-3" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmReset(false)}
+                        aria-label="Annuler la réinitialisation"
+                        className="rounded p-0.5 hover:bg-danger/20"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmReset(true)}
+                      className={cn(menuItemCls, "hover:text-danger")}
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" /> Réinitialiser le guide
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div
+          className="da-track da-micro-track"
+          role="progressbar"
+          aria-valuenow={overallPct}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label="Progression du guide"
+        >
+          <i style={{ width: `${Math.max(overallPct, 2)}%` }} />
+        </div>
+      </header>
+    );
+  }
 
   return (
     <header

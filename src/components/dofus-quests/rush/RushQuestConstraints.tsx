@@ -7,6 +7,7 @@ import { GameIcon } from "@/components/shared/game-icon";
 import type { RushConstraintInfo } from "@/lib/rush-constraints";
 import { cn } from "@/lib/utils";
 import type { RushBashMob, RushCombat, RushDungeonChoiceDungeon } from "@/types/rush-constraints";
+import type { RushTagViewer } from "./RushTagBadge";
 
 import { RushPortrait } from "./RushPortrait";
 import { RushRichText } from "./RushRichText";
@@ -35,9 +36,12 @@ function monsterIdFromImageUrl(url: string | undefined): number | null {
 export function RushQuestConstraints({
   constraints,
   className,
+  viewer = "preview",
 }: {
   constraints: RushConstraintInfo[];
   className?: string;
+  /** Surface : fiche monstre interne pour un membre, lien public pour un visiteur. */
+  viewer?: RushTagViewer;
 }) {
   if (constraints.length === 0) return null;
 
@@ -52,6 +56,7 @@ export function RushQuestConstraints({
                 combat={constraint.combat}
                 label={constraint.label}
                 icon={constraint.icon}
+                viewer={viewer}
               />
             </div>
           );
@@ -136,10 +141,12 @@ function RushCombatCard({
   combat,
   label,
   icon,
+  viewer = "preview",
 }: {
   combat: RushCombat;
   label: string;
   icon: string;
+  viewer?: RushTagViewer;
 }) {
   const [fiche, setFiche] = useState<{ slug: string; name: string } | null>(null);
 
@@ -174,18 +181,38 @@ function RushCombatCard({
               )}
             </>
           );
-          return monsterId ? (
-            <button
-              key={`${monster.name}-${index}`}
-              type="button"
-              onClick={() => setFiche({ slug: String(monsterId), name: monster.name })}
-              title={`Ouvrir la fiche de ${monster.name}`}
-              aria-label={`Ouvrir la fiche de ${monster.name}`}
-              className={cn(rowClass, "transition-colors hover:bg-elevated")}
-            >
-              {content}
-            </button>
-          ) : (
+          // Membre : la fiche interne s'ouvre dans le guide. Visiteur : lien direct
+          // vers la fiche publique (`/bestiaire/<id>` redirige vers `/boss/<slug>`
+          // quand la bête a une fiche officielle). Aperçu God : aucune navigation.
+          if (monsterId && viewer === "member") {
+            return (
+              <button
+                key={`${monster.name}-${index}`}
+                type="button"
+                onClick={() => setFiche({ slug: String(monsterId), name: monster.name })}
+                title={`Ouvrir la fiche de ${monster.name}`}
+                aria-label={`Ouvrir la fiche de ${monster.name}`}
+                className={cn(rowClass, "transition-colors hover:bg-elevated")}
+              >
+                {content}
+              </button>
+            );
+          }
+          if (monsterId && viewer === "visitor") {
+            return (
+              <a
+                key={`${monster.name}-${index}`}
+                href={`/bestiaire/${monsterId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={`Ouvrir la fiche publique de ${monster.name}`}
+                className={cn(rowClass, "transition-colors hover:bg-elevated")}
+              >
+                {content}
+              </a>
+            );
+          }
+          return (
             <div key={`${monster.name}-${index}`} className={rowClass}>
               {content}
             </div>

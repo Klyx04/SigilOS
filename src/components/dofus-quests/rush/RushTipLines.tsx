@@ -4,6 +4,7 @@ import { constraintsToInfos, isEmptyConstraints, parseRushConstraints } from "@/
 import { cn } from "@/lib/utils";
 
 import type { RushQuestConstraints as RushQuestConstraintsModel } from "@/types/rush-constraints";
+import type { RushTagViewer } from "./RushTagBadge";
 
 import { RushQuestConstraints } from "./RushQuestConstraints";
 import { RushRichText, splitTipLines } from "./RushRichText";
@@ -23,10 +24,13 @@ export function RushTipLines({
   text,
   constraints,
   className,
+  viewer = "preview",
 }: {
   text: string | null | undefined;
   constraints?: RushQuestConstraintsModel | null;
   className?: string;
+  /** Surface : fiche monstre interne (membre) ou lien public (visiteur). */
+  viewer?: RushTagViewer;
 }) {
   const parsed = parseRushConstraints(text);
   const structured =
@@ -37,7 +41,7 @@ export function RushTipLines({
 
   return (
     <div className={cn("space-y-2", className)}>
-      {chips.length > 0 && <RushQuestConstraints constraints={chips} />}
+      {chips.length > 0 && <RushQuestConstraints constraints={chips} viewer={viewer} />}
       {lines.length > 0 && (
         <ul className="space-y-1.5">
           {lines.map((line, index) => (

@@ -26,13 +26,35 @@ const combatInfo: RushConstraintInfo = {
 };
 
 describe("RushQuestConstraints — fiches monstres", () => {
-  it("rend chaque monstre cliquable vers sa fiche (id lu dans l'asset)", () => {
+  it("membre : ouvre la fiche interne (id lu dans l'asset)", () => {
     const html = renderToStaticMarkup(
-      React.createElement(RushQuestConstraints, { constraints: [combatInfo] }),
+      React.createElement(RushQuestConstraints, { constraints: [combatInfo], viewer: "member" }),
     );
     expect(html).toContain("Smilomouth");
     expect(html).toContain("Ouvrir la fiche de Smilomouth");
     expect(html).toContain("2800 PV");
+  });
+
+  it("visiteur : lien DIRECT vers la fiche publique, jamais la modale interne", () => {
+    // Retour user du 26/11/2026 : sur le rush public, la fiche monstre doit pointer
+    // vers /bestiaire/<id> (qui redirige vers /boss/<slug> pour un boss), pas ouvrir
+    // la fiche interne du module Succès.
+    const html = renderToStaticMarkup(
+      React.createElement(RushQuestConstraints, { constraints: [combatInfo], viewer: "visitor" }),
+    );
+    expect(html).toContain('href="/bestiaire/2860"');
+    expect(html).toContain('target="_blank"');
+    expect(html).toContain("Ouvrir la fiche publique de Smilomouth");
+    expect(html).not.toContain("Ouvrir la fiche de Smilomouth");
+  });
+
+  it("aperçu God : aucune navigation (viewer preview par défaut)", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(RushQuestConstraints, { constraints: [combatInfo] }),
+    );
+    expect(html).toContain("Smilomouth");
+    expect(html).not.toContain("Ouvrir la fiche");
+    expect(html).not.toContain('href="/bestiaire/2860"');
   });
 
   it("ne fabrique pas de fiche quand l'image n'a pas d'id de monstre", () => {
@@ -51,5 +73,6 @@ describe("RushQuestConstraints — fiches monstres", () => {
     );
     expect(html).toContain("Inconnu");
     expect(html).not.toContain("Ouvrir la fiche de Inconnu");
+    expect(html).not.toContain('href="/bestiaire/');
   });
 });

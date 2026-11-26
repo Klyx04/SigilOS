@@ -3,6 +3,7 @@
 import { splitDofusDexTip } from "@/lib/rush-dofusdex-tip";
 import type { RushQuestConstraints as RushQuestConstraintsModel } from "@/types/rush-constraints";
 import { RushTipLines } from "./RushTipLines";
+import type { RushTagViewer } from "./RushTagBadge";
 
 /**
  * Tips d'un bloc du Rush, **sans la section « DofusDex officiel »**.
@@ -16,14 +17,19 @@ export function RushDofusDexTip({
   text,
   constraints,
   className,
+  viewer = "preview",
 }: {
   text: string | null | undefined;
   constraints?: RushQuestConstraintsModel | null;
   className?: string;
+  /** Surface : fiche monstre interne (membre) ou lien public (visiteur). */
+  viewer?: RushTagViewer;
 }) {
   const { official, rest } = splitDofusDexTip(text);
-  if (!official) return <RushTipLines text={text} constraints={constraints} className={className} />;
+  if (!official) {
+    return <RushTipLines text={text} constraints={constraints} className={className} viewer={viewer} />;
+  }
   // Le tips ne portait QUE le pavé : il ne reste rien à afficher.
   if (!rest.trim()) return null;
-  return <RushTipLines text={rest} constraints={constraints} className={className} />;
+  return <RushTipLines text={rest} constraints={constraints} className={className} viewer={viewer} />;
 }

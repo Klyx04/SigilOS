@@ -54,7 +54,10 @@ describe("DA « Grimoire Sylvestre » — en-tête", () => {
         // largeur + losange en bout). Une seule reste : celle de la DA.
         expect(src).toMatch(/className="da-track"/);
         expect(src).not.toMatch(/h-\[2px\] w-full overflow-hidden rounded-full bg-elevated/);
-        expect((src.match(/role="progressbar"/g) ?? []).length).toBe(1);
+        // Deux branches EXCLUSIVES depuis le 26/11/2026 : l'en-tête micro (tight)
+        // et l'en-tête large/normal. Une seule est rendue à la fois (early return),
+        // donc jamais deux jauges dans le même overlay.
+        expect((src.match(/role="progressbar"/g) ?? []).length).toBe(2);
     });
 });
 
@@ -71,13 +74,17 @@ describe("DA « Grimoire Sylvestre » — barre de chapitre", () => {
         expect(codeOf(CHAPTER)).not.toMatch(SLOP);
     });
 
-    it("le titre du chapitre suit le dock et la jauge en or", () => {
+    it("le titre du chapitre suit le dock et la jauge DA", () => {
         const src = codeOf(CHAPTER);
         // DA « Gouache Wakfu » : le titre vit dans `.da-dock-label` (13 px condensé,
         // jamais tronqué) — la taille et la fonte sont des jetons, pas du Tailwind.
         expect(src).toMatch(/da-dock-label/);
         expect(src).not.toMatch(/truncate text-left font-serif text-\[12px\]/);
-        expect(src).toMatch(/bg-gold transition-\[width\][^"]*motion-reduce/);
+        // La jauge de bloc est passée aux jetons DA (`da-dock-progress` + `--da-acc2`),
+        // plus au token produit `bg-gold` (26/11/2026).
+        expect(src).toMatch(/da-dock-progress/);
+        expect(src).toMatch(/transition-\[width\][^"]*motion-reduce/);
+        expect(src).toMatch(/var\(--da-acc2\)/);
     });
 });
 

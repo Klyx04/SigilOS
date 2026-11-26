@@ -32,11 +32,33 @@ export type RushOverviewMember = {
   avatar?: string | null;
   slot: string;
   isMain: boolean;
+  /** Pseudo du compte propriétaire (null pour le personnage principal). */
+  ownerName?: string | null;
   /** Occurrences cochées « fait » (`sequenceId::dungeonKey`). */
   doneKeys: readonly string[];
   /** Étapes où le membre a posé son repère (ids de séquence). */
   flags: readonly string[];
 };
+
+/** Identité d'affichage du **compte** : le principal, jamais la mule. */
+export function rushOverviewOwnerKey(member: Pick<RushOverviewMember, "name" | "ownerName">): string {
+  return (member.ownerName?.trim() || member.name).trim();
+}
+
+/** Regroupe les personnages par compte, dans l'ordre de première apparition. */
+export function groupRushOverviewMembersByOwner(
+  members: ReadonlyArray<RushOverviewMember>
+): Array<{ owner: string; members: RushOverviewMember[] }> {
+  const groups = new Map<string, RushOverviewMember[]>();
+  for (const member of members) {
+    const owner = rushOverviewOwnerKey(member);
+    if (!owner) continue;
+    const list = groups.get(owner) ?? [];
+    list.push(member);
+    groups.set(owner, list);
+  }
+  return [...groups.entries()].map(([owner, grouped]) => ({ owner, members: grouped }));
+}
 
 /** Les états du lecteur (membre, visiteur, ou vue perso invitée). */
 export type RushOverviewMe = {
@@ -171,6 +193,10 @@ export function buildRushDungeonsOverview(input: {
   members?: readonly RushOverviewMember[] | null;
 }): RushOverview {
   const members = input.members ?? [];
+  // Les compteurs « membres » sont des **comptes**, pas des personnages :
+  // 50 membres × 5 mules ne doivent pas afficher « 250 membres ».
+  const memberByKey = new Map(members.map((member) => [member.key, member]));
+  const ownerCount = new Set(members.map((member) => rushOverviewOwnerKey(member))).size;
   const myDone = new Set(input.me.doneKeys);
   const rows = new Map<string, RushOverviewDungeon>();
   const blocks = new Map<string, RushOverviewBlock>();
@@ -272,7 +298,7 @@ export function buildRushDungeonsOverview(input: {
           doneByMe: false,
           pendingByMe: false,
           membersDone: 0,
-          membersTotal: members.length,
+          membersTotal: ownerCount,
           blockId: milestone.id,
           blockTitle: milestone.title,
         };
@@ -291,11 +317,14 @@ export function buildRushDungeonsOverview(input: {
     row.pendingByMe = row.occurrences.some(
       (occurrence) => !occurrence.isOptional && !occurrence.isDone && !occurrence.groupSatisfied
     );
-    const doneMembers = new Set<string>();
+    const doneOwners = new Set<string>();
     for (const occurrence of row.occurrences) {
-      for (const key of occurrence.doneBy) doneMembers.add(key);
+      for (const key of occurrence.doneBy) {
+        const member = memberByKey.get(key);
+        if (member) doneOwners.add(rushOverviewOwnerKey(member));
+      }
     }
-    row.membersDone = doneMembers.size;
+    row.membersDone = doneOwners.size;
   }
 
   const orderedRows = [...rows.values()].sort((a, b) => {

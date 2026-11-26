@@ -581,6 +581,7 @@ export async function getGuildOptimizedGuideProgress(slug: string, guildId: stri
         profile: {
           select: {
             pseudoDofus: true,
+            classe: true,
             alignment: true,
             alignmentOrder: true,
             alignmentLevel: true,

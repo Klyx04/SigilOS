@@ -561,6 +561,7 @@ io.on("connection", (socket: Socket) => {
     socket.on("disconnect", (reason) => {
         logger.info(`[WS] 🔴 Client déconnecté: ${socket.id} (Raison: ${reason})`);
         handleDashboardSocketLeave(socket);
+        guidePresence.handleDisconnect(socket).catch(() => {});
         geoguesserManager.handleDisconnect(socket, reason);
         bombManager.handleDisconnect(socket);
     });

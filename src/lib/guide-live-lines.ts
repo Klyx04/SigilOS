@@ -49,11 +49,30 @@ export function formatGuideLiveEvent(e: GuideRealtimeEvent): GuideLiveLine | nul
         name: e.userName,
       };
     case "presence:join":
-      // Un heartbeat de repère n'annonce pas une arrivée : seul le join sans jalon en parle.
+      // L'overlay est une surface à part : son ouverture s'annonce même quand un
+      // jalon est déjà connu (retour user du 26/11/2026). Pour le dashboard, un
+      // heartbeat de repère n'annonce pas une arrivée.
+      if (e.surface === "overlay") {
+        return {
+          text: "a ouvert l'overlay",
+          kind: "presence",
+          name: e.userName,
+          avatar: e.userAvatar,
+        };
+      }
       if (e.milestoneId) return null;
       return { text: "est arrivé sur le guide", kind: "presence", name: e.userName, avatar: e.userAvatar };
     case "presence:leave":
-      if (e.milestoneId) return null;
+      if (e.surface === "overlay") {
+        return {
+          text: e.stillPresent ? "a fermé l'overlay" : "a quitté le guide",
+          kind: "presence",
+          name: e.userName ?? "Un membre",
+        };
+      }
+      // Une autre surface garde le personnage en ligne : ne jamais annoncer un
+      // départ du guide qui n'a pas eu lieu.
+      if (e.stillPresent || e.milestoneId) return null;
       return { text: "a quitté le guide", kind: "presence", name: e.userName ?? "Un membre" };
     default:
       return null;

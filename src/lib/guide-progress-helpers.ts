@@ -35,6 +35,7 @@ export type GuideProgressRowSource = {
   currentStep?: string | null;
   profile?: {
     pseudoDofus?: string | null;
+    classe?: string | null;
     alignment?: string | null;
     alignmentOrder?: string | null;
     alignmentLevel?: number | null;
@@ -58,6 +59,8 @@ export type GuideProgressRow = {
   userName: string;
   userAvatar?: string;
   profileSlug: string;
+  /** Classe Dofus du personnage de CETTE ligne (principal ou mule). */
+  dofusClass?: string | null;
   /** Alignement rusher (perso principal) — camp et niveau pour la visibilité guilde. */
   alignment?: string | null;
   alignmentOrder?: string | null;
@@ -70,6 +73,7 @@ export type GuideProgressMember = {
   userName: string;
   userAvatar?: string;
   profileSlug?: string;
+  dofusClass?: string | null;
   completedSteps: string[];
   completedMilestoneIds: string[];
   bookmarkedSteps: { milestoneId: string; stepKey: string }[];
@@ -116,6 +120,10 @@ export function buildGuildProgressRows(rows: GuideProgressRowSource[]): GuidePro
       alignmentOrder = (p.profile as any)?.alignmentOrder ?? null;
       alignmentLevel = (p.profile as any)?.alignmentLevel ?? null;
     }
+    const dofusClass =
+      slot !== "PRINCIPAL"
+        ? alts.find((m: any) => m.pseudo === slot)?.classe ?? null
+        : p.profile?.classe ?? null;
     return {
       profileId: p.profileId,
       milestoneId: p.milestoneId,
@@ -127,6 +135,7 @@ export function buildGuildProgressRows(rows: GuideProgressRowSource[]): GuidePro
       userName: p.profile?.pseudoDofus || p.profile?.user?.name || "Voyageur",
       userAvatar: p.profile?.user?.image || undefined,
       profileSlug: p.profile?.pseudoDofus || p.profileId,
+      dofusClass,
       alignment,
       alignmentOrder,
       alignmentLevel,
@@ -148,6 +157,7 @@ export function buildUniqueGuildMembers(
     userName: string;
     userAvatar?: string;
     profileSlug?: string;
+    dofusClass?: string | null;
     alignment?: string | null;
     alignmentOrder?: string | null;
     alignmentLevel?: number | null;
@@ -168,6 +178,7 @@ export function buildUniqueGuildMembers(
         userName: p.userName,
         userAvatar: p.userAvatar,
         profileSlug: p.profileSlug,
+        dofusClass: p.dofusClass ?? null,
         alignment: p.alignment ?? null,
         alignmentOrder: p.alignmentOrder ?? null,
         alignmentLevel: p.alignmentLevel ?? null,
@@ -187,6 +198,7 @@ export function buildUniqueGuildMembers(
       acc.alignment = p.alignment ?? null;
       acc.alignmentOrder = p.alignmentOrder ?? null;
       acc.alignmentLevel = p.alignmentLevel ?? null;
+      acc.dofusClass = p.dofusClass ?? null;
     }
 
     if (p.completedSteps.length > 0) {
@@ -249,6 +261,7 @@ export function buildUniqueGuildMembers(
       userName: m.userName,
       userAvatar: m.userAvatar,
       profileSlug: m.profileSlug,
+      dofusClass: m.dofusClass ?? null,
       alignment: m.alignment ?? null,
       alignmentOrder: m.alignmentOrder ?? null,
       alignmentLevel: m.alignmentLevel ?? null,

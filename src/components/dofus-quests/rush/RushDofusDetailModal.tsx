@@ -25,8 +25,13 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { MemberAvatar } from "@/components/shared/member-avatar";
 import { useDaTheme } from "@/components/da/da-theme";
 import { daScopeProps } from "@/lib/da-scope";
-import type { DofusQuestStatus } from "@/lib/rush-dofus-progress";
+import {
+    groupDofusMembersByOwner,
+    primaryDofusMember,
+    type DofusQuestStatus,
+} from "@/lib/rush-dofus-progress";
 import { questTypeIconPath } from "@/lib/quest-type-icon";
+import { getClass } from "@/lib/dofus-assets";
 import { cn } from "@/lib/utils";
 
 export type DofusDetailQuest = DofusQuestStatus & {
@@ -37,6 +42,7 @@ export type DofusDetailQuest = DofusQuestStatus & {
 export type DofusDetailMember = {
     name: string;
     avatar?: string | null;
+    dofusClass?: string | null;
     current?: string | null;
     done: number;
     total: number;
@@ -101,6 +107,8 @@ export function RushDofusDetailModal({
     const daScope = daScopeProps(useDaTheme());
     const [tab, setTab] = useState<"quests" | "members">("quests");
     const [questMembersOpen, setQuestMembersOpen] = useState<string | null>(null);
+    // Onglet « Avancement » : un compte par ligne (les mules vont dans le `+N`).
+    const memberGroups = groupDofusMembersByOwner(members ?? []);
     // Un nouveau Dofus (ou une fermeture) repart sur les quêtes et referme les listes.
     useEffect(() => {
         setQuestMembersOpen(null);
@@ -201,6 +209,9 @@ export function RushDofusDetailModal({
                                             const listedMembers = (quest.members ?? []).filter(
                                                 (member) => member.done || member.current
                                             );
+                                            // Une ligne par **compte** : les mules sont repliées
+                                            // dans le `+N`, jamais empilées (26/11/2026).
+                                            const memberGroups = groupDofusMembersByOwner(listedMembers);
                                             return (
                                                 <li
                                                     key={rowKey}
@@ -269,6 +280,11 @@ export function RushDofusDetailModal({
                                                                 aria-expanded={isMembersOpen}
                                                                 aria-controls={`quest-members-${index}`}
                                                                 aria-label={`${en ? "See members on" : "Voir les membres sur"} ${quest.name}`}
+                                                                title={
+                                                                    memberGroups.length > 1
+                                                                        ? `${memberGroups.length} comptes`
+                                                                        : undefined
+                                                                }
                                                                 className={cn(
                                                                     "inline-flex shrink-0 items-center gap-1 rounded-[3px] border px-1.5 py-0.5 text-[10px] font-semibold transition-colors",
                                                                     isMembersOpen
@@ -277,7 +293,7 @@ export function RushDofusDetailModal({
                                                                 )}
                                                             >
                                                                 <Users className="h-3 w-3" aria-hidden="true" />
-                                                                {listedMembers.length}
+                                                                {memberGroups.length}
                                                             </button>
                                                         ) : quest.membersDone ? (
                                                             <span className="shrink-0 text-[10px] text-muted-foreground">
@@ -309,43 +325,68 @@ export function RushDofusDetailModal({
                                                             id={`quest-members-${index}`}
                                                             className="space-y-0.5 border-t border-border/70 px-2 py-1.5"
                                                         >
-                                                            {listedMembers.map((member, memberIndex) => (
-                                                                <li key={`${member.name}-${memberIndex}`} className="flex items-center gap-2">
-                                                                    <span className="h-5 w-5 shrink-0 overflow-hidden rounded-full border border-border bg-elevated">
-                                                                        <MemberAvatar
-                                                                            src={member.avatar}
-                                                                            name={member.name}
-                                                                            alt={member.name}
-                                                                            fallbackClassName="text-[9px] font-semibold text-muted-foreground"
-                                                                        />
-                                                                    </span>
-                                                                    <span className="min-w-0 flex-1 truncate text-[11px] text-foreground">
-                                                                        {member.name}
-                                                                        {member.muleOf ? (
-                                                                            <span className="ml-1 text-[9px] font-normal text-muted-foreground">
-                                                                                mule de {member.muleOf}
-                                                                            </span>
-                                                                        ) : null}
-                                                                        {member.isViewer ? (
-                                                                            <span className="ml-1 rounded-[3px] border border-success/30 bg-success/10 px-1 py-0.5 text-[9px] font-semibold uppercase text-success">
-                                                                                {en ? "Me" : "Moi"}
-                                                                            </span>
-                                                                        ) : null}
-                                                                    </span>
-                                                                    <span
-                                                                        className={`inline-flex shrink-0 items-center gap-1 rounded-[3px] border px-1.5 py-0.5 text-[10px] font-semibold ${PILL[member.done ? "done" : "current"]}`}
-                                                                    >
-                                                                        {member.done ? (
-                                                                            <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
-                                                                        ) : (
-                                                                            <Clock3 className="h-3 w-3" aria-hidden="true" />
-                                                                        )}
-                                                                        {member.done
-                                                                            ? en ? "Validated" : "Validée"
-                                                                            : en ? "Here" : "Ici"}
-                                                                    </span>
-                                                                </li>
-                                                            ))}
+                                                            {memberGroups.map((group) => {
+                                                                const primary = primaryDofusMember(group.members);
+                                                                if (!primary) return null;
+                                                                const extra = group.members.length - 1;
+                                                                const cls = primary.dofusClass ? getClass(primary.dofusClass) : null;
+                                                                const done = group.members.every((member) => member.done);
+                                                                const isViewer = group.members.some((member) => member.isViewer);
+                                                                return (
+                                                                    <li key={group.owner} className="flex items-center gap-2">
+                                                                        <span className="h-5 w-5 shrink-0 overflow-hidden rounded-full border border-border bg-elevated">
+                                                                            <MemberAvatar
+                                                                                src={primary.avatar}
+                                                                                name={primary.name}
+                                                                                alt={primary.name}
+                                                                                fallbackClassName="text-[9px] font-semibold text-muted-foreground"
+                                                                            />
+                                                                        </span>
+                                                                        <span className="min-w-0 flex-1 truncate text-[11px] text-foreground">
+                                                                            {cls ? (
+                                                                                // eslint-disable-next-line @next/next/no-img-element
+                                                                                <img
+                                                                                    src={cls.icon}
+                                                                                    alt=""
+                                                                                    title={cls.name}
+                                                                                    className="mr-1 inline-block h-3.5 w-3.5 align-[-2px] object-contain"
+                                                                                />
+                                                                            ) : null}
+                                                                            {primary.name}
+                                                                            {primary.muleOf ? (
+                                                                                <span className="ml-1 text-[9px] font-normal text-muted-foreground">
+                                                                                    mule de {primary.muleOf}
+                                                                                </span>
+                                                                            ) : null}
+                                                                            {extra > 0 ? (
+                                                                                <span
+                                                                                    className="ml-1 rounded-[3px] border border-border bg-elevated px-1 py-0.5 text-[9px] font-semibold text-muted-foreground"
+                                                                                    title={group.members.filter((member) => member !== primary).map((member) => member.name).join(", ")}
+                                                                                >
+                                                                                    +{extra}
+                                                                                </span>
+                                                                            ) : null}
+                                                                            {isViewer ? (
+                                                                                <span className="ml-1 rounded-[3px] border border-success/30 bg-success/10 px-1 py-0.5 text-[9px] font-semibold uppercase text-success">
+                                                                                    {en ? "Me" : "Moi"}
+                                                                                </span>
+                                                                            ) : null}
+                                                                        </span>
+                                                                        <span
+                                                                            className={`inline-flex shrink-0 items-center gap-1 rounded-[3px] border px-1.5 py-0.5 text-[10px] font-semibold ${PILL[done ? "done" : "current"]}`}
+                                                                        >
+                                                                            {done ? (
+                                                                                <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+                                                                            ) : (
+                                                                                <Clock3 className="h-3 w-3" aria-hidden="true" />
+                                                                            )}
+                                                                            {done
+                                                                                ? en ? "Validated" : "Validée"
+                                                                                : en ? "Here" : "Ici"}
+                                                                        </span>
+                                                                    </li>
+                                                                );
+                                                            })}
                                                         </ul>
                                                     ) : null}
                                                 </li>
@@ -362,42 +403,65 @@ export function RushDofusDetailModal({
                                             {en ? "Engaged members" : "Membres engagés"}
                                         </p>
                                         <span className="font-mono text-[10px] tabular-nums text-muted-foreground">
-                                            {members.length}
+                                            {memberGroups.length}
                                         </span>
                                     </div>
                                     <ul className="mt-1.5 max-h-[26vh] space-y-1 overflow-y-auto pr-0.5">
-                                        {members.map((member, index) => (
-                                            <li
-                                                key={`${member.name}-${index}`}
-                                                className="flex items-center gap-2 rounded-[4px] border border-border bg-surface px-2 py-1.5"
-                                            >
-                                                <span className="h-6 w-6 shrink-0 overflow-hidden rounded-full border border-border bg-elevated">
-                                                    <MemberAvatar
-                                                        src={member.avatar}
-                                                        name={member.name}
-                                                        alt={member.name}
-                                                        fallbackClassName="text-[10px] font-semibold text-muted-foreground"
-                                                    />
-                                                </span>
-                                                <div className="min-w-0 flex-1">
-                                                    <p className="truncate text-xs font-semibold text-foreground">
-                                                        {member.name}
-                                                    </p>
-                                                    <p className="truncate text-[10px] text-muted-foreground">
-                                                        {member.muleOf ? `Mule de ${member.muleOf}` : null}
-                                                        {member.muleOf && member.current ? " · " : null}
-                                                        {member.current
-                                                            ? `${en ? "Now" : "En cours"} : ${member.current}`
-                                                            : member.muleOf
-                                                              ? null
-                                                              : en ? "Dofus done" : "Dofus terminé"}
-                                                    </p>
-                                                </div>
-                                                <span className="shrink-0 font-mono text-[10px] tabular-nums text-muted-foreground">
-                                                    {member.done}/{member.total} · {member.pct} %
-                                                </span>
-                                            </li>
-                                        ))}
+                                        {memberGroups.map((group) => {
+                                            const primary = primaryDofusMember(group.members);
+                                            if (!primary) return null;
+                                            const extra = group.members.length - 1;
+                                            const cls = primary.dofusClass ? getClass(primary.dofusClass) : null;
+                                            return (
+                                                <li
+                                                    key={group.owner}
+                                                    className="flex items-center gap-2 rounded-[4px] border border-border bg-surface px-2 py-1.5"
+                                                >
+                                                    <span className="h-6 w-6 shrink-0 overflow-hidden rounded-full border border-border bg-elevated">
+                                                        <MemberAvatar
+                                                            src={primary.avatar}
+                                                            name={primary.name}
+                                                            alt={primary.name}
+                                                            fallbackClassName="text-[10px] font-semibold text-muted-foreground"
+                                                        />
+                                                    </span>
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="flex min-w-0 items-center gap-1 truncate text-xs font-semibold text-foreground">
+                                                            {cls ? (
+                                                                // eslint-disable-next-line @next/next/no-img-element
+                                                                <img
+                                                                    src={cls.icon}
+                                                                    alt=""
+                                                                    title={cls.name}
+                                                                    className="h-3.5 w-3.5 shrink-0 object-contain"
+                                                                />
+                                                            ) : null}
+                                                            <span className="truncate">{primary.name}</span>
+                                                            {extra > 0 ? (
+                                                                <span
+                                                                    className="shrink-0 rounded-[3px] border border-border bg-elevated px-1 py-0.5 text-[9px] font-semibold text-muted-foreground"
+                                                                    title={group.members.filter((member) => member !== primary).map((member) => member.name).join(", ")}
+                                                                >
+                                                                    +{extra}
+                                                                </span>
+                                                            ) : null}
+                                                        </p>
+                                                        <p className="truncate text-[10px] text-muted-foreground">
+                                                            {primary.muleOf ? `Mule de ${primary.muleOf}` : null}
+                                                            {primary.muleOf && primary.current ? " · " : null}
+                                                            {primary.current
+                                                                ? `${en ? "Now" : "En cours"} : ${primary.current}`
+                                                                : primary.muleOf
+                                                                  ? null
+                                                                  : en ? "Dofus done" : "Dofus terminé"}
+                                                        </p>
+                                                    </div>
+                                                    <span className="shrink-0 font-mono text-[10px] tabular-nums text-muted-foreground">
+                                                        {primary.done}/{primary.total} · {primary.pct} %
+                                                    </span>
+                                                </li>
+                                            );
+                                        })}
                                     </ul>
                                 </section>
                             ) : null}

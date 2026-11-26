@@ -34,7 +34,7 @@ describe("fiche Dofus — membres par quête", () => {
         expect(status.done).toBe(true);
         expect(status.membersDone).toBe(1);
         expect(status.members).toEqual([
-            { name: "Wylou", avatar: null, isViewer: false, done: true, current: false },
+            { name: "Wylou", avatar: null, dofusClass: null, isViewer: false, done: true, current: false },
         ]);
     });
 

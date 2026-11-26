@@ -78,6 +78,55 @@ describe("formatGuideLiveEvent — une seule formulation par event", () => {
     expect(formatGuideLiveEvent({ type: "presence:leave", profileId: "p1", milestoneId: "" })?.name).toBe("Un membre");
     expect(formatGuideLiveEvent({ type: "inconnu" } as never)).toBeNull();
   });
+
+  it("annonce l'ouverture de l'overlay même avec un jalon connu", () => {
+    expect(
+      formatGuideLiveEvent({
+        type: "presence:join",
+        profileId: "p1",
+        userName: "Wylan",
+        milestoneId: "m1",
+        surface: "overlay",
+      })?.text
+    ).toBe("a ouvert l'overlay");
+  });
+
+  it("fermer l'overlay ne dit « a quitté le guide » que si aucune surface ne reste", () => {
+    expect(
+      formatGuideLiveEvent({
+        type: "presence:leave",
+        profileId: "p1",
+        userName: "Wylan",
+        milestoneId: "",
+        surface: "overlay",
+        stillPresent: true,
+      })?.text
+    ).toBe("a fermé l'overlay");
+
+    expect(
+      formatGuideLiveEvent({
+        type: "presence:leave",
+        profileId: "p1",
+        userName: "Wylan",
+        milestoneId: "",
+        surface: "overlay",
+        stillPresent: false,
+      })?.text
+    ).toBe("a quitté le guide");
+  });
+
+  it("fermer le dashboard alors que l'overlay reste n'annonce aucun départ", () => {
+    expect(
+      formatGuideLiveEvent({
+        type: "presence:leave",
+        profileId: "p1",
+        userName: "Wylan",
+        milestoneId: "",
+        surface: "dashboard",
+        stillPresent: true,
+      })
+    ).toBeNull();
+  });
 });
 
 describe("fil d'activité & toast — une seule source, avec les avatars", () => {
@@ -154,5 +203,36 @@ describe("Rush Live — heartbeat sans repère", () => {
 
   it("la modale dit quand le temps réel est indisponible", () => {
     expect(read(DASHBOARD)).toContain("Connexion temps réel indisponible");
+  });
+});
+
+describe("Rush Live — un personnage, pas un compte", () => {
+  it("le heartbeat porte le personnage et le serveur déduplique par personnage", () => {
+    expect(read(HOOK)).toContain("characterSlot");
+    expect(read(DASHBOARD)).toContain("characterSlot: effectiveAltPseudo");
+    const server = read("src/server/websocket/guide-presence.ts");
+    expect(server).toContain("characterSlot");
+    expect(server).toContain("profileId}::${slot}");
+  });
+
+  it("l'overlay émet quand il est la fenêtre visible", () => {
+    const overlay = read(OVERLAY);
+    expect(overlay).toContain("enabled: !isGuest");
+    expect(overlay).toContain("milestoneId: currentMs?.id");
+    expect(overlay).toContain("characterSlot: effectiveAltPseudo");
+    expect(overlay).toContain('surface: "overlay"');
+    expect(overlay).toContain("overlayLiveMembers");
+  });
+
+  it("les deux surfaces portent la classe pour l'icône à côté du pseudo", () => {
+    expect(read(HOOK)).toContain("dofusClass");
+    expect(read(DASHBOARD)).toContain("dofusClass: selectedMuleSlot");
+    expect(read(OVERLAY)).toContain("dofusClass: character?.classe");
+  });
+
+  it("le mode discret n'est plus proposé dans le Rush", () => {
+    const dashboard = read(DASHBOARD);
+    expect(dashboard).not.toContain("incognito");
+    expect(dashboard).not.toContain("Mode discret");
   });
 });

@@ -5,6 +5,7 @@ import {
   defaultOpenBlockId,
   filterRushDungeonsOverview,
   groupRushDungeonsByBlock,
+  groupRushOverviewMembersByOwner,
   rushDungeonsCounter,
   type RushOverviewFilter,
 } from "@/lib/rush-dungeons-overview";
@@ -119,6 +120,45 @@ describe("rush-dungeons-overview — occurrence et compteurs", () => {
 
   it("donne le compteur de la tuile en exigences", () => {
     expect(rushDungeonsCounter(overview)).toEqual({ done: 1, total: 4 });
+  });
+
+  it("compte les comptes, pas les mules : 1 profil à 5 persos = 1 membre", () => {
+    const withMules = [
+      {
+        key: "p1::PRINCIPAL",
+        name: "Wylan",
+        slot: "PRINCIPAL",
+        isMain: true,
+        ownerName: null,
+        doneKeys: ["s3::d2"],
+        flags: [],
+      },
+      {
+        key: "p1::mule",
+        name: "Mule",
+        slot: "mule",
+        isMain: false,
+        ownerName: "Wylan",
+        doneKeys: [],
+        flags: [],
+      },
+    ];
+    const built = buildRushDungeonsOverview({ milestones: MILESTONES, me: ME, members: withMules });
+    const korriandre = built.rows.find((row) => row.key === "d2");
+
+    expect(korriandre?.membersTotal).toBe(1);
+    expect(korriandre?.membersDone).toBe(1);
+  });
+
+  it("regroupe les personnages par propriétaire pour la pile d'avatars", () => {
+    const groups = groupRushOverviewMembersByOwner([
+      { key: "p1::PRINCIPAL", name: "Wylan", slot: "PRINCIPAL", isMain: true, doneKeys: [], flags: [] },
+      { key: "p1::mule", name: "Mule", slot: "mule", isMain: false, ownerName: "Wylan", doneKeys: [], flags: [] },
+      { key: "p2::PRINCIPAL", name: "Touglie", slot: "PRINCIPAL", isMain: true, doneKeys: [], flags: [] },
+    ]);
+
+    expect(groups.map((group) => group.owner)).toEqual(["Wylan", "Touglie"]);
+    expect(groups[0].members).toHaveLength(2);
   });
 });
 

@@ -2,8 +2,18 @@
 
 import React, { useEffect, useRef } from "react";
 import { Users, X } from "lucide-react";
+import { getClass } from "@/lib/dofus-assets";
 
-export type OverlayMember = { name: string; avatar?: string; subtitle?: string };
+export type OverlayMember = {
+  name: string;
+  avatar?: string;
+  subtitle?: string;
+  /** Surfaces actives (dashboard / overlay) — badge « Overlay ». */
+  surfaces?: string[];
+  /** Classe Dofus du personnage (icône à côté du pseudo). */
+  dofusClass?: string | null;
+  characterSlot?: string;
+};
 
 interface RushOverlayMembersModalProps {
   title: string;
@@ -60,7 +70,7 @@ export function RushOverlayMembersModal({
             <Users className="h-4 w-4 shrink-0 text-accent" aria-hidden="true" />
             <h2 className="min-w-0 truncate text-[13px] font-semibold text-foreground">{title}</h2>
             <span className="shrink-0 text-[11px] font-semibold tabular-nums text-muted-foreground">
-              {members.length}
+              {members.length > 0 ? members.length : liveMembers.length}
             </span>
           </div>
           <button
@@ -109,6 +119,7 @@ export function RushOverlayMembersModal({
 
 /** Une ligne de membre : pastille d'état, avatar (ou initiale), nom, précision. */
 function MemberRow({ member, online = false }: { member: OverlayMember; online?: boolean }) {
+  const cls = member.dofusClass ? getClass(member.dofusClass) : null;
   return (
     <div className="flex items-center gap-2.5 rounded-[4px] border border-border bg-surface px-2.5 py-2">
       <span className="relative flex shrink-0 items-center">
@@ -133,7 +144,23 @@ function MemberRow({ member, online = false }: { member: OverlayMember; online?:
         )}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[12px] font-semibold text-foreground">{member.name}</p>
+        <p className="flex min-w-0 items-center gap-1.5 text-[12px] font-semibold text-foreground">
+          {cls ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={cls.icon}
+              alt=""
+              title={cls.name}
+              className="h-3.5 w-3.5 shrink-0 object-contain"
+            />
+          ) : null}
+          <span className="truncate">{member.name}</span>
+          {member.surfaces?.includes("overlay") ? (
+            <span className="shrink-0 rounded-[3px] border border-info/30 bg-info/10 px-1 py-0.5 text-[9px] font-semibold uppercase text-info">
+              Overlay
+            </span>
+          ) : null}
+        </p>
         {member.subtitle && (
           <p className="truncate text-[11px] text-muted-foreground">{member.subtitle}</p>
         )}

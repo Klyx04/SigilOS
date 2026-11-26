@@ -110,8 +110,10 @@ export function RushOverlayOcreModal({ guildId, onClose, initial, state = "ready
     setNotice,
   } = useOcreWriteQueue({ guildId, monsters: initial?.monsters ?? [], requiredCopies });
 
-  const load = useCallback(async (force = false) => {
-    setLoading(true);
+  const load = useCallback(async (force = false, silent = false) => {
+    // `silent` : rafraîchissement d'arrière-plan quand un instantané est déjà affiché.
+    // On ne vide jamais l'écran ni les images déjà résolues pendant la lecture.
+    if (!silent) setLoading(true);
     setError(null);
     try {
       // Import paresseux : le module d'actions Ocre est lourd, il n'entre pas dans le
@@ -124,23 +126,29 @@ export function RushOverlayOcreModal({ guildId, onClose, initial, state = "ready
         setData(panel);
         // Le serveur fait foi : on repart de sa liste et on vide les écritures en attente.
         adoptServerList(panel.monsters);
-      } else {
+      } else if (!silent) {
         setData(unavailableOcrePanelData());
         setError(res.error === "Compte non lié" ? "Compte Metamob non lié." : "Metamob indisponible.");
       }
     } catch {
-      setData(unavailableOcrePanelData());
-      setError("Metamob indisponible.");
+      // Un instantané valide reste affiché : un échec de rafraîchissement ne doit pas
+      // remplacer les cibles (et leurs images) par un écran « indisponible ».
+      if (!silent) {
+        setData(unavailableOcrePanelData());
+        setError("Metamob indisponible.");
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [guildId]);
+  }, [guildId, adoptServerList]);
 
-  // Données déjà fournies par l'appelant ⇒ aucun chargement réseau à l'ouverture.
+  // Un instantané fourni par l'appelant s'affiche immédiatement, puis on le rafraîchit
+  // en arrière-plan : la PiP peut rester ouverte des heures, et une image ancienne
+  // (ou résolue par l'ancienne règle) ne doit pas y rester figée. Compte non lié :
+  // aucun aller-retour Metamob voué à l'échec.
   useEffect(() => {
-    // Compte non lié : on ne lance pas un aller-retour Metamob voué à l'échec.
-    if (!initial && !linkNeeded) void load();
+    if (!linkNeeded) void load(false, Boolean(initial));
   }, [initial, load, linkNeeded]);
 
   // Le plan est recalculé depuis la liste LOCALE : cocher une cible met à jour les

@@ -71,6 +71,8 @@ export type DofusQuestMemberStatus = {
     /** Nom affichable (personnage / pseudo du profil), borné par `questStatusForMembers`. */
     name: string;
     avatar?: string | null;
+    /** Classe Dofus du personnage (icône à côté du pseudo). */
+    dofusClass?: string | null;
     /** Vrai pour le lecteur lui-même — la fiche affiche le badge « Moi ». */
     isViewer?: boolean;
     /** Mule d'un personnage principal : pseudo du principal (étiquette « mule de X »). */
@@ -206,6 +208,7 @@ export function questStatusForMembers(
         currentStep?: string | null;
         name?: string | null;
         avatar?: string | null;
+        dofusClass?: string | null;
         isViewer?: boolean;
         /** Mule d'un principal : pseudo du principal. */
         muleOf?: string | null;
@@ -231,6 +234,7 @@ export function questStatusForMembers(
             listed.push({
                 name,
                 avatar: member.avatar ?? null,
+                dofusClass: member.dofusClass ?? null,
                 isViewer: member.isViewer === true,
                 ...(member.muleOf ? { muleOf: member.muleOf } : {}),
                 done,
@@ -353,6 +357,41 @@ export function dofusQuestStats(
         });
     }
     return out;
+}
+
+/**
+ * Regroupe des **personnages** par **compte** (propriétaire) pour les fiches Dofus.
+ *
+ * Mesure du 26/11/2026 : une quête affichait une ligne par personnage (Ikhellwa,
+ * mule de Ikhellwa, autre mule de Ikhellwa…) ; à 50 membres × 5 personnages, la
+ * fiche devenait un mur. L'unité d'affichage est le compte, le détail des mules
+ * reste disponible dans le `+N` (title / compteur).
+ *
+ * Le propriétaire est `muleOf` quand il existe, sinon `name`. L'ordre de première
+ * apparition est conservé ; une mule peut précéder son principal dans la liste.
+ */
+export function groupDofusMembersByOwner<T extends { name: string; muleOf?: string | null }>(
+    members: ReadonlyArray<T>
+): Array<{ owner: string; members: T[] }> {
+    const groups = new Map<string, T[]>();
+    for (const member of members) {
+        const owner = (member.muleOf?.trim() || member.name).trim();
+        if (!owner) continue;
+        const list = groups.get(owner) ?? [];
+        list.push(member);
+        groups.set(owner, list);
+    }
+    return [...groups.entries()].map(([owner, grouped]) => ({
+        owner,
+        members: grouped,
+    }));
+}
+
+/** Personnage principal d'un groupe (celui qui n'est pas une mule), sinon le premier. */
+export function primaryDofusMember<T extends { name: string; muleOf?: string | null }>(
+    members: ReadonlyArray<T>
+): T | null {
+    return members.find((member) => !member.muleOf) ?? members[0] ?? null;
 }
 
 /** Clés d'étapes d'une quête (`-all` et `-1` coexistent pour une quête non découpée). */
@@ -526,6 +565,8 @@ export type GuildCharacterProgress<T> = {
     /** Vrai pour une mule (slot ≠ PRINCIPAL). */
     isMule: boolean;
     avatar?: string | null;
+    /** Classe Dofus du personnage (icône à côté du pseudo). */
+    dofusClass?: string | null;
     isViewer: boolean;
     rows: T[];
 };
@@ -541,6 +582,7 @@ export function groupGuildProgressByCharacter<
         characterSlot?: string | null;
         userName: string;
         userAvatar?: string | null;
+        dofusClass?: string | null;
     },
 >(
     rows: readonly T[],
@@ -567,6 +609,7 @@ export function groupGuildProgressByCharacter<
                 ownerName: isMule ? row.userName : null,
                 isMule,
                 avatar: row.userAvatar ?? null,
+                dofusClass: row.dofusClass ?? null,
                 isViewer: row.profileId === viewerProfileId && slot === viewerSlot,
                 rows: [],
             };

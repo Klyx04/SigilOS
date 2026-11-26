@@ -41,6 +41,8 @@ export type DofusDetailMember = {
     done: number;
     total: number;
     pct: number;
+    /** Mule d'un personnage principal : pseudo du principal. */
+    muleOf?: string | null;
 };
 
 export type DofusDetailOcre = {
@@ -313,6 +315,11 @@ export function RushDofusDetailModal({
                                                                     </span>
                                                                     <span className="min-w-0 flex-1 truncate text-[11px] text-foreground">
                                                                         {member.name}
+                                                                        {member.muleOf ? (
+                                                                            <span className="ml-1 text-[9px] font-normal text-muted-foreground">
+                                                                                mule de {member.muleOf}
+                                                                            </span>
+                                                                        ) : null}
                                                                         {member.isViewer ? (
                                                                             <span className="ml-1 rounded-[3px] border border-success/30 bg-success/10 px-1 py-0.5 text-[9px] font-semibold uppercase text-success">
                                                                                 {en ? "Me" : "Moi"}
@@ -371,9 +378,13 @@ export function RushDofusDetailModal({
                                                         {member.name}
                                                     </p>
                                                     <p className="truncate text-[10px] text-muted-foreground">
+                                                        {member.muleOf ? `Mule de ${member.muleOf}` : null}
+                                                        {member.muleOf && member.current ? " · " : null}
                                                         {member.current
                                                             ? `${en ? "Now" : "En cours"} : ${member.current}`
-                                                            : en ? "Dofus done" : "Dofus terminé"}
+                                                            : member.muleOf
+                                                              ? null
+                                                              : en ? "Dofus done" : "Dofus terminé"}
                                                     </p>
                                                 </div>
                                                 <span className="shrink-0 font-mono text-[10px] tabular-nums text-muted-foreground">

@@ -6,6 +6,15 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 26/11/2026 (suite 75) — **Rush : panneau Dofus fidèle au personnage et mules étiquetées** — branche `fix/rush-dofus-panel-live-2026-11-26` (PR **#1556**)
+
+> **Demande user (verbatim)** : « ça met bien à jour dans l'overlay des blocs à gauche, mais le bloc du dessus "ma progression par Dofus" ça met pas à jour, et en cliquant dessus on voit encore les quêtes en "à faire" alors qu'elles sont bien cochés dans la partie "bloc" un ex avec l'ocre » · « une amélioration pour indiquer dans les personnages qui sont des mules dans les détails de quêtes (mule de "pseudo principal") ».
+> **Mesuré** : le panneau lisait la prop serveur (`guildProgress`) et comptait les **blocs** ; les blocs lisent l'état **local** du personnage actif. Une rafale de coches ne déclenchait qu'un refresh **leading** (900 ms après la première écriture) → cartes et fiche figées sur un état partiel. Le reset global ne vidait pas `completedStepsByMs` en local. `dofusQuestsByDofus` incluait les encarts non-quêtes.
+> **Fait** : `mergeViewerProgressRows` (l'état local du personnage actif remplace sa ligne serveur, autres personnages intacts) ; vue **Mon personnage par défaut**, bascule « Tous les personnages » ; pourcentage personnel au grain **quête** ; refresh **trailing** ; reset local immédiat (guide + personnage) ; encarts exclus de la fiche ; étiquette **« mule de X »** dans les quêtes et les membres ; #1554/#1555 (panneau personnel puis granulaire) actés.
+> **Preuves** : **8 588 tests ✅** (840 fichiers) · `tsc` 0 · `lint` 0 · nouveaux verrous `rush-dofus-panel-sync`, `rush-dofus-personal-view`, `rush-dofus-characters`, `rush-dofus-accent`.
+> **Reste** : déployer la bêta (image après merge) ; ⑮/⑯/⑰/⑱, batch succès, perf agrégat, graphe ㉙, raccourcis ㉚, ops prod.
+> **Rotation** : bloc « suite 69 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
 ## 📝 Session 25/11/2026 (suite 74) — **Rush : reset par personnage, sous-blocs, fiche Dofus, PiP et quick wins** — PRs **#1544** à **#1553**
 
 > **Demande user (verbatim)** : « quand je change de personnage, quand je reset le rush les dofus restent… » · « je ne peux pas mettre des blocs Obtention Dofus / Tips dans un bloc existant… 0 bouton de sauvegarde » · « Rush Live… pas l'impression que ça marche » · « c normal ca en local ? » · « le reinit… ne marche tjrs pas » · « les images Ocre marchent dans la modale mais pas dans l'overlay » · « ressources à prévoir lent » · « Je suis ici sur un bloc verrouillé ne fait rien » · « focus hover dans la modale Dofus » · « validation de succès longue / graphe / raccourcis overlay ».
@@ -55,13 +64,4 @@
 > **Reste** : choix Brak 55/66 + God, visuel de bloc terminé / bouton masquer-afficher, contrôle overlay public invité, **bêta/prod apply** du backfill conditions.
 > **Rotation** : bloc « suite 64 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
-## 📝 Session 24/11/2026 (suite 69) — **Rush : conditions Tougli (⑭ + ⑩)** — branche `feat/rush-constraints-2026-11-24` (PR **#1531**, revue **#1532**)
-
-> **Demande user (verbatim)** : « go » sur le plan ⑭ contraintes → ⑩ fiche quête.
-> **Mesuré** : Tougli 530 quêtes / **389 avec conditions** / **726 combats dont 162 multi** (max 14) / 80 `bashMobs` / 38 `needPlayer` / 37 métiers / 7 donjons au choix / 6 horaires ; base locale **0 `constraints` réelles** ; **325 séquences** avec conditions mais **aucun `tips`** (section masquée) ; 7 quêtes absentes de Tougli (1988/894/1939/614/710/711/626) ; Maïmane **29 donjons au choix > plafond 8**.
-> **Fait** : contrat **v2** `combats[]` + `detail` (v1 lue et normalisée) ; mapper pur `rush-constraints-tougli` ; script `backfill-rush-constraints` (dry-run/`--apply`/`--overwrite`, API ou `--source`) ; **391 séquences écrites en local** (**161 multi-combats, 719 combats**) ; éditeur God multi-combats ; `hasRushHints` : conditions seules visibles sur les 3 surfaces ; carte combat avec icônes/portraits/PV/détail.
-> **Preuves** : dry-run `391 à écrire`, apply `391`, second passage `0` ; guide public « Bien débuter » sans `tips` → `COMBAT SOLO / Poutch Céleste / Niv. 1 / 35 PV` ; **8 464 tests ✅** · `tsc` 0 · `lint` 0 erreur · `security:audit` OK.
-> **Revue #1532** : bloc « Conseils » vide corrigé, v1 normalisée en lecture, niveaux >200 (jusqu'à 1 000), combats identiques conservés, cible DB explicite + `DATABASE_URL` obligatoire ; `ROADMAP` compacté sous 60 KiB.
-> **Reste** : **⑨ mode blanc**, **⑪ choix Brak 55/66 + God**, ⑫/⑬/⑮/⑯/⑰/⑱, **bêta/prod apply** (script via conteneur ops), contrôle hebdo VPS, phases 4/5.
-> **Rotation** : bloc « suite 63 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 

@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
     excludeLegacyProfilesForViewer,
     groupGuildProgressByCharacter,
+    mergeViewerProgressRows,
+    questStatusForMembers,
 } from "@/lib/rush-dofus-progress";
 
 /**
@@ -54,6 +56,10 @@ describe("granularité par personnage", () => {
         expect(characters.find((character) => character.name === "Cubi-Devomi")?.isViewer).toBe(true);
         expect(characters.find((character) => character.name === "Wylan")?.isViewer).toBe(false);
         expect(characters.find((character) => character.name === "Chaudsept")?.isViewer).toBe(false);
+        // Une mule porte le pseudo du principal, jamais fusionné avec lui.
+        expect(characters.find((character) => character.name === "Cubi-Devomi")?.isMule).toBe(true);
+        expect(characters.find((character) => character.name === "Cubi-Devomi")?.ownerName).toBe("Wylan");
+        expect(characters.find((character) => character.name === "Wylan")?.isMule).toBe(false);
     });
 
     it("distingue une mule homonyme du principal", () => {
@@ -65,6 +71,8 @@ describe("granularité par personnage", () => {
         const characters = groupGuildProgressByCharacter(rows, { profileId: "p1", characterSlot: "PRINCIPAL" });
 
         expect(characters.map((character) => character.name)).toEqual(["Wylan", "Wylan (mule)"]);
+        expect(characters.find((character) => character.name === "Wylan (mule)")?.ownerName).toBe("Wylan");
+        expect(characters.find((character) => character.name === "Wylan (mule)")?.isMule).toBe(true);
         expect(new Set(characters.map((character) => character.key)).size).toBe(2);
     });
 
@@ -91,5 +99,62 @@ describe("granularité par personnage", () => {
         expect(kept.some((r) => r.profileId === "legacy")).toBe(false);
         expect(kept.filter((r) => r.profileId === "p1" && r.characterSlot === "Cubi-Devomi")).toHaveLength(1);
         expect(kept.some((r) => r.profileId === "p2")).toBe(true);
+    });
+
+    it("remplace l'état local du personnage actif sans toucher aux autres", () => {
+        const serverRows = [
+            row("p1", "Cubi-Devomi", "Wylan", "m1"),
+            row("p1", "PRINCIPAL", "Wylan", "m1"),
+            row("p2", "PRINCIPAL", "Chaudsept", "m1", { isCompleted: true }),
+        ];
+        const localViewer = {
+            ...row("p1", "Cubi-Devomi", "Wylan", "m1"),
+            isCompleted: true,
+            completedSteps: ["seq-1"],
+        };
+
+        const merged = mergeViewerProgressRows(serverRows, [localViewer], {
+            profileId: "p1",
+            characterSlot: "Cubi-Devomi",
+        });
+
+        expect(merged).toHaveLength(3);
+        expect(
+            merged.find((r) => r.profileId === "p1" && r.characterSlot === "Cubi-Devomi")?.isCompleted
+        ).toBe(true);
+        // La mule « principale » n'est pas remplacée : elle n'est pas le personnage actif.
+        expect(
+            merged.find((r) => r.profileId === "p1" && r.characterSlot === "PRINCIPAL")?.isCompleted
+        ).toBe(false);
+        expect(merged.find((r) => r.profileId === "p2")?.isCompleted).toBe(true);
+    });
+
+    it("étiquette une mule dans la fiche de quête", () => {
+        const [status] = questStatusForMembers(
+            [
+                {
+                    milestoneId: "m1",
+                    category: "Ocre d'Ambre",
+                    label: "Protéger et sévir",
+                    step: "Protéger et sévir",
+                    steps: 1,
+                    sequenceId: "seq-1",
+                },
+            ],
+            [
+                {
+                    name: "Cubi-Devomi",
+                    completedSteps: ["Protéger et sévir-all"],
+                    muleOf: "Wylan",
+                },
+            ]
+        );
+
+        expect(status.done).toBe(true);
+        expect(status.members?.[0]).toMatchObject({
+            name: "Cubi-Devomi",
+            muleOf: "Wylan",
+            done: true,
+        });
     });
 });

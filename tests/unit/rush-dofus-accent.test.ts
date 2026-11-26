@@ -103,8 +103,9 @@ describe("rush-dofus-accent — état accessible du bandeau Dofus (T2)", () => {
   );
 
   it("annonce chaque Dofus du bandeau (nom, avancement, personnages) sur un vrai bouton", () => {
-    expect(panel).toMatch(/<button[\s\S]{0,400}?aria-label=\{`Voir où en sont les personnages sur le Dofus/);
-    expect(panel).toContain("${d.pct} %, ${d.membersInProgress.length} personnage(s) engagé(s)");
+    expect(panel).toMatch(/<button[\s\S]{0,600}?aria-label=\{`Voir le détail du Dofus/);
+    expect(panel).toContain("${d.viewerDone}/${d.viewerTotal} quêtes validées par ${characterLabel}");
+    expect(panel).toContain("${d.completedMilestones}/${d.totalMilestones} blocs validés par au moins un personnage");
   });
 
   it("annonce le titre et la description de la modale ouverte", () => {

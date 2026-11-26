@@ -1,7 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
+  dofusQuestRefsForMilestone,
   dofusQuestStats,
   isQuestDone,
+  isQuestDoneBySequenceIds,
   memberDofusProgress,
   questStepKeys,
   type DofusQuestRef,
@@ -106,5 +108,53 @@ describe("rush-dofus-progress — où en est un membre", () => {
 
   it("Dofus vide : aucune division par zéro", () => {
     expect(memberDofusProgress([], ["A-all"], null)).toMatchObject({ done: 0, total: 0, pct: 0, current: null });
+  });
+});
+
+describe("étape à choix — une seule quête dans la fiche Dofus", () => {
+  const choice = (id: string, step: string, group = "66") => ({
+    id,
+    subGuideRef: step,
+    subGuideName: step,
+    activityTags: [{ type: "choice_group", name: group }],
+  });
+  const simple = (id: string, step: string) => ({
+    id,
+    subGuideRef: step,
+    subGuideName: step,
+    activityTags: [],
+  });
+
+  const milestone = {
+    id: "ms-turquoise",
+    title: "Dofus Turquoise",
+    chapterLabel: "Alignement - Partie 2/4",
+    sequences: [
+      simple("q1", "Quête A"),
+      choice("q2", "Les ordres sont-ils les ordres ?"),
+      choice("q3", "On m'appelle l'Escargot"),
+    ],
+  };
+
+  it("replie les variantes en une seule quête", () => {
+    const refs = dofusQuestRefsForMilestone(milestone as any);
+    expect(refs).toHaveLength(2);
+    expect(refs[1]).toMatchObject({
+      label: "Les ordres sont-ils les ordres ?",
+      variantCount: 2,
+      variantSteps: ["Les ordres sont-ils les ordres ?", "On m'appelle l'Escargot"],
+    });
+  });
+
+  it("une variante validée suffit pour la quête et pour le 100 %", () => {
+    const refs = dofusQuestRefsForMilestone(milestone as any);
+    expect(isQuestDone(refs[1], new Set(["On m'appelle l'Escargot-all"]))).toBe(true);
+    expect(isQuestDoneBySequenceIds(refs[1], new Set(["q3"]))).toBe(true);
+    const progress = memberDofusProgress(
+      refs,
+      new Set(["Quête A-all", "On m'appelle l'Escargot-all"]),
+      null
+    );
+    expect(progress).toMatchObject({ done: 2, total: 2, pct: 100 });
   });
 });

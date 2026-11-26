@@ -26,9 +26,10 @@ import {
     type CommunityMember,
 } from "@/lib/rush-community-progress";
 import {
+    dofusQuestRefsForMilestone,
+    isQuestDoneBySequenceIds,
     questStatusForMembers,
     type DofusMilestoneStat,
-    type DofusQuestRef,
 } from "@/lib/rush-dofus-progress";
 import { resolveRushSeqIcon } from "@/lib/rush-guide-utils";
 import type { RushMilestone } from "@/types/rush-guide-types";
@@ -120,32 +121,28 @@ export function PublicDofusProgressPanel({
     const openQuests: DofusDetailQuest[] =
         view === "personal"
             ? openMilestones.flatMap((milestone) =>
-                  milestone.sequences.map((sequence) => ({
-                      id: sequence.id,
-                      name: sequence.subGuideName,
-                      category: milestone.chapterLabel ?? milestone.title,
-                      done: completedSeqIds.has(sequence.id),
-                      current: sequence.id === bookmarkedSeqId,
-                      asset: sequence.icon ? resolveRushSeqIcon(sequence.icon) : null,
-                  }))
+                  dofusQuestRefsForMilestone(milestone).map((ref) => {
+                      const sequence = milestone.sequences.find((entry) => entry.id === ref.sequenceId);
+                      return {
+                          id: ref.step,
+                          name: ref.label,
+                          category: ref.category,
+                          done: isQuestDoneBySequenceIds(ref, completedSeqIds),
+                          current:
+                              ref.sequenceId === bookmarkedSeqId ||
+                              (ref.variantSequenceIds?.includes(bookmarkedSeqId ?? "") ?? false),
+                          variantCount: ref.variantCount,
+                          asset: sequence?.icon ? resolveRushSeqIcon(sequence.icon) : null,
+                      };
+                  })
               )
             : openMilestones.flatMap((milestone) =>
-                  milestone.sequences.map((sequence) => {
-                      const ref: DofusQuestRef = {
-                          milestoneId: milestone.id,
-                          category: milestone.chapterLabel ?? milestone.title,
-                          label: sequence.subGuideName,
-                          step: sequence.subGuideRef,
-                          steps:
-                              sequence.stepFrom != null && sequence.stepTo != null && sequence.stepTo >= sequence.stepFrom
-                                  ? sequence.stepTo - sequence.stepFrom + 1
-                                  : 1,
-                          sequenceId: sequence.id,
-                      };
+                  dofusQuestRefsForMilestone(milestone).map((ref) => {
                       const status = questStatusForMembers([ref], members)[0];
+                      const sequence = milestone.sequences.find((entry) => entry.id === ref.sequenceId);
                       return {
                           ...status,
-                          asset: sequence.icon ? resolveRushSeqIcon(sequence.icon) : null,
+                          asset: sequence?.icon ? resolveRushSeqIcon(sequence.icon) : null,
                       };
                   })
               );

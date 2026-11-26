@@ -15,6 +15,8 @@
 import { RUSH_DOFUS_META, getDofusMeta } from "@/lib/rush-dofus-meta";
 import { isRushSequenceBannerMarker } from "@/lib/rush-block-types";
 import { buildMilestoneStepKeys } from "@/lib/guide-progress-helpers";
+import { collapseChoiceGroups } from "@/lib/rush-choice-groups";
+import type { RushActivityTag } from "@/types/rush-guide-types";
 
 export type DofusQuestRef = {
     /** Bloc qui porte la quête (catégorie affichée). */
@@ -29,6 +31,16 @@ export type DofusQuestRef = {
     steps: number;
     /** Id de la séquence Rush — cible du clic « ouvrir la quête » dans la timeline. */
     sequenceId?: string;
+    /**
+     * Étape à **choix exclusif** : une seule variante est jouée. `step` est le
+     * représentant, `variantSteps` porte toutes les variantes. Une étape compte pour
+     * **une** quête (règle 26/11/2026 : la fiche Dofus affichait 17/18 pour 17 quêtes).
+     */
+    variantSteps?: string[];
+    /** Ids de séquence des variantes (surfaces qui lisent des ids, pas des clés). */
+    variantSequenceIds?: string[];
+    /** Nombre de variantes, pour l'affichage « N variantes » de la fiche. */
+    variantCount?: number;
 };
 
 export type MemberDofusProgress = {
@@ -73,6 +85,8 @@ export type DofusQuestStatus = {
     id: string;
     /** Id de la séquence Rush (clic vers la timeline), quand il est connu. */
     sequenceId?: string;
+    /** Étape à choix : nombre de variantes (affichage « N variantes »). */
+    variantCount?: number;
     name: string;
     category: string;
     /** Au moins une personne (ou le lecteur) a toutes les étapes de la quête. */
@@ -86,6 +100,93 @@ export type DofusQuestStatus = {
     /** Membres qui ont validé la quête ou qui y sont — jamais les « à faire ». */
     members?: DofusQuestMemberStatus[];
 };
+
+/** Forme minimale d'une séquence, partagée par le dashboard, le public et la communauté. */
+type DofusQuestSequenceLike = {
+    id?: string;
+    subGuideRef: string;
+    subGuideName?: string | null;
+    stepFrom?: number | null;
+    stepTo?: number | null;
+    isSuccess?: boolean;
+    activityTags?: unknown;
+};
+
+/** Une séquence à variantes exclusives compte pour **une** étape. */
+function sequenceStepCount(seq: DofusQuestSequenceLike): number {
+    return seq.stepFrom != null && seq.stepTo != null
+        ? Math.max(1, seq.stepTo - seq.stepFrom + 1)
+        : 1;
+}
+
+/**
+ * Quêtes d'un **bloc** pour la fiche Dofus, avec les étapes à choix **repliées**.
+ *
+ * Mesure du 26/11/2026 : la fiche Turquoise comptait les deux variantes de l'étape 66
+ * comme deux quêtes (17/18, une « À faire » alors que l'autre était validée). Le bloc,
+ * lui, comptait déjà une étape (`stepCounts`). Cette fonction construit la même unité :
+ * un ref par quête simple, **un** ref par groupe de choix (variantes listées dans
+ * `variantSteps`), et les encarts Conseil/Combat exclus.
+ */
+export function dofusQuestRefsForMilestone(
+    milestone: {
+        id: string;
+        title: string;
+        chapterLabel?: string | null;
+        sequences: DofusQuestSequenceLike[];
+    },
+    options: { excludeSuccesses?: boolean } = {}
+): DofusQuestRef[] {
+    const category = milestone.chapterLabel ?? milestone.title;
+    const normalized = milestone.sequences.map((sequence, index) => ({
+        ...sequence,
+        id: sequence.id ?? `__seq-${index}-${sequence.subGuideRef}`,
+    }));
+    const sequences = normalized.filter((sequence) => {
+        const tags = Array.isArray(sequence.activityTags)
+            ? (sequence.activityTags as RushActivityTag[])
+            : [];
+        if (tags.some((tag) => isRushSequenceBannerMarker(tag))) return false;
+        if (options.excludeSuccesses && sequence.isSuccess) return false;
+        return true;
+    });
+
+    return collapseChoiceGroups(sequences).map((item) => {
+        if (item.kind === "sequence") {
+            return {
+                milestoneId: milestone.id,
+                category,
+                label: item.seq.subGuideName || item.seq.subGuideRef,
+                step: item.seq.subGuideRef,
+                steps: sequenceStepCount(item.seq),
+                sequenceId: item.seq.id,
+            };
+        }
+        const first = item.sequences[0];
+        return {
+            milestoneId: milestone.id,
+            category,
+            label: item.label || first.subGuideName || item.group,
+            step: first.subGuideRef,
+            steps: 1,
+            sequenceId: first.id,
+            variantSteps: item.sequences.map((sequence) => sequence.subGuideRef),
+            variantSequenceIds: item.sequences.map((sequence) => sequence.id),
+            variantCount: item.sequences.length,
+        };
+    });
+}
+
+export function questAllStepKeys(
+    quest: Pick<DofusQuestRef, "step" | "steps" | "variantSteps">
+): string[] {
+    const steps = quest.variantSteps?.filter((step): step is string => !!step) ?? [];
+    const keys = new Set<string>();
+    for (const step of steps.length > 0 ? steps : [quest.step]) {
+        for (const key of questStepKeys({ step, steps: quest.steps })) keys.add(key);
+    }
+    return [...keys];
+}
 
 /**
  * Statut de chaque quête d'un Dofus pour un groupe de personnes.
@@ -111,7 +212,7 @@ export function questStatusForMembers(
     }>
 ): DofusQuestStatus[] {
     return quests.map((quest) => {
-        const keys = questStepKeys(quest);
+        const keys = questAllStepKeys(quest);
         let membersDone = 0;
         let membersHere = 0;
         const listed: DofusQuestMemberStatus[] = [];
@@ -139,6 +240,7 @@ export function questStatusForMembers(
         return {
             id: quest.step,
             ...(quest.sequenceId ? { sequenceId: quest.sequenceId } : {}),
+            ...(quest.variantCount ? { variantCount: quest.variantCount } : {}),
             name: quest.label,
             category: quest.category,
             done: membersDone > 0,
@@ -219,18 +321,19 @@ export function dofusQuestStats(
     for (const milestone of milestones) {
         const key = milestone.dofusId?.trim().toLowerCase();
         if (!key || !getDofusMeta(key)) continue;
-        for (const sequence of milestone.sequences ?? []) {
-            if (!sequence || typeof sequence.id !== "string") continue;
-            if (sequence.isSuccess) continue;
-            const tags = Array.isArray(sequence.activityTags) ? sequence.activityTags : [];
-            // Encart conseil (`info_sequence`) ou bandeau Combat (`sequence_banner`) :
-            // jamais une quête du pourcentage par Dofus (22/11/2026).
-            if (tags.some((tag) => isRushSequenceBannerMarker(tag as { type?: string | null; kind?: string | null }))) {
-                continue;
-            }
+        const refs = dofusQuestRefsForMilestone(
+            {
+                id: milestone.id,
+                title: (milestone as any).title ?? "",
+                chapterLabel: (milestone as any).chapterLabel ?? null,
+                sequences: (milestone.sequences ?? []) as DofusQuestSequenceLike[],
+            },
+            { excludeSuccesses: true }
+        );
+        for (const ref of refs) {
             const entry = counts.get(key) ?? { done: 0, total: 0 };
             entry.total += 1;
-            if (completed.has(sequence.id)) entry.done += 1;
+            if (isQuestDoneBySequenceIds(ref, completed)) entry.done += 1;
             counts.set(key, entry);
         }
     }
@@ -259,11 +362,36 @@ export function questStepKeys(quest: Pick<DofusQuestRef, "step" | "steps">): str
 }
 
 /** Une quête est faite quand toutes ses étapes sont cochées. */
-export function isQuestDone(quest: Pick<DofusQuestRef, "step" | "steps">, completedSteps: ReadonlySet<string>): boolean {
-    if (quest.steps <= 1) {
-        return completedSteps.has(`${quest.step}-all`) || completedSteps.has(`${quest.step}-1`);
-    }
-    return questStepKeys(quest).every((key) => completedSteps.has(key));
+export function isQuestDone(
+    quest: Pick<DofusQuestRef, "step" | "steps" | "variantSteps">,
+    completedSteps: ReadonlySet<string>
+): boolean {
+    const variants = quest.variantSteps?.filter((step): step is string => !!step) ?? [];
+    const steps = variants.length > 1 ? variants : [quest.step];
+    return steps.some((step) => {
+        const single = { step, steps: quest.steps };
+        return quest.steps <= 1
+            ? completedSteps.has(`${step}-all`) || completedSteps.has(`${step}-1`)
+            : questStepKeys(single).every((key) => completedSteps.has(key));
+    });
+}
+
+/**
+ * Variante « ids de séquence » de `isQuestDone` pour les surfaces qui ne manipulent
+ * que des ids (guide public, progression locale). Une étape à choix est validée dès
+ * qu'**une** de ses variantes l'est.
+ */
+export function isQuestDoneBySequenceIds(
+    quest: Pick<DofusQuestRef, "sequenceId" | "variantSequenceIds">,
+    completedSequenceIds: ReadonlySet<string>
+): boolean {
+    const ids =
+        quest.variantSequenceIds && quest.variantSequenceIds.length > 0
+            ? quest.variantSequenceIds
+            : quest.sequenceId
+              ? [quest.sequenceId]
+              : [];
+    return ids.some((id) => completedSequenceIds.has(id));
 }
 
 /** Progression d'un membre sur une liste ordonnée de quêtes d'un Dofus. */
@@ -285,7 +413,7 @@ export function memberDofusProgress(
     // 1. L'étape courante du joueur, si elle appartient à une quête de CE Dofus.
     let current: DofusQuestRef | null = null;
     if (currentStep) {
-        current = quests.find((quest) => questStepKeys(quest).includes(currentStep)) ?? null;
+        current = quests.find((quest) => questAllStepKeys(quest).includes(currentStep)) ?? null;
     }
     // 2. Sinon la première quête non terminée — jamais une quête déjà faite.
     if (!current) current = quests.find((quest) => !isQuestDone(quest, completed)) ?? null;

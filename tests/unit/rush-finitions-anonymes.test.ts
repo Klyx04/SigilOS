@@ -129,8 +129,8 @@ describe("F1 — progression personnelle par Dofus, et l'Ocre en deux mesures", 
         // Une fois dans « Moi », une fois dans « Communauté » : même geste, même fiche.
         expect(panel.match(/onClick=\{\(\) => setOpenDofusId\(stat\.id\)\}/g)?.length).toBe(2);
         expect(panel).toContain("<RushDofusDetailModal");
-        expect(panel).toContain("completedSeqIds.has(sequence.id)");
-        expect(panel).toContain("sequence.id === bookmarkedSeqId");
+        expect(panel).toContain("isQuestDoneBySequenceIds(ref, completedSeqIds)");
+        expect(panel).toContain("ref.sequenceId === bookmarkedSeqId");
     });
 
     it("l'onglet Communauté n'existe que pour un compte, et se charge À LA DEMANDE", () => {

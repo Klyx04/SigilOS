@@ -6,6 +6,15 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 26/11/2026 (suite 76) — **Sentry Rush lot A : PiP publique, rate limit, donjons, icône** — branche `fix/sentry-rush-lot-a-2026-11-26` (PR **#1560**)
+
+> **Demande user (verbatim)** : « traitement maintenant les bugs sentry stp » · plan mesuré des 4 bugs réels (36 PiP publique, 38 rate limit, 37 N+1 donjons, 35 icône `donjon-valide`).
+> **Mesuré** : la PiP publique (`isGuest`, `guildId="public"`) montait `useRushDungeonStates` en eager → `getUserContext("public")` sans `profileId` → « Profile ID manquant » ; `toggleMilestoneProgress` jetait au rate limit 30/min → Sentry + « Erreur réseau » ; `applyDungeonChecks` faisait un `upsert` par donjon (12 à 173 requêtes) ; `donjon-valide` fabriquait `/game-data/achievements/donjon-valide.png` (404).
+> **Fait** : `enabled` sur le hook + `enabled: !isGuest` ; `RATE_LIMIT_RESULT` (`success:false`, `code:"RATE_LIMITED"`) retourné par les **11** rate limits membres, plus de throw ; resets dashboard/overlay lisent `success` ; `applyDungeonChecks` en `createMany` + `updateMany` par lot de 50 ; `donjon-valide` → `null` (glyphe Trophy conservé). Tests `sentry-rush-lot-a`, `achievement-icon-candidates`.
+> **Preuves** : **8 599 tests ✅** (842 fichiers) · `tsc` 0 · `lint` 0 · aucune migration · aucun appel membre depuis la PiP publique (test source).
+> **Reste** : déployer la bêta, puis résoudre **36/37/38/35** dans Sentry ; **32** à ignorer (faux positif documenté) ; **33/1M** hydratation = lot B ; **34** optionnel. Rien en prod (standby).
+> **Rotation** : bloc « suite 70 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
 ## 📝 Session 26/11/2026 (suite 75) — **Rush : panneau Dofus fidèle au personnage, mules étiquetées, overlay navigable** — branches `fix/rush-dofus-panel-live-2026-11-26` (PR **#1556**) et `feat/rush-overlay-block-nav-2026-11-26` (PR **#1557**)
 
 > **Demande user (verbatim)** : « ça met bien à jour dans l'overlay des blocs à gauche, mais le bloc du dessus "ma progression par Dofus" ça met pas à jour, et en cliquant dessus on voit encore les quêtes en "à faire" alors qu'elles sont bien cochés dans la partie "bloc" un ex avec l'ocre » · « une amélioration pour indiquer dans les personnages qui sont des mules dans les détails de quêtes (mule de "pseudo principal") ».
@@ -52,17 +61,5 @@
 > **Preuves** : **8 491 tests ✅** · `tsc` 0 · `lint` 0 erreur · **aucune migration** · bêta le 25/11 : **392 conditions** écrites (161 multi-combats, 719 combats), **116 positions** synchronisées, dialogue God à **0 restant**, base **467 `true` / 65 `false` / 2 hors carte**.
 > **Reste** : choix Brak 55/66 + God ; **bêta faite le 25/11** (392 conditions, 116 positions) ; reste `fix-rush-pos-worlds --trust-hd --apply` sur bêta/prod, puis prod (conditions + positions) ; mode clair #1536 mergée.
 > **Rotation** : bloc « suite 65 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
-
-## 📝 Session 24/11/2026 (suite 70) — **Rush : overlay, donjons, PiP, mode clair** — branches `fix/rush-overlay-dungeons-pip-2026-11-24` (PR **#1533**), `feat/rush-dungeons-auto-2026-11-25` (PR **#1534**), `feat/rush-overlay-compact-2026-11-25` (PR **#1535**), `feat/rush-light-theme-2026-11-25` (PR **#1536**)
-
-> **Demande user (verbatim)** : retours captures — tiroir conditions vide, donjons « à faire » par défaut + clignotement, image des combats, overlay compact, Opera GX ; puis « les quêtes invalidées doivent remettre les dj en à faire » et « valider une quête passe et coche les dj ».
-> **Mesuré** : `prereq_text` était compté en conditions alors que `RushTagBadge` le masque → tiroir vide ; un placeholder 1×1 du proxy passait pour une image ; `requestWindow` pouvait réussir puis `preparePipDocument` échouer et **jeter la PiP ouverte** (fallback popup) ; le commentaire « Opera GX n'expose pas l'API » était faux (Opera 102+ supporte Document PiP).
-> **Fait #1533** : prérequis retirés des conditions ; portrait 1×1 → repli ; `dungeonDisplayState` = « À faire » par défaut (affichage seul) ; pulse sur la pastille, les vignettes **et le bloc panneau** ; `openPipWindow` catch + **PiP conservée si les styles échouent** ; titre `SigilOS — Overlay` ; toast « non épinglée » retiré du guide Rush ; commentaires Opera corrigés.
-> **Fait #1534** : les donjons non renseignés s'affichent « À faire » ; la **validation unitaire reste verrouillée** par les donjons requis (le **bloc** bypass, décision 20/11) ; une quête dévalidée efface ses états ; dashboard/overlay/public rafraîchissent la progression donjons ; tests de parité alignés.
-> **Fait #1535** : overlay compact (icône de quête à gauche, nom pleine largeur, icônes succès / repère / position / donjon ×N en haut) ; clic quête → mini-modale DPLN/DofusDB/détails (liens vides masqués) ; monstres des combats cliquables → fiche (id lu dans l'asset, pas de fiche inventée).
-> **Fait #1536** : mode clair **CSS-first** (`html.light [data-da]` pour les jetons DA, accents et jetons produit) ; la PiP copie la classe du document hôte au lieu de forcer `dark` ; aucun state React de thème, donc aucun mismatch d'hydratation.
-> **Preuves** : **8 471 tests ✅** · `tsc` 0 · `lint` 0 erreur · aucune migration.
-> **Reste** : choix Brak 55/66 + God, visuel de bloc terminé / bouton masquer-afficher, contrôle overlay public invité, **bêta/prod apply** du backfill conditions.
-> **Rotation** : bloc « suite 64 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 

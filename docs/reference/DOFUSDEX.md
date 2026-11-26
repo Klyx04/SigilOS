@@ -191,6 +191,11 @@ Les Dofus sans entrée `RUSH_DOFUS_META` (Dofawa, Kaliptus, Dotruche, Nébuleux,
 Forgelave, Réunification, Dofoozbz, Cacao, Dokille) reçoivent la checklist mais pas de
 `dofusId` : à ajouter au référentiel si le module les affiche un jour.
 
+**Utilisation prévue (26/11/2026)** : ce fichier devient la **trame officielle de la fiche par Dofus**
+(double vue « Ordre Rush » / « Trame DofusDex »), importée dans `DofusQuestChain`/`DofusQuestEntry`
+par des chaînes `DOFUSDEX_*`. Le module Dofus ne le consomme pas encore ; le cadrage, l'algorithme
+d'import et le mapping DofusDB vivent dans `docs/plans/PLAN-REFONTE-OBJECTIF-DOFUS.md` §4.4.
+
 ## 9. Limites mesurées
 
 1. **Ordre et prérequis = la valeur** ; les bornes de niveau de la carte du jeu peuvent

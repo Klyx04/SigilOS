@@ -9,7 +9,7 @@ description: Rush Sylvestre — fiche unique des restes (section ⚡ en tête), 
 > savoir ce qui reste. `docs/ROADMAP.md` garde l'**ordre global** ; les autres plans ne portent plus
 > le détail des restes.
 
-## ⚡ Restes — fiche unique (25/11/2026)
+## ⚡ Restes — fiche unique (26/11/2026)
 
 > **Seule section à lire au démarrage d'une session Rush.** Elle remplace tous les « reste » éparpillés :
 > `ROADMAP.md` (rangs 9/10/10b/55), `PLAN-REFONTE-RUSH-SYLVESTRE.md`, `MODULE-RUSH-SYLVESTRE.md` et
@@ -103,6 +103,7 @@ O10 (3 densités `wide/normal/tight`, mesurées sur le conteneur) · O12 (bulles
 - **aucune migration** pour les lots restants ci-dessus (E2 écarté) ;
 - **valider un bloc = confort** : aucun refus (donjon/prérequis), mais **cascade montante** des prérequis + **coche des donjons requis** ; ne jamais transformer le bloc en verrou fail-closed (la quête seule reste fail-closed) ;
 - **reset bloc/guide** : efface les donjons du personnage ; **dévalider** un bloc laisse les donjons (fait acquis) ;
+- **déplacements de quête** : `moveRushSequence` / `bulkMoveRushSequences` / `reorderRushSequences` ne migrent **pas** `completedSteps` aujourd'hui (la cible voit « à faire », `currentStep` reste à la source, `isCompleted` n'est pas recalculé). Le correctif est le lot **L1** de `docs/plans/PLAN-REFONTE-OBJECTIF-DOFUS.md` (helper transactionnel, **aucune migration**). **Ne pas déplacer une quête entre blocs en God avant ce lot.**
 - ne pas affaiblir `rush-choice-groups`, `rush-public-parity`, `rush-dungeon-invalidation`, `rush-dungeons` ;
 - piège connu : le studio écrit `subGuideRef: name.trim()` (le code `RS-S2-QN` est écrasé) ;
 - **1 lot = 1 branche = 1 PR → `dev`**, DoD §9 de ce fichier.

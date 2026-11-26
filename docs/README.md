@@ -68,6 +68,7 @@ docs/
 │   ├── PLAN-SOUVERAINETE-IMAGES.md  souveraineté des visuels : S1→S4, critères vérifiables
 │   ├── PLAN-DESLOP-ANNUAIRE.md     deslop de l'annuaire (volet membres de M-1)
 │   ├── PLAN-RACCORD-DOFUSDB.md     raccord DofusDB (données de combat + visuels)
+│   ├── PLAN-REFONTE-OBJECTIF-DOFUS.md  Objectif Dofus : hub, fiches, DofusDex ISO, entraide, Ganymède, sûreté de progression
 │   ├── PLAN-REFONTE-RUSH-SYLVESTRE.md  refonte du rush Sylvestre (T-1 → T-6)
 │   ├── ARCHITECTURE-ALIGNEMENT-RUSH-SYLVESTRE.md  rush : architecture d'alignement
 │   ├── MAPPING-RUSH-SYLVESTRE.md  rush : mapping des données

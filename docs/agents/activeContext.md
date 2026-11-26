@@ -6,7 +6,7 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
-## 📝 Session 26/11/2026 (suite 75) — **Rush : panneau Dofus fidèle au personnage et mules étiquetées** — branche `fix/rush-dofus-panel-live-2026-11-26` (PR **à venir**)
+## 📝 Session 26/11/2026 (suite 75) — **Rush : panneau Dofus fidèle au personnage et mules étiquetées** — branche `fix/rush-dofus-panel-live-2026-11-26` (PR **#1556**)
 
 > **Demande user (verbatim)** : « ça met bien à jour dans l'overlay des blocs à gauche, mais le bloc du dessus "ma progression par Dofus" ça met pas à jour, et en cliquant dessus on voit encore les quêtes en "à faire" alors qu'elles sont bien cochés dans la partie "bloc" un ex avec l'ocre » · « une amélioration pour indiquer dans les personnages qui sont des mules dans les détails de quêtes (mule de "pseudo principal") ».
 > **Mesuré** : le panneau lisait la prop serveur (`guildProgress`) et comptait les **blocs** ; les blocs lisent l'état **local** du personnage actif. Une rafale de coches ne déclenchait qu'un refresh **leading** (900 ms après la première écriture) → cartes et fiche figées sur un état partiel. Le reset global ne vidait pas `completedStepsByMs` en local. `dofusQuestsByDofus` incluait les encarts non-quêtes.

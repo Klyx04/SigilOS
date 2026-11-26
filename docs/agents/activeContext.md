@@ -6,6 +6,15 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 26/11/2026 (suite 78) — **Rush : une étape à choix = une quête, et choix du donjon** — branche `fix/rush-choice-counts-2026-11-26` (PR **#1562**)
+
+> **Demande user (verbatim)** : captures Turquoise **17/18** avec l'étape 66 « 2 variantes · 1 étape », « Alignement 2/4 » **45/47** alors que le bloc est validé, et « le bouton chercher un groupe … semble prendre que le 1er de la liste ».
+> **Mesuré** : la fiche Dofus, le rail des blocs et l'overlay comptaient les **séquences brutes** (les deux variantes = deux quêtes → 17/18 et 45/47) ; « Chercher un groupe » visait `allDungeons.find((d) => !!d.id)`, donc toujours le premier donjon résolu.
+> **Fait** : `dofusQuestRefsForMilestone` replie les groupes (`collapseChoiceGroups`, `variantSteps`/`variantSequenceIds`/`variantCount`) ; `isQuestDone`/`isQuestDoneBySequenceIds` acceptent une variante ; `dofusQuestStats` et la communauté utilisent la même unité ; `stepCounts` dans `RushChapterNav`, `RushChapterSidebar` et `RushOverlayChapterBar` ; « Chercher un groupe » ouvre un menu des donjons résolus (dédupliqués), avec bouton direct s'il n'y en a qu'un.
+> **Preuves** : **8 612 tests ✅** (845 fichiers) · `tsc` 0 · `lint` 0 · tests `rush-dofus-progress` (variante = 1 quête, 100 %) et `rush-dungeon-group-search`.
+> **Reste** : déployer la bêta (#1561/#1562) puis vérifier Turquoise 17/17, Alignement 2/4 45/45 et le menu à deux donjons ; puis ⑮ manuel, ⑱ `test`, batch succès, perf agrégat, graphe ㉙, raccourcis ㉚ ; prod standby.
+> **Rotation** : bloc « suite 72 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
 ## 📝 Session 26/11/2026 (suite 77) — **Rush : hydratation des préférences et auto-validation donjons** — branche `fix/rush-hydration-2026-11-26` (PR **#1561**)
 
 > **Demande user (verbatim)** : « go » après l'explication des deux lots restants (lot B hydratation, auto-validation quête / donjons requis).
@@ -51,15 +60,5 @@
 > **Preuves** : **8 524 tests ✅** · `tsc` 0 · `lint` 0 erreur · 25 cas `rush-order-chain` (dont 79/80 cité, exclusion des variantes) · aucune migration.
 > **Reste** : redéployer la bêta ; ops prod plus tard ; ⑮/⑯/⑰/⑱.
 > **Rotation** : blocs « suite 66 » et « suite 67 » sortis — récupérables via `git log -p -- docs/agents/activeContext.md`.
-
-## 📝 Session 25/11/2026 (suite 72) — **Rush : variantes Brak 55/66, démarrage guidé et masquage** — branches `feat/rush-choice-groups-2026-11-25` (PR **#1539**), `feat/rush-start-gate-2026-11-25` (PR **#1540**)
-
-> **Demande user (verbatim)** : « continuons sur les chantiers et phases restantes » · captures + « revoir le bouton masquer le rendre plus visible et ailleurs » · « dans le guide navigateur au lieu de laisser des gros trous noirs quand un bloc est complet » · « le guide externe public n'a même pas ce bouton lui » · « bloquer tant qu'un personnage n'est pas choisi » · « alignement optionnel à choisir quand il veut » · « prendre par la main tous les utilisateurs ».
-> **Mesuré** : base locale **0 tag `choice_group`**, seules « Le magnanime » (273) et « Les ordres sont-ils les ordres ? » (311) présentes — les variantes 272/274/312 manquaient ; un prérequis nommant une variante bloquait à vie un joueur ayant choisi une sœur ; le « Masquer » du dashboard était discret dans la barre du haut ; un chapitre sans bloc visible rendait une zone vide ; l'accueil public pouvait être passé sans personnage ; la PiP n'avait qu'une icône dans le menu.
-> **Fait #1539** : `RushChoiceGroupCard` partagée (libellé + note + « N variantes · 1 étape »), méta `choice_group_label/note`, `collapseChoiceGroups`, `choiceRepresentatives`, compteurs `stepCounts` sur les 3 surfaces + serveur, exclusivité optimiste et serveur, `prereq_text` satisfait par une variante sœur du **même bloc**, God « Étape à choix exclusifs » (groupe/libellé/note/sœurs), script **`add-rush-choice-variants.ts`** (dry-run/`--apply`, idempotent) qui ajoute 274/272/312 ; **appliqué en local** (544 séquences, 5 variantes taguées).
-> **Fait #1540** : `resolveRushStartState` (personnage requis pour les **nouvelles** coches, décoche et lecture libres ; cité optionnelle), `RushStartHerePanel` persistant (personnage → cité « Plus tard » → « Commence ici ») sur public + dashboard, `RushHideDoneToggle` partagé avec compteur à côté de la recherche, blocs/chapitres terminés masqués en **ligne compacte** (plus de trou), PiP `characterReady` (coches gatées + bandeau des faites masquées + toggle dans les filtres), recherche jamais vidée par le masquage, « Faites » + masquer incompatible corrigé.
-> **Preuves** : **8 516 tests ✅** · `tsc` 0 · `lint` 0 erreur · CI verte #1539/#1540 · public vérifié : clic sans personnage ⇒ modale et **aucune écriture**, Iop → carte cité → « Plus tard » → « Commence ici », toggle « Afficher les étapes faites 81 » ; script rejoué = « déjà appliqué ».
-> **Reste** : ⑮ **98 conseils Brâkmarien** (rédaction, aucune source), ⑯ combats 746/742 (re-mesurer bêta), ⑰ actage Brâkmarien, ⑱ Touglie VPS, **ops** : `add-rush-choice-variants --apply` bêta/prod, `fix-rush-pos-worlds --trust-hd --apply` bêta/prod, conditions/positions prod, V-C purge, phases 4/5.
-> **Rotation** : 6 blocs conservés (aucun sorti).
 
 

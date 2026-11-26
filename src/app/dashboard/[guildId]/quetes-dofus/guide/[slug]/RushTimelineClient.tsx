@@ -158,6 +158,35 @@ type ActivityTag = { type: string; name?: string; level?: number; count?: number
  */
 const TARGET_HIGHLIGHT_MS = 1200;
 
+/** Comparaison de titres de quêtes (espaces insécables, casse) pour le fallback DOM. */
+const normalizeSeqName = (value: string | null | undefined) =>
+  (value ?? "").replace(/\u00a0/g, " ").trim().toLowerCase();
+
+/**
+ * Retrouve la ligne d'une quête dans le DOM : **id** d'abord, puis **nom**.
+ * Le nom est le filet de sécurité quand l'id cible n'est pas rendu (variante repliée,
+ * page en cours de montage) : le joueur doit atterrir sur une ligne visible, pas sur un toast.
+ */
+function findFocusNode(id: string, name: string | null | undefined): HTMLElement | null {
+  if (typeof document === "undefined") return null;
+  const byId = document.querySelector<HTMLElement>(`[data-seq-id="${id}"]`);
+  if (byId) return byId;
+  const wanted = normalizeSeqName(name);
+  if (!wanted) return null;
+  return (
+    Array.from(document.querySelectorAll<HTMLElement>("[data-seq-name]")).find(
+      (node) => normalizeSeqName(node.getAttribute("data-seq-name")) === wanted
+    ) ?? null
+  );
+}
+
+/**
+ * Un seul rappel « Retour à la quête d'origine » à la fois, toutes lignes confondues :
+ * en cliquant plusieurs prérequis d'affilée, les toasts de 10 s s'empilaient.
+ * Objet module (et non `useRef` local) car chaque ligne est un composant distinct.
+ */
+const RETURN_TOAST_ID: { current: string | number | null } = { current: null };
+
 type Sequence = { id: string; subGuideRef: string; subGuideName: string; stepFrom?: number|null; stepTo?: number|null; note?: string|null; isOptional: boolean; order: number; dungeon?: DungeonRef|null; dungeons?: DungeonRef[]; dofusdbUrl?: string|null; dofuspourlesnoobsUrl?: string|null; tips?: string|null; constraints?: RushQuestConstraints|null; alignReq?: string|null; alignOrderCode?: string|null; alignLevelReq?: number|null; isSuccess?: boolean; icon?: string | null; metamobMonsterId?: number|null; activityTags?: ActivityTag[]; };
 type Milestone = { id:string; title:string; subtitle?:string|null; description?:string|null; type:string; accentColor?:string|null; imageUrl?:string|null; chapter:number; chapterLabel:string; order:number; isOptional:boolean; tips?:string|null; dofusId?:string|null; sequences:Sequence[]; children?:RushMilestoneChild[]; playerProgress?:{isCompleted:boolean;completedSteps?:any;currentStep?:string|null}[]; };
 type GuildMemberProgress = { profileId:string; milestoneId:string; characterSlot?:string; userId?:string|null; isCompleted:boolean; userName:string; userAvatar?:string; currentStep?:string|null };
@@ -461,7 +490,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
     // dans l'overlay et le guide public. Le rouge de la carte disparaît : il ne disait
     // pas le verrou, il le criait.
     return (
-      <div data-seq-id={seq.id} data-state="locked" data-here={isThisBookmarked ? "true" : undefined} className="da-row scroll-mt-24">
+      <div data-seq-id={seq.id} data-seq-name={seq.subGuideName || seq.subGuideRef || ""} data-state="locked" data-here={isThisBookmarked ? "true" : undefined} className="da-row scroll-mt-24">
         <span className="da-node" aria-hidden="true"><Lock className="h-3.5 w-3.5" /></span>
         <div className={`da-card transition-colors ${focusedSeqId===seq.id?"ring-2 ring-success ring-offset-2 ring-offset-background":""}`}>
         <div className="flex min-w-0 flex-1 flex-col">
@@ -527,9 +556,20 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
                   scrollToPrereq(ref?.name ?? "", seqId);
                   setPrereqModal(null);
                   // Retour : le joueur a quitte sa quete d origine (souvent un autre bloc).
-                  toast("Retour a la quete d origine", {
+                  // Un seul rappel à la fois : le précédent est fermé avant d'afficher le nouveau.
+                  if (RETURN_TOAST_ID.current !== null) {
+                    toast.dismiss(RETURN_TOAST_ID.current);
+                    RETURN_TOAST_ID.current = null;
+                  }
+                  RETURN_TOAST_ID.current = toast("Retour a la quete d origine", {
                     description: questName,
-                    action: { label: "Revenir", onClick: () => scrollToPrereq(questName, seq.id) },
+                    action: {
+                      label: "Revenir",
+                      onClick: () => {
+                        RETURN_TOAST_ID.current = null;
+                        scrollToPrereq(questName, seq.id);
+                      },
+                    },
                     duration: 10000,
                   });
                 }}
@@ -582,6 +622,7 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
           donjons, repère, conseils) restent DANS la carte, à la même place. */}
       <div
         data-seq-id={seq.id}
+        data-seq-name={seq.subGuideName || seq.subGuideRef || ""}
         data-state={daState}
         data-here={isThisBookmarked ? "true" : undefined}
         className="da-row scroll-mt-24"
@@ -2014,6 +2055,10 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
   const [loadingIds,setLoadingIds]=useState<Set<string>>(new Set);
   const [dofusFilter,setDofusFilter]=useState<string|null>(null);
   const [focusedSeqId,setFocusedSeqId]=useState<string|null>(null);
+  /** Nom de la cible (fallback DOM quand l'id n'est pas rendu — variante, page, etc.). */
+  const focusedSeqNameRef = useRef<string | null>(null);
+  /** Un seul toast « cible introuvable » à la fois. */
+  const focusedToastIdRef = useRef<string | number | null>(null);
   const [djModal,setDjModal]=useState<{open:boolean;dungeonId?:string;questName?:string}>({open:false});
   const [wizardOpen,setWizardOpen]=useState(false);
   const [resetModalOpen,setResetModalOpen]=useState(false);
@@ -2702,54 +2747,81 @@ const timelineItems=useMemo(()=>{
   if(guide.isUnderConstruction)return<div className="flex flex-col items-center justify-center min-h-[400px] gap-6 p-8"><motion.div animate={reduceMotion ? undefined : {rotate:[0,-5,5,-5,0]}} transition={reduceMotion ? undefined : {repeat:Infinity,duration:3}} className="p-5 rounded-[6px] bg-warning/10 border border-warning/20"><Construction className="w-12 h-12 text-warning"/></motion.div><div><h2 className="text-2xl font-semibold text-foreground mb-2">En construction 🚧</h2><p className="text-muted-foreground text-sm">Le staff prépare ce guide. Reviens bientôt !</p></div></div>;
   const handleScrollToPrereq = useCallback((seqName: string, targetSeqId?: string | null) => {
     // Résolution par la SOURCE UNIQUE (`resolvePrereqTarget`) : **id** d'abord (la puce
-    // le connaît déjà : `getPrereqRefs` le renvoie), puis libellé — nom EXACT, nom partiel
-    // en dernier recours. Défaut mesuré le 05/11/2026 : la puce jetait cet id et le
-    // handler re-devinait par le NOM, si bien qu'un libellé de tag qui ne correspond pas
-    // au titre exact de la quête (« Sangs d'Encre ») ne menait nulle part — le clic était
-    // mort. Un id fourni mais introuvable renvoie `null` (fail-closed, on ne devine pas).
-    const foundId = targetSeqId || resolvePrereqTarget(seqName, milestones as any)?.seqId || null;
-    if (foundId) {
-      setFocusedSeqId(foundId);
-      // Le prérequis peut vivre dans un AUTRE bloc : on ouvre sa page d'abord,
-      // sinon le scroll chercherait un nœud qui n'est pas dans le DOM (mode paginé).
-      ensureMsFor(seqToMs.get(foundId));
-      let attempts = 0;
-      const maxAttempts = 10;
-      const tryScroll = () => {
-        const el = document.querySelector(`[data-seq-id="${foundId}"]`);
-        if (el) {
-          el.scrollIntoView({ behavior: "smooth", block: "center" });
-          el.classList.add("ring-2", "ring-success", "ring-offset-2", "ring-offset-background");
-          setTimeout(() => {
-            el.classList.remove("ring-2", "ring-success", "ring-offset-2", "ring-offset-background");
-          }, TARGET_HIGHLIGHT_MS);
-        } else if (attempts < maxAttempts) {
-          attempts++;
-          setTimeout(tryScroll, 200 + attempts * 100);
-        }
-      };
-      setTimeout(tryScroll, 300);
+    // le connaît déjà : `getPrereqRefs` le renvoie), puis libellé — nom EXACT, nom partiel.
+    // Un id fourni mais introuvable renvoie `null` (fail-closed, on ne devine pas).
+    if (focusedToastIdRef.current !== null) {
+      toast.dismiss(focusedToastIdRef.current);
+      focusedToastIdRef.current = null;
     }
-  }, [milestones, ensureMsFor, seqToMs]);
+    const foundId = targetSeqId || resolvePrereqTarget(seqName, milestones as any)?.seqId || null;
+    if (!foundId) {
+      focusedToastIdRef.current = toast.error("Quête cible introuvable dans ce guide");
+      return;
+    }
+    const targetSeq = milestones
+      .flatMap((m) => m.sequences ?? [])
+      .find((s) => s.id === foundId);
+    const targetName = targetSeq?.subGuideName || targetSeq?.subGuideRef || seqName;
+    focusedSeqNameRef.current = targetName;
+    setFocusedSeqId(foundId);
+    // Le prérequis peut vivre dans un AUTRE bloc : on ouvre sa page d'abord,
+    // sinon le scroll chercherait un nœud qui n'est pas dans le DOM (mode paginé).
+    ensureMsFor(seqToMs.get(foundId));
+    let attempts = 0;
+    const maxAttempts = 10;
+    const tryScroll = () => {
+      const el = findFocusNode(foundId, targetName);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.classList.add("ring-2", "ring-success", "ring-offset-2", "ring-offset-background");
+        setTimeout(() => {
+          el.classList.remove("ring-2", "ring-success", "ring-offset-2", "ring-offset-background");
+        }, TARGET_HIGHLIGHT_MS);
+        // La même cible recliquée doit pouvoir rejouer le saut.
+        setTimeout(() => {
+          setFocusedSeqId((current) => (current === foundId ? null : current));
+        }, TARGET_HIGHLIGHT_MS + 300);
+      } else if (attempts < maxAttempts) {
+        attempts++;
+        setTimeout(tryScroll, 200 + attempts * 100);
+      }
+    };
+    setTimeout(tryScroll, 300);
+  }, [milestones, ensureMsFor, seqToMs, toast]);
   // Le saut vers un prerequis doit ATTERRIR : on scrolle des que la ligne existe, y
   // compris apres le changement de page (le bloc cible peut se monter tardivement).
+  // Fallback par NOM puis par BLOC : un id non rendu (variante repliée, page en cours
+  // de montage) ne doit pas produire un toast alors que la quête est visible.
   React.useEffect(() => {
     if (!focusedSeqId) return;
     let alive = true;
     let attempts = 0;
     const tryScroll = () => {
       if (!alive) return;
-      const el = document.querySelector(`[data-seq-id="${focusedSeqId}"]`);
+      const el = findFocusNode(focusedSeqId, focusedSeqNameRef.current);
       if (el) {
         el.scrollIntoView({ behavior: "smooth", block: "center" });
         return;
       }
-      if (attempts < 20) { attempts++; setTimeout(tryScroll, 150); }
-      else toast.error("Quête cible introuvable dans ce guide");
+      if (attempts < 20) {
+        attempts++;
+        setTimeout(tryScroll, 150);
+        return;
+      }
+      const msId = seqToMs.get(focusedSeqId);
+      const block = msId ? document.querySelector<HTMLElement>(`[data-ms-id="${msId}"]`) : null;
+      if (block) {
+        block.scrollIntoView({ behavior: "smooth", block: "center" });
+        setFocusedSeqId((current) => (current === focusedSeqId ? null : current));
+        return;
+      }
+      if (focusedToastIdRef.current !== null) toast.dismiss(focusedToastIdRef.current);
+      focusedToastIdRef.current = toast.error("Quête cible introuvable dans ce guide");
+      setFocusedSeqId((current) => (current === focusedSeqId ? null : current));
     };
     tryScroll();
     return () => { alive = false; };
-  }, [focusedSeqId]);
+  }, [focusedSeqId, seqToMs, toast]);
   const helpStorageKey = `rush-contextual-help:${guide.id}`;
   const [contextualHelpEnabled, setContextualHelpEnabled] = useState(false);
   useEffect(() => {

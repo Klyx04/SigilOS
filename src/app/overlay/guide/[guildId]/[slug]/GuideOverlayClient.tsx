@@ -1097,6 +1097,13 @@ export default function GuideOverlayClient({
   }, [jumpToQuest]);
 
   /**
+   * Un seul rappel « Retour à la quête d'origine » à la fois : cliquer plusieurs
+   * prérequis d'affilée empilait les toasts de 30 s, chacun avec son bouton
+   * « Revenir » (retour user 26/11/2026). Le nouveau remplace l'ancien.
+   */
+  const returnToastIdRef = useRef<string | number | null>(null);
+
+  /**
    * Le nœud cible vit dans le document de l'overlay (PiP) : le `document` global
    * désigne la page HÔTE. On attend que la ligne soit montée après le changement
    * de bloc, puis on la centre et on l'anneau 1,8 s.
@@ -1147,20 +1154,30 @@ export default function GuideOverlayClient({
       // Même principe que le guide interne (retour proposé depuis la modale) :
       // le joueur a quitté sa quête d'origine (souvent dans un autre bloc),
       // le toast la lui rend — 30 s avec compte à rebours pour ne pas le rater.
-      toast.custom(
+      // Un seul rappel à la fois : le précédent est fermé avant d'afficher le nouveau.
+      if (returnToastIdRef.current !== null) {
+        toast.dismiss(returnToastIdRef.current);
+        returnToastIdRef.current = null;
+      }
+      const toastId = toast.custom(
         (id) => (
           <RushOverlayReturnToast
             questName={origin.name}
             seconds={30}
             onReturn={() => {
               toast.dismiss(id);
+              if (returnToastIdRef.current === id) returnToastIdRef.current = null;
               jumpToQuestRef.current(origin);
             }}
-            onDismiss={() => toast.dismiss(id)}
+            onDismiss={() => {
+              toast.dismiss(id);
+              if (returnToastIdRef.current === id) returnToastIdRef.current = null;
+            }}
           />
         ),
         { duration: 30000 }
       );
+      returnToastIdRef.current = toastId;
     },
     [jumpToQuest, toast]
   );

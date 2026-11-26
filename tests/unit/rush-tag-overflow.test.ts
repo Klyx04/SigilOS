@@ -102,6 +102,7 @@ describe("RushTagBadge — aucun débordement horizontal", () => {
             "src/app/overlay/guide/[guildId]/[slug]/GuideOverlayClient.tsx",
             "utf8"
         );
-        expect(client).toContain("onDismiss={() => toast.dismiss(id)}");
+        expect(client).toContain("onDismiss={() => {");
+        expect(client).toContain("toast.dismiss(id)");
     });
 });

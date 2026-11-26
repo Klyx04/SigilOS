@@ -820,10 +820,22 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
   const scrollToStep = useCallback((seqId: string) => {
     const targetMsId = seqToChapterId.get(seqId);
     if (targetMsId) setPageChapterId(targetMsId);
+    const targetSeq = milestones
+      .flatMap((ms) => ms.sequences ?? [])
+      .find((seq) => seq.id === seqId);
+    const targetName = targetSeq?.subGuideName || targetSeq?.subGuideRef || "";
+    const normalize = (value: string | null | undefined) =>
+      (value ?? "").replace(/\u00a0/g, " ").trim().toLowerCase();
     let attempts = 0;
     const maxAttempts = 10;
     const tryScroll = () => {
-      const el = document.querySelector(`[data-seq-id="${seqId}"]`);
+      const el =
+        document.querySelector<HTMLElement>(`[data-seq-id="${seqId}"]`) ??
+        (targetName
+          ? Array.from(document.querySelectorAll<HTMLElement>("[data-seq-name]")).find(
+              (node) => normalize(node.getAttribute("data-seq-name")) === normalize(targetName)
+            ) ?? null
+          : null);
       if (el) {
         el.scrollIntoView({ behavior: "smooth", block: "center" });
         el.classList.add("ring-2", "ring-success", "ring-offset-2", "ring-offset-background");
@@ -836,7 +848,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
       }
     };
     setTimeout(tryScroll, 100);
-  }, [seqToChapterId]);
+  }, [seqToChapterId, milestones]);
 
   // Completed steps & milestones (Local-First localStorage, hydraté après montage)
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
@@ -3508,6 +3520,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
                               <div
                                 key={seq.id}
                                 data-seq-id={seq.id}
+                                data-seq-name={seq.subGuideName || seq.subGuideRef || ""}
                                 className="da-row"
                                 data-state={daState}
                                 data-here={isBookmarked ? "true" : undefined}

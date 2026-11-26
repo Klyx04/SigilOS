@@ -420,30 +420,22 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
       <div className="da-card">
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           {/* Bandeau supérieur : toutes les actions au même endroit, au-dessus du
-              nom. Une quête VERROUILLÉE ne montre que ses prérequis (parité avec
-              les guides navigateur) : succès, position, donjon, détails et état
-              disparaissent ; seul le retrait d'un repère déjà posé reste possible. */}
-          {!isLocked ? (
-            <div className="flex w-full flex-wrap items-center gap-1 border-b border-border/40 pb-1">
-              <span
-                className={cn(
-                  "text-[9px] font-semibold uppercase tracking-[0.1em]",
-                  isDone ? "text-success" : "text-muted-foreground"
-                )}
-              >
-                {daState}
-              </span>
-              <div className="ml-auto flex shrink-0 items-center gap-0.5">{rowActions}</div>
-            </div>
-          ) : hasDungeon || isBookmarked ? (
-            <div className="flex w-full items-center justify-end gap-0.5 pb-1">
-              {dungeonAction}
-              {isBookmarked ? bookmarkAction : null}
-            </div>
-          ) : null}
+              nom. Conservé aussi sur une quête verrouillée (retour user 26/11/2026) :
+              position, donjon, succès, repère et détails restent accessibles. */}
+          <div className="flex w-full flex-wrap items-center gap-1 border-b border-border/40 pb-1">
+            <span
+              className={cn(
+                "text-[9px] font-semibold uppercase tracking-[0.1em]",
+                isDone ? "text-success" : "text-muted-foreground"
+              )}
+            >
+              {daState}
+            </span>
+            <div className="ml-auto flex shrink-0 items-center gap-0.5">{rowActions}</div>
+          </div>
           <div className="flex min-w-0 items-start gap-1.5 pt-0.5">
             {titleIcon}
-            {!isLocked && seqNpc && (seqNpc.imageUrl || seqNpc.id !== null) && (
+            {seqNpc && (seqNpc.imageUrl || seqNpc.id !== null) && (
               <NpcBadge npcId={seqNpc.id} name={seqNpc.name} imageUrl={seqNpc.imageUrl} bare />
             )}
             <div className="min-w-0 flex-1">
@@ -451,31 +443,23 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
                 {alignmentSet && alignLabel && (
                   <RushAlignmentBadge label={alignmentLabel} tone="da" />
                 )}
-                {isLocked ? (
-                  // Parité guides navigateur : le titre reste lisible, mais il n'ouvre
-                  // plus la modale de liens tant que la quête est verrouillée.
-                  <span className="da-qtitle block min-w-0 flex-1 text-left">
-                    <span className="line-clamp-2">{name}</span>
-                  </span>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setLinksOpen(true);
-                    }}
-                    title="Liens de la quête"
-                    className="da-qtitle block min-w-0 flex-1 cursor-pointer text-left transition-colors hover:text-accent hover:underline"
-                  >
-                    <span className="line-clamp-2">{name}</span>
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setLinksOpen(true);
+                  }}
+                  title="Liens de la quête"
+                  className="da-qtitle block min-w-0 flex-1 cursor-pointer text-left transition-colors hover:text-accent hover:underline"
+                >
+                  <span className="line-clamp-2">{name}</span>
+                </button>
               </div>
             </div>
           </div>
 
           {/* 2e ligne : membres qui ont posé un repère (le reste vit dans le bandeau). */}
-          {!isDone && !isLocked && bookmarkers.length > 0 && (
+          {!isDone && bookmarkers.length > 0 && (
             <div className="flex flex-wrap items-center gap-1">
               <RushOverlayMemberBubbles
                 members={bookmarkers}

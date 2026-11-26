@@ -152,17 +152,17 @@ describe("overlay tight — quête verrouillée", () => {
             }),
         );
 
-    it("ne montre QUE le titre et le prérequis, comme les guides navigateur", () => {
-        // Demande user du 26/11/2026 : « les quêtes bloquées n'affichent rien
-        // d'autre que le/les prérequis ; il faut faire idem dans l'overlay ».
-        // Le bandeau succès / position / détails disparaît.
+    it("conserve le bandeau d'icônes, même verrouillée", () => {
+        // Retour user du 26/11/2026 : « je souhaite conserver le bandeau avec les
+        // icônes dans l'overlay pour les quêtes bloquées, c'est plus pratique ».
+        // Le bandeau (position, donjon, succès, repère, détails) reste donc rendu.
         const html = lockedHtml();
         expect(html).toContain("Chasse au trésor archéologique");
         expect(html).toContain("Comment perdre ses plumes");
-        expect(html).not.toContain("Détails");
-        expect(html).not.toContain("Poser le repère ici");
-        expect(html).not.toContain("Liens de la quête");
-        expect(html).not.toContain("Verrouillée");
+        expect(html).toContain("Détails");
+        expect(html).toContain("Quête verrouillée — repère indisponible");
+        expect(html).toContain("Liens de la quête");
+        expect(html).toContain("Verrouillée");
     });
 
     it("garde la pastille donjon pour pouvoir cocher le requis", () => {

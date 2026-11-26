@@ -9,7 +9,7 @@ description: Rush Sylvestre — fiche unique des restes (section ⚡ en tête), 
 > savoir ce qui reste. `docs/ROADMAP.md` garde l'**ordre global** ; les autres plans ne portent plus
 > le détail des restes.
 
-## ⚡ Restes — fiche unique (25/11/2026)
+## ⚡ Restes — fiche unique (26/11/2026)
 
 > **Seule section à lire au démarrage d'une session Rush.** Elle remplace tous les « reste » éparpillés :
 > `ROADMAP.md` (rangs 9/10/10b/55), `PLAN-REFONTE-RUSH-SYLVESTRE.md`, `MODULE-RUSH-SYLVESTRE.md` et
@@ -72,6 +72,8 @@ O10 (3 densités `wide/normal/tight`, mesurées sur le conteneur) · O12 (bulles
 >
 > **Compteurs choix + groupe (PR #1562)** — une étape à choix compte pour **une** quête dans la fiche Dofus (`dofusQuestRefsForMilestone`, `variantCount`, 17/17 Turquoise), dans le rail et l'overlay (`stepCounts`, 45/45 Alignement 2/4) ; « Chercher un groupe » propose chaque donjon résolu au lieu du premier. Aucune migration.
 >
+> **Correctifs 26/11 (lots 2/3)** — **sous-blocs** : éditeur isolé par bloc (`key`), liste remontée immédiatement au studio (`onChildrenChange`), helpers `upsertRushChild`/`removeRushChild` (`b6bcf902`). **Rush Live/UX** : présence par `surface`/`characterSlot`, registre des sockets actifs (plus de faux « a quitté le guide » quand l'overlay se ferme), arrivées/départs « overlay », suppression du mode discret, icônes de classe, regroupement par compte dans les fiches Dofus/donjons, monstres cliquables, favicons DofusNoobs/DofusDB (`346095ce`). **Images Ocre + options overlay** : image résolue par `dofusdbId` en espace entité (plus de repli par id Metamob, cause des mauvaises images), rafraîchissement silencieux de la PiP, menu « Quête Ocre » sans compteur, « Donjons X / X », reset de bloc aligné sur le reset complet (`580f51ca`). 8 693 tests, `tsc` 0, lint 0.
+>
 > **Overlay 26/11 (PR #1557)** — le footer `Précédent / x / N / Suivant` existait mais était masqué dans la PiP : le dashboard injecte `footer{display:none!important}` et la PiP copie la feuille. `RushOverlayFooter` passe en `div role="contentinfo"`. La barre de bloc gagne des boutons **‹ ›** et la position **`x/N`** toujours visible, et le reset devient **« Réinitialiser » → « Confirmer »** (plus d'icône seule). Verrou : `rush-overlay-block-nav` (5 cas).
 >
 > **Perf / idées (25/11)** — la validation d'un succès enchaîne encore **un `toggleMilestoneProgress` par bloc** (~20 appels, guide rechargé à chaque fois) : lot **batch** à faire. L'agrégat « Progression Guilde » lit toutes les lignes de la guilde (cache Redis 3 s) : prévoir cache plus long/pagination. **Idées** : graphe des succès/quetes en lecture (sous-graphe par succès/Dofus, lazy, SVG) et raccourcis overlay + sélecteur de bloc (focus PiP, localStorage) — à cadrer, non codés.
@@ -103,6 +105,7 @@ O10 (3 densités `wide/normal/tight`, mesurées sur le conteneur) · O12 (bulles
 - **aucune migration** pour les lots restants ci-dessus (E2 écarté) ;
 - **valider un bloc = confort** : aucun refus (donjon/prérequis), mais **cascade montante** des prérequis + **coche des donjons requis** ; ne jamais transformer le bloc en verrou fail-closed (la quête seule reste fail-closed) ;
 - **reset bloc/guide** : efface les donjons du personnage ; **dévalider** un bloc laisse les donjons (fait acquis) ;
+- **déplacements de quête** : `moveRushSequence` / `bulkMoveRushSequences` / `reorderRushSequences` ne migrent **pas** `completedSteps` aujourd'hui (la cible voit « à faire », `currentStep` reste à la source, `isCompleted` n'est pas recalculé). Le correctif est le lot **L1** de `docs/plans/PLAN-REFONTE-OBJECTIF-DOFUS.md` (helper transactionnel, **aucune migration**). **Ne pas déplacer une quête entre blocs en God avant ce lot.**
 - ne pas affaiblir `rush-choice-groups`, `rush-public-parity`, `rush-dungeon-invalidation`, `rush-dungeons` ;
 - piège connu : le studio écrit `subGuideRef: name.trim()` (le code `RS-S2-QN` est écrasé) ;
 - **1 lot = 1 branche = 1 PR → `dev`**, DoD §9 de ce fichier.
@@ -134,7 +137,7 @@ O10 (3 densités `wide/normal/tight`, mesurées sur le conteneur) · O12 (bulles
 | **4 — Ops / vérifs** | ⑲ bêta 543/544 · ⑳ V-C purge · ㉑ contrôle visuel · ㉒ migrations/bot/crons · ㉓ prod (standby) | **bêta #1556/#1557 (`89149e85`) à déployer** ; prod **standby** (ouverture dans les prochains mois) ; V-C et contrôle visuel à faire |
 | **5 — Perf / décisions** | ㉔ T-6 (session dashboard) · ㉕ E2 (écarté) · ㉖ G7/G9 (après mode blanc) · ㉗ itérations (supprimées) · ㉘ D-G1 (idée) · ㉙ graphe des succès (idée) · ㉚ raccourcis overlay (idée) | à faire / tranché |
 
-**Prochain lot** : la **phase 2 est close** (#1531/#1532, #1536, #1539, #1540, #1542) ; les **correctifs 25/11** (#1544-#1555), les **correctifs 26/11** (#1556 panneau Dofus, #1557 overlay, #1560 Sentry lot A, #1561 hydratation + auto-validation) sont livrés. Restent le **batch de validation des succès** (perf), les **98 conseils** (⑮ — manuel mainteneur, hors code), le VPS (⑱ — test local seulement), les **ops bêta/prod** (⑲-㉓), le **graphe des succès** (㉙), les **raccourcis/sélecteur de bloc overlay** (㉚) et les phases 4/5. **Données ⑪** : bêta faite le 25/11 ; **prod standby** (ouverture dans les prochains mois). **⑯ est clos par mesure** (bêta = locale, aucun id manquant).
+**Prochain lot** : la **phase 2 est close** (#1531/#1532, #1536, #1539, #1540, #1542) ; les **correctifs 25/11** (#1544-#1555) et **26/11** (#1556 panneau Dofus, #1557 overlay, #1560 Sentry lot A, #1561 hydratation + auto-validation, #1562 compteurs choix, #1563 classes, #1564 overlay tight, #1566 prérequis) sont livrés, ainsi que les branches **sous-blocs** (`fix/rush-child-save-2026-11-26`), **Rush Live/UX** (`fix/rush-live-ux-2026-11-26`) et **images Ocre/options** (même branche). Restent le **batch de validation des succès** (perf), les **98 conseils** (⑮ — manuel mainteneur, hors code), le VPS (⑱ — test local seulement), les **ops bêta/prod** (⑲-㉓), le **graphe des succès** (㉙), les **raccourcis/sélecteur de bloc overlay** (㉚) et les phases 4/5. **Données ⑪** : bêta faite le 25/11 ; **prod standby** (ouverture dans les prochains mois). **⑯ est clos par mesure** (bêta = locale, aucun id manquant).
 
 > **Auto-validation quête / donjons requis (26/11)** : dès que le **dernier donjon requis** d'une occurrence de quête passe à `done`, la quête se valide automatiquement. Les donjons **optionnels** ne comptent pas ; un seul requis ⇒ validation au clic ; plusieurs ⇒ validation au dernier ; **fail-closed** sur les prérequis (le serveur refuse, la quête reste verrouillée) ; la **décoche** d'un donjon requis continue de dévalider la quête (S0-7). Même règle pure sur les **3 surfaces** (dashboard, overlay, public/invité), tests de comportement, aucune migration.
 

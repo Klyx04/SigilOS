@@ -16,6 +16,8 @@ describe("resolveDofusClassId — libellé OU id → id stable", () => {
         expect(resolveDofusClassId("Xélor")).toBe("xelor");
         expect(resolveDofusClassId("Écaflip")).toBe("ecaflip");
         expect(resolveDofusClassId(" forgelance ")).toBe("forgelance");
+        expect(resolveDofusClassId("Bellaphone")).toBe("bellaphone");
+        expect(resolveDofusClassId("BELLAPHONE")).toBe("bellaphone");
     });
 
     it("refuse une valeur vide ou inconnue", () => {
@@ -49,6 +51,8 @@ describe("getClass — libellé ladder accepté (sinon l'identité paraît vide)
         expect(getClass("Xélor")?.id).toBe("xelor");
         expect(getClass("écaflip")?.id).toBe("ecaflip");
         expect(getClass("Sram")?.id).toBe("sram");
+        expect(getClass("Bellaphone")?.id).toBe("bellaphone");
+        expect(getClass("bellaphone")?.icon).toBe("/assets/dofus/classes/21.png");
     });
 
     it("refuse une valeur vide ou inconnue (aucune classe inventée)", () => {

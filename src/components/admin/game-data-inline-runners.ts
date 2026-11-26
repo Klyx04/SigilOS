@@ -50,6 +50,7 @@ import { BOUNTY_RACE_IDS, BOUNTY_RACE_NAMES } from "@/lib/bounty";
 import { describeGameDataTransportError, formatGameDataErrorLines } from "@/lib/game-data-error-causes";
 import { isLocalThrottleDeferredMessage } from "@/lib/dofusdb-throttle";
 import { getClassName } from "@/lib/dofusbook-utils";
+import { DOFUS_CLASSES } from "@/lib/dofus-assets";
 import { GAME_ITEMS_BATCH_PAUSE_MS, GAME_ITEMS_BATCH_SIZE } from "@/lib/game-items-cadence";
 // 🧊 Cadence **pure** du pré-chauffage d'icônes (ce module ne tire ni `sharp` ni `fs` — un lanceur
 // client ne doit jamais embarquer le cœur d'assets : leçon du 23/09/2026).
@@ -57,8 +58,8 @@ import { GUIDE_ICON_CHUNK_SIZE, chunkItemIconIds } from "@/lib/rush-resources-pr
 import type { GameDataDataset } from "@/lib/game-data-sync-state";
 import { GAME_DATA_DATASET_LABEL } from "@/lib/game-data-sync-state";
 
-/** Les 19 classes : un appel serveur **par classe** (un appel unique de ~10 min casse). */
-export const GAME_DATA_CLASS_IDS = Array.from({ length: 19 }, (_, i) => i + 1);
+/** Toutes les classes : un appel serveur **par classe** (un appel unique de ~10 min casse). */
+export const GAME_DATA_CLASS_IDS = DOFUS_CLASSES.map((c) => c.dofusbookId);
 
 /** Images par appel : 5 = valeur mesurée (concurrence 2 côté serveur, jitter poli). */
 export const ASSET_SIPHON_CHUNK_SIZE = 5;

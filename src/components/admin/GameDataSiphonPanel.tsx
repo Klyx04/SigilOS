@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { DOFUS_CLASSES } from '@/lib/dofus-assets';
 import {
     getGuideResourceIconTargets,
     getSiphonDashboardStats,
@@ -353,11 +354,11 @@ export function GameDataSiphonPanel() {
                     </div>
                     <div className="mt-3 flex items-baseline gap-2">
                         <span className="text-3xl font-black text-foreground">
-                            {stats?.classSpellbooksWarmed ?? 0} <span className="text-sm font-medium text-muted-foreground">/ 19 classes</span>
+                            {stats?.classSpellbooksWarmed ?? 0} <span className="text-sm font-medium text-muted-foreground">/ {DOFUS_CLASSES.length} classes</span>
                         </span>
                     </div>
                     <Progress
-                        value={Math.round(((stats?.classSpellbooksWarmed ?? 0) / 19) * 100)}
+                        value={Math.round(((stats?.classSpellbooksWarmed ?? 0) / DOFUS_CLASSES.length) * 100)}
                         className="mt-3 h-2 bg-violet-950/40"
                     />
                     <p className="text-caption text-muted-foreground mt-1">{stats?.classSpellsStored ?? 0} sorts persistés en BDD</p>

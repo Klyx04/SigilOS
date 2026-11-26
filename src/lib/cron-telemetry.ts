@@ -137,6 +137,11 @@ export const KNOWN_CRON_TASKS: Record<string, { name: string; schedule: string; 
         schedule: "Hebdo dimanches 05h00 (UTC)",
         logFile: "data-watch.log",
     },
+    class_watch: {
+        name: "Veille des classes DofusDB (prod + bêta)",
+        schedule: "Quotidien 04h45 (UTC)",
+        logFile: "class-watch.log",
+    },
     market_expire: {
         name: "Marché — Fins de vie & Rappels",
         schedule: "Toutes les 10 min",

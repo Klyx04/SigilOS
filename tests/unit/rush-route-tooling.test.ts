@@ -143,10 +143,11 @@ describe("G4 — Branches à trois étages (cité → Ordre → classe)", () => 
     expect(PAGE).toContain("classReq: seq.classReq ?? null");
   });
 
-  it("le panneau rend les 19 classes et nomme les manques", () => {
+  it("le panneau rend toutes les classes et nomme les manques", () => {
     expect(ADMIN).toContain("classView.classes.map");
     expect(ADMIN).toContain("— manque —");
-    expect(ADMIN).toContain("Classes — 19 variantes");
+    expect(ADMIN).toContain("Classes —");
+    expect(ADMIN).toContain("classView.target");
   });
 
   it("les classes inconnues et les quêtes mal placées sont nommées", () => {

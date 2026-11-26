@@ -7,7 +7,24 @@
  */
 import { logger } from "@/lib/logger";
 
-export const DOFUSDB_BASE = "https://api.dofusdb.fr";
+/**
+ * Source DofusDB. **Prod = vérité live** ; **bêta = aperçu** (elle sort du contenu
+ * en avance, parfois incomplet). La prod fait foi pour une classe déjà live.
+ */
+export type DofusDbSource = "prod" | "beta";
+
+export const DOFUSDB_BASES: Record<DofusDbSource, string> = {
+    prod: "https://api.dofusdb.fr",
+    beta: "https://api.beta.dofusdb.fr",
+};
+
+/** Compatibilité : base prod historique. */
+export const DOFUSDB_BASE = DOFUSDB_BASES.prod;
+
+export interface DofusDbFetchOptions {
+    /** Défaut `prod` — aucun appelant existant n'est changé. */
+    source?: DofusDbSource;
+}
 
 const DOFUSDB_HEADERS = {
     Accept: "application/json",
@@ -41,8 +58,11 @@ export function isDofusDbOffline(): boolean {
  * Fetch DofusDB avec garde SSRF + timeout + fail-closed.
  * `path` doit commencer par `/` suivi d'une collection de l'allowlist.
  */
-export async function dofusdbFetch<T>(path: string): Promise<T | null> {
-    const json = await fetchDofusDbJson(path);
+export async function dofusdbFetch<T>(
+    path: string,
+    options: DofusDbFetchOptions = {},
+): Promise<T | null> {
+    const json = await fetchDofusDbJson(path, options.source ?? "prod");
     return (json?.data ?? null) as T | null;
 }
 
@@ -53,8 +73,11 @@ export async function dofusdbFetch<T>(path: string): Promise<T | null> {
  * **restant** d'un dataset serait « inconnu » et la jauge de couverture mentirait. Même garde
  * SSRF, même interrupteur `DOFUSDB_OFFLINE=1`, même timeout que `dofusdbFetch`.
  */
-export async function dofusdbFetchPage<T>(path: string): Promise<{ rows: T[]; total: number | null } | null> {
-    const json = await fetchDofusDbJson(path);
+export async function dofusdbFetchPage<T>(
+    path: string,
+    options: DofusDbFetchOptions = {},
+): Promise<{ rows: T[]; total: number | null } | null> {
+    const json = await fetchDofusDbJson(path, options.source ?? "prod");
     if (!json) return null;
     const rows = Array.isArray(json.data) ? (json.data as T[]) : [];
     const total = Number.isFinite(Number((json as { total?: unknown }).total))
@@ -64,7 +87,10 @@ export async function dofusdbFetchPage<T>(path: string): Promise<{ rows: T[]; to
 }
 
 /** Requête gardée commune (offline + SSRF + timeout) — un seul endroit à auditér. */
-async function fetchDofusDbJson(path: string): Promise<{ data?: unknown; total?: unknown } | null> {
+async function fetchDofusDbJson(
+    path: string,
+    source: DofusDbSource,
+): Promise<{ data?: unknown; total?: unknown } | null> {
     if (isDofusDbOffline()) {
         logger.warn(`[dofusdb] mode OFFLINE (DOFUSDB_OFFLINE=1) — appel refusé: ${path}`);
         return null;
@@ -75,7 +101,12 @@ async function fetchDofusDbJson(path: string): Promise<{ data?: unknown; total?:
     }
 
     try {
-        const url = `${DOFUSDB_BASE}${path}`;
+        const base = DOFUSDB_BASES[source];
+        if (!base) {
+            logger.error(`[dofusdb] Source refusée: ${String(source)}`);
+            return null;
+        }
+        const url = `${base}${path}`;
         const res = await fetch(url, {
             headers: DOFUSDB_HEADERS,
             cache: "no-store",

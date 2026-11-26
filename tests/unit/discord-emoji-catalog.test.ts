@@ -82,7 +82,7 @@ describe("catalogue des emojis Discord", () => {
         expect(achievementEmojiName("")).toBeNull();
     });
 
-    it("les 19 classes produisent un emoji chacune, repli vide (comportement actuel)", () => {
+    it("toutes les classes produisent un emoji chacune, repli vide (comportement actuel)", () => {
         const classes = DISCORD_EMOJI_LIST.filter((e) => e.name.startsWith(CLASS_EMOJI_PREFIX));
         expect(classes).toHaveLength(DOFUS_CLASSES.length);
         expect(classes.every((e) => e.file.endsWith(".png"))).toBe(true);

@@ -14,7 +14,7 @@
 import { DOFUS_CLASSES, matchDofusClass } from "@/lib/dofus-assets";
 import { classEmojiName } from "@/lib/discord-emoji-catalog";
 
-/** Les 19 classes, dans l'ordre canonique (même référentiel que VALID_CLASSES). */
+/** Les classes, dans l'ordre canonique (même référentiel que VALID_CLASSES). */
 export const DISPATCH_CLASSES: string[] = DOFUS_CLASSES.map((c) => c.name);
 
 export const NO_CLASS_LABEL = "Sans classe";
@@ -106,7 +106,7 @@ export function buildClassDispatchFields(
         return [{ ...opts.emptyField, inline: false }];
     }
     const groups = groupEntriesByClass(entries);
-    const maxGroups = opts.maxGroups ?? 19;
+    const maxGroups = opts.maxGroups ?? DISPATCH_CLASSES.length;
     if (groups.length > maxGroups) {
         // Repli « plat » : une entrée = une ligne, chacune avec sa propre classe.
         return [{
@@ -122,7 +122,7 @@ export function buildClassDispatchFields(
     }));
 }
 
-/** Options du select (19 classes — sous la limite Discord de 25 options). */
+/** Options du select (toutes les classes - sous la limite Discord de 25 options). */
 export function buildClassSelectOptions(): { label: string; value: string }[] {
     return DISPATCH_CLASSES.map((c) => ({ label: c, value: c }));
 }

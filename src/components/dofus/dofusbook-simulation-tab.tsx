@@ -6,6 +6,7 @@ import { SpellRangeGrid, type SpellData } from "@/components/succes/SpellRangeGr
 import { SimulationBoostPanel } from "@/components/succes/SimulationBoostPanel";
 import { getClassSpells } from "@/server/actions/dofus-spells-actions";
 import { getClassName } from "@/lib/dofusbook-utils";
+import { getDofusClassByDofusbookId } from "@/lib/dofus-assets";
 import { spellEffectDetailsFromBuild, spellZoneFromDamages, mergeSimulationEffectDetails, type BuildStatsForSpells } from "@/lib/dofus-spells";
 import { applyBoosts, targetDamageTakenFactor, type DamageBoost } from "@/lib/dofus-boosts";
 import { COMMON_SPELLS } from "@/lib/common-spells";
@@ -49,7 +50,7 @@ export function DofusbookSimulationTab({ classId, level, casterName, casterIcon,
         let cancelled = false;
         setSpells(null);
         setError(null);
-        if (!classId || classId < 1 || classId > 19) {
+        if (!classId || !getDofusClassByDofusbookId(classId)) {
             setError("Classe inconnue — impossible de simuler les sorts.");
             return;
         }

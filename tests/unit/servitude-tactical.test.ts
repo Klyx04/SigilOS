@@ -106,6 +106,10 @@ describe("fers-tyrannie — données siphonnées du client (touche L)", () => {
         expect(dofusClassHead(1, 1)).toBe("/assets/dofus/classes/heads/Head_11.png");
         expect(dofusClassHead(15)).toBe("/assets/dofus/classes/heads/Head_150.png");
         expect(dofusClassHead(20, 1)).toBe("/assets/dofus/classes/heads/Head_201.png");
+        // Bellaphone : têtes 210/211 pas encore servies par DofusDB (404 mesuré
+        // le 26/11/2026) → repli sur l'icône de classe, jamais une image cassée.
+        expect(dofusClassHead(21)).toBe("/assets/dofus/classes/21.png");
+        expect(dofusClassHead(21, 1)).toBe("/assets/dofus/classes/21.png");
     });
 
     it("cellToScreen brick (même moteur que SpellRangeGrid) : quinconce 64×32", () => {

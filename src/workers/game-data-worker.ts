@@ -54,9 +54,11 @@ function reportErrorBatch(dataset: GameDataBackgroundDataset, errors: readonly s
  * BOUNTIES (`syncBounties`). Les autres gardent leurs boutons directs tant que
  * leur cœur n'a pas été descendu.
  */
+type DofusDbSource = "prod" | "beta";
+
 async function runBackgroundDataset(
     dataset: GameDataBackgroundDataset,
-    opts: { incremental?: boolean } = {},
+    opts: { incremental?: boolean; classIds?: readonly number[]; source?: DofusDbSource } = {},
 ) {
     if (dataset === "CATALOGUE") {
         const { siphonDungeonMonstersDataset } = await import("../lib/dungeon-monsters-siphon");
@@ -77,14 +79,21 @@ async function runBackgroundDataset(
 
     if (dataset === "CLASS_SPELLS") {
         const { siphonClassSpellbooksCore, CLASS_SPELLBOOK_CLASS_IDS } = await import("../lib/class-spells-siphon");
-        await beginGameDataRun("CLASS_SPELLS", { message: "Grimoires de classes (DofusDB, 19 classes)" });
-        const result = await siphonClassSpellbooksCore(async ({ done, total, message }) => {
-            await reportGameDataProgress("CLASS_SPELLS", {
-                done,
-                total,
-                message: message ?? `${done}/${total}`,
-            });
+        const classIds = opts.classIds?.length ? opts.classIds : CLASS_SPELLBOOK_CLASS_IDS;
+        await beginGameDataRun("CLASS_SPELLS", {
+            message: `Grimoires de classes (DofusDB ${opts.source ?? "auto"}, ${classIds.length} classe(s))`,
         });
+        const result = await siphonClassSpellbooksCore(
+            async ({ done, total, message }) => {
+                await reportGameDataProgress("CLASS_SPELLS", {
+                    done,
+                    total,
+                    message: message ?? `${done}/${total}`,
+                });
+            },
+            classIds,
+            opts.source,
+        );
         reportErrorBatch("CLASS_SPELLS", result.errors);
         await finishGameDataRun("CLASS_SPELLS", {
             ok: result.errors.length === 0,
@@ -95,9 +104,24 @@ async function runBackgroundDataset(
              */
             partial: result.failedIcons > 0,
             message:
-                `${result.classes}/${CLASS_SPELLBOOK_CLASS_IDS.length} grimoire(s) · ${result.spells} sort(s) · ` +
+                `${result.classes}/${classIds.length} grimoire(s) · ${result.spells} sort(s) · ` +
                 `${result.icons} icône(s)${result.failedIcons > 0 ? ` (${result.failedIcons} en échec)` : ""}`,
             errors: result.errors,
+        });
+        return result;
+    }
+
+    // CLASSES : veille prod/bêta, manifeste persistant, assets des nouvelles classes.
+    // Ne supprime jamais rien ; le code jouable reste une décision humaine.
+    if (dataset === "CLASSES") {
+        const { syncClassCatalogCore } = await import("../lib/class-catalog-siphon");
+        await beginGameDataRun("CLASSES", { message: "Veille des classes (prod / bêta)" });
+        const result = await syncClassCatalogCore({ apply: true, downloadIcons: true });
+        await finishGameDataRun("CLASSES", {
+            ok: result.success && result.iconErrors.length === 0,
+            partial: result.iconErrors.length > 0,
+            message: result.summary,
+            errors: [...result.errors, ...result.iconErrors],
         });
         return result;
     }
@@ -336,6 +360,13 @@ export const gameDataWorker = new Worker(
             const result = await runBackgroundDataset(dataset, {
                 // 🔭 `incremental: true` = pose par le cron de veille (passe ciblée additive).
                 incremental: job.data?.incremental === true,
+                // `CLASS_SPELLS` : passe ciblée d'une classe (bêta pour une preview).
+                ...(Array.isArray(job.data?.classIds) && job.data.classIds.length
+                    ? { classIds: job.data.classIds.map(Number).filter(Number.isInteger) }
+                    : null),
+                ...(job.data?.source === "prod" || job.data?.source === "beta"
+                    ? { source: job.data.source }
+                    : null),
             });
             logger.info(`[GameData] Siphon en arrière-plan terminé: ${dataset}`);
             return result;

@@ -242,7 +242,7 @@ export function RushOnboardingWizardModal({
                   <div className="flex items-start justify-between gap-2 rounded-[6px] border border-warning/40 bg-warning/10 px-3 py-2.5">
                     <p className="text-[11px] leading-relaxed text-warning">
                       Aucune classe déclarée pour{" "}
-                      <span className="font-semibold">{currentSelectedChar?.name}</span> : les 19 quêtes de
+                      <span className="font-semibold">{currentSelectedChar?.name}</span> : les quêtes de
                       classe restent masquées.
                     </p>
                     <Link

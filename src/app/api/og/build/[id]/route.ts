@@ -97,7 +97,8 @@ export async function GET(
 
         // Center class icon
         if (classNum > 0) {
-            const classFile = classNum === 19 ? 20 : classNum;
+            // Dofusbook 19 = Forgelance (fichier 20), 20 = Bellaphone (fichier 21).
+            const classFile = classNum === 19 ? 20 : classNum === 20 ? 21 : classNum;
             const classIconPath = path.join(process.cwd(), "public", "assets", "dofus", "classes", `${classFile}.png`);
             if (fs.existsSync(classIconPath)) {
                 try {

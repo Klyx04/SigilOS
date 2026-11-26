@@ -28,6 +28,8 @@ dans `docker-compose.prod.yml` (profil `ops`, jamais démarré par `up`).
 | `rush-delete-archive … --apply` | oui | supprime l'archive (cascade) | préfixe + dump préalable |
 | `rush-verify <env>` | non | séquences, conseils, `pos_tags`, tags avec monstres | lecture seule |
 | `rush-combats <env>` | non | combats `constraints`, images manquantes, tags `activityTags`, séquences tags/combats | lecture seule |
+| `class-watch <env>` | non (dry-run) | compare DofusDB **prod** + **bêta**, affiche les classes nouvelles/modifiées/retirées | — |
+| `class-watch <env> --apply` | oui | écrit le manifeste de CET env, télécharge les icônes hors code dans `assets-dofus`, journalise | additif uniquement, **aucune suppression** |
 
 ## 2. Procédure (bêta puis prod)
 
@@ -46,6 +48,30 @@ cd ~/SigilOS
 - L'archive est le rollback : `rush-sylvestre-archive-<date>` (inactive, tout son contenu intact).
 - Renommage inverse manuel (archive → `rush-sylvestre`) puis suppression du guide vide.
 - Le dump PostgreSQL de l'étape 1 est la ceinture.
+
+## 3bis. Veille des classes (`class-watch`)
+
+La prod DofusDB est la **vérité live** ; la bêta est un **aperçu** (contenu en avance,
+parfois incomplet jusqu'à la sortie officielle). La commande ne supprime jamais une
+classe : une disparition devient `retired` + une entrée `REMOVED` dans le journal God.
+
+```bash
+cd ~/SigilOS
+./scripts/ops/vps.sh dump beta                 # ceinture (additif, mais on garde l'habitude)
+./scripts/ops/vps.sh class-watch beta          # dry-run : lire le diff
+./scripts/ops/vps.sh class-watch beta --apply  # manifeste + icônes + journal
+cat public/uploads/assets-dofus/class-catalog.json | head   # preuve (volume beta)
+```
+
+- Le manifeste et les icônes sont dans le **volume de l'environnement** (`assets-beta-data`
+  ou `assets-prod-data`) : beta et prod ne se contaminent pas.
+- Une classe **bêta seule** reste `preview` ; elle n'entre dans le bundle client que par
+  une PR relue sur `DOFUS_CLASSES`. Le veilleur prépare l'icône et alerte, il n'édite pas
+  le code.
+- Les grimoires à rafraîchir sont persistés dans `class-spell-refresh-pending.json` ;
+  le cron `class-watch` les met en file et les reprend au passage suivant si la file est
+  occupée. Le **dimanche**, il met en file une **passe complète** des grimoires (un
+  rééquilibrage de sorts ne change pas le nombre de sorts de la classe).
 
 ## 4. Ce que ce runbook ne fait pas
 

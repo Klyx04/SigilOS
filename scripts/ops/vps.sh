@@ -14,6 +14,7 @@
 #   rush-delete-archive <env> <slug> [--apply]
 #   rush-verify <beta|prod>                   compteurs du guide (lecture)
 #   rush-combats <beta|prod>                  combats, images manquantes et tags (lecture)
+#   class-watch <beta|prod> [--apply]         veille classes prod/bêta + icônes + manifeste
 #
 # Sans `--apply`, tout est en dry-run. `--apply` est le seul mot qui écrit.
 # Procédure et rollback : docs/agents/vps-ops.md.
@@ -23,6 +24,7 @@ set -euo pipefail
 readonly COMPOSE_FILE="docker-compose.prod.yml"
 readonly ARCHIVE_PREFIX="rush-sylvestre-archive-"
 readonly OPS_SCRIPT="scripts/archive-rush-guide.mjs"
+readonly CLASS_OPS_SCRIPT="scripts/class-catalog-sync.js"
 
 die() { echo "ERREUR : $*" >&2; exit 2; }
 
@@ -35,8 +37,11 @@ Usage : ./scripts/ops/vps.sh <verbe> <beta|prod> [options]
   rush-delete-archive <env> <slug> [--apply]    supprime UNIQUEMENT une archive
   rush-verify <env>                             compteurs du guide Rush
   rush-combats <env>                            combats : images manquantes et tags (lecture)
+  class-watch <env> [--apply]                   classes DofusDB prod/bêta (additif, sans suppression)
 
-Sans --apply, tout est en dry-run.
+Sans --apply, tout est en dry-run. `class-watch --apply` écrit le manifeste de CET
+environnement, les icônes des classes hors code dans le volume et le journal God.
+Aucune classe n'est supprimée ; le code jouable reste une PR relue.
 EOF
 }
 
@@ -101,6 +106,14 @@ case "${1:-}" in
     compose "$env" build "ops-$env"
     compose "$env" run --rm -T --no-deps "ops-$env" \
       node "$OPS_SCRIPT" --delete-archive "$slug" "$mode"
+    ;;
+
+  class-watch)
+    env="$(env_or_die "${2:-}")"
+    mode="$(mode_or_die "${3:-}")"
+    trace "class-watch $env $mode"
+    compose "$env" build "ops-$env"
+    compose "$env" run --rm -T --no-deps "ops-$env" node "$CLASS_OPS_SCRIPT" "$mode"
     ;;
 
   rush-verify)

@@ -72,7 +72,13 @@ const ENQUEUE_TIMEOUT_MS = 2_500;
 
 export async function enqueueGameDataSync(
     dataset: GameDataBackgroundDataset,
-    opts: { incremental?: boolean } = {},
+    opts: {
+        incremental?: boolean;
+        /** `CLASS_SPELLS` : ne re-siphonner que ces classes (Dofusbook ids). */
+        classIds?: readonly number[];
+        /** `CLASS_SPELLS` : source forcée (bêta pour une classe preview). */
+        source?: "prod" | "beta";
+    } = {},
 ): Promise<GameDataEnqueueResult> {
     const jobId = `game-data-${dataset}`;
     try {
@@ -93,7 +99,13 @@ export async function enqueueGameDataSync(
         const job = await Promise.race([
             gameDataQueue.add(
                 `sync:${dataset}${opts.incremental ? " (veille)" : ""}`,
-                { dataset, incremental: opts.incremental === true, requestedAt: new Date().toISOString() },
+                {
+                    dataset,
+                    incremental: opts.incremental === true,
+                    ...(opts.classIds?.length ? { classIds: [...opts.classIds] } : null),
+                    ...(opts.source ? { source: opts.source } : null),
+                    requestedAt: new Date().toISOString(),
+                },
                 { jobId },
             ),
             new Promise<null>((resolve) => setTimeout(() => resolve(null), ENQUEUE_TIMEOUT_MS)),

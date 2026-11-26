@@ -16,6 +16,7 @@ import {
 } from "@/lib/dofus-spells";
 import { COMMON_SPELLS } from "@/lib/common-spells";
 import { getClassName } from "@/lib/dofusbook-utils";
+import { getDofusClassByDofusbookId } from "@/lib/dofus-assets";
 import { resolveDofusAssetImageUrl } from "@/lib/dofus-image-url";
 
 const frNumber = new Intl.NumberFormat("fr-FR");
@@ -60,7 +61,7 @@ export function DofusSpellsTab({ classId, level, build }: SpellsTabProps) {
         setError(null);
         setSpells(null);
 
-        if (!classId || classId < 1 || classId > 19) {
+        if (!classId || !getDofusClassByDofusbookId(classId)) {
             setLoading(false);
             setError("Classe inconnue — impossible de lister les sorts. Sélectionnez une classe pour ce build.");
             return;

@@ -5,7 +5,7 @@ import { logger } from "@/lib/logger";
 import { raceWithDeadline } from "@/lib/discord/deadline";
 import { rateLimit } from "@/lib/ratelimit";
 import { getAppBaseUrl } from "@/lib/utils";
-import { DOFUS_JOBS, DAYS_OF_WEEK } from "@/lib/dofus-assets";
+import { DOFUS_CLASSES, DOFUS_JOBS, DAYS_OF_WEEK } from "@/lib/dofus-assets";
 import { PREFERRED_ACTIVITIES } from "@/lib/profile-activities";
 import { normSearch, parseAlmanaxDateInput, frenchLongDate } from "@/lib/slash-command-helpers";
 import {
@@ -48,12 +48,8 @@ import { resolveGodTicketCategory, toLegacyTicketCategory } from "@/lib/tickets/
 // ============================================
 // DOFUS CLASSES for Modal validation
 // ============================================
-const VALID_CLASSES = [
-    "Cra", "Ecaflip", "Eliotrope", "Eniripsa", "Enutrof",
-    "Féca", "Forgelance", "Huppermage", "Iop", "Osamodas",
-    "Ouginak", "Pandawa", "Roublard", "Sacrieur", "Sadida",
-    "Sram", "Steamer", "Xélor", "Zobal",
-];
+/** Même registre que le site : une classe ajoutée dans `DOFUS_CLASSES` est acceptée ici. */
+const VALID_CLASSES = DOFUS_CLASSES.map((c) => c.name);
 
 // ============================================
 // RATE LIMIT (Redis, par utilisateur Discord)

@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { updateDofusBookLinks } from "@/server/actions/profile-actions";
 import { shareGalleryItemOnDiscord } from "@/server/actions/gallery-actions";
 import { DofusbookPreview } from "@/components/dofus/dofusbook-preview";
+import { DOFUS_CLASSES as DOFUS_CLASS_REFERENCE } from "@/lib/dofus-assets";
 import { AddBuildModal } from "@/components/profile/add-build-modal";
 import { DO_TAGS } from "@/lib/dofus-tags";
 import type { BUILD_TAG_TYPE } from "@/lib/dofus-tags";
@@ -31,15 +32,13 @@ export type DofusBookLink = {
     updatedAt?: string | null;
 };
 
-const DOFUS_CLASSES = [
-    { id: 1, name: "Féca" }, { id: 2, name: "Osamodas" }, { id: 3, name: "Enutrof" },
-    { id: 4, name: "Sram" }, { id: 5, name: "Xélor" }, { id: 6, name: "Écaflip" },
-    { id: 7, name: "Éniripsa" }, { id: 8, name: "Iop" }, { id: 9, name: "Crâ" },
-    { id: 10, name: "Sadida" }, { id: 11, name: "Sacrieur" }, { id: 12, name: "Pandawa" },
-    { id: 13, name: "Roublard" }, { id: 14, name: "Zobal" }, { id: 15, name: "Steamer" },
-    { id: 16, name: "Éliotrope" }, { id: 17, name: "Huppermage" }, { id: 18, name: "Ouginak" },
-    { id: 19, name: "Forgelance" }
-];
+/** Classes du sélecteur de build — **source unique** `DOFUS_CLASSES` (ordre Dofusbook). */
+const DOFUS_CLASSES = DOFUS_CLASS_REFERENCE.map((c) => ({
+    id: c.dofusbookId,
+    name: c.name,
+    icon: c.icon,
+    color: c.color,
+}));
 
 const ClassSelector = ({ 
     selectedId, 
@@ -48,7 +47,7 @@ const ClassSelector = ({
 }: { 
     selectedId: number | null, 
     onSelect: (id: number) => void,
-    classes: { id: number, name: string }[]
+    classes: { id: number, name: string, icon: string, color: string }[]
 }) => {
     const [hoveredClassId, setHoveredClassId] = useState<number | null>(null);
     const activeClass = classes.find(c => c.id === (hoveredClassId || selectedId));
@@ -57,13 +56,7 @@ const ClassSelector = ({
         <div className="flex flex-col gap-3">
             <div className="grid grid-cols-5 sm:grid-cols-7 gap-2">
                 {classes.map((cls) => {
-                    const colors: Record<number, string> = {
-                        1: "#8b5cf6", 2: "#f59e0b", 3: "#10b981", 4: "#6366f1", 5: "#3b82f6",
-                        6: "#ef4444", 7: "#ec4899", 8: "#f97316", 9: "#84cc16", 10: "#059669",
-                        11: "#dc2626", 12: "#4ade80", 13: "#7c3aed", 14: "#1e40af", 15: "#0ea5e9",
-                        16: "#2563eb", 17: "#9333ea", 18: "#ea580c", 19: "#06b6d4"
-                    };
-                    const color = colors[cls.id] || "#10b981";
+                    const color = cls.color;
                     const isSelected = selectedId === cls.id;
 
                     return (
@@ -94,7 +87,7 @@ const ClassSelector = ({
                                 isSelected ? "scale-110 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]" : "grayscale opacity-30 group-hover:grayscale-0 group-hover:opacity-100 group-"
                             )}>
                                 <NextImage
-                                    src={`/assets/dofus/classes/${cls.id === 19 ? 20 : cls.id}.png`}
+                                    src={cls.icon}
                                     alt={cls.name}
                                     fill
                                     sizes="(min-width: 640px) 36px, 28px"

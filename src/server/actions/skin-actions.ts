@@ -134,7 +134,12 @@ export async function scrapeSkinMetadata(url: string): Promise<SkinData> {
         // --- FUZZY FALLBACK ---
         // If selectors failed, search in the whole text for Dofus keywords
         const allText = $('body').text();
-        const classes = ["Feca", "Osamodas", "Enutrof", "Sram", "Xelor", "Ecaflip", "Eniripsa", "Iop", "Cra", "Sadida", "Sacrieur", "Pandawa", "Roublard", "Zobal", "Steamer", "Eliotrope", "Huppermage", "Ouginak", "Forgelance"];
+        // Dérivé du registre unique, avec la variante sans accent (les pages Barbofus
+        // écrivent parfois « Feca » là où le référentiel écrit « Féca »).
+        const classes = DOFUS_CLASSES.flatMap((c) => [
+            c.name,
+            c.name.normalize("NFD").replace(/[\u0300-\u036f]/g, ""),
+        ]);
         
         if (!characterClass) {
             characterClass = classes.find(c => allText.includes(c)) || "";

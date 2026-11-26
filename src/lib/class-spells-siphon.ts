@@ -14,7 +14,8 @@
 
 import { logger } from "@/lib/logger";
 import { db } from "@/lib/prisma";
-import { dofusdbFetch } from "@/lib/dofusdb-fetch";
+import { dofusdbFetch, type DofusDbSource } from "@/lib/dofusdb-fetch";
+import { DOFUS_CLASSES } from "@/lib/dofus-assets";
 import { getClassName } from "@/lib/dofusbook-utils";
 import { SPELL_CHANGE_KEYS, spellDamageFromEffect, pushPullEffectsFromDofusDb, type SpellBaseDamage } from "@/lib/dofus-spells";
 import type { DofensiveSpellEffect } from "@/lib/dofensive-spells";
@@ -204,12 +205,20 @@ export async function readSpellbook(classId: number): Promise<{ spells: ClassSpe
  * 3. `/spell-levels` → récupère tous les niveaux de sort par batchs de 40 (l'API plafonne à 50).
  * 4. Normalise chaque sort avec tous ses grades.
  */
-export async function fetchClassSpellsFull(classId: number): Promise<ClassSpellDamage[]> {
+export async function fetchClassSpellsFull(
+    classId: number,
+    options: { source?: DofusDbSource } = {},
+): Promise<ClassSpellDamage[]> {
     const className = getClassName(classId) || "";
+    // Une classe `preview` (Bellaphone) n'existe que sur la bêta jusqu'à sa sortie
+    // officielle ; les classes live restent lues sur la prod, seule source de vérité.
+    const source: DofusDbSource =
+        options.source ??
+        (DOFUS_CLASSES.find((c) => c.dofusbookId === classId && "preview" in c && c.preview) ? "beta" : "prod");
     const charLevel = 200;
     try {
         // 1. Trouve la classe dans /breeds
-        const breeds = (await dofusdbFetch<any[]>("/breeds?$limit=22&lang=fr")) || [];
+        const breeds = (await dofusdbFetch<any[]>("/breeds?$limit=50&lang=fr", { source })) || [];
         if (breeds.length === 0) return [];
 
         const target = normalizeLabel(className);
@@ -219,7 +228,7 @@ export async function fetchClassSpellsFull(classId: number): Promise<ClassSpellD
         const breedId = Number(breed.id ?? breed.m_id ?? classId);
 
         // 2. Récupère les variantes de sorts (22 paires de sorts pour la classe)
-        const variants = (await dofusdbFetch<any[]>(`/spell-variants?breedId=${breedId}&$limit=50&lang=fr`)) || [];
+        const variants = (await dofusdbFetch<any[]>(`/spell-variants?breedId=${breedId}&$limit=50&lang=fr`, { source })) || [];
 
         type RawSpellWithMeta = {
             raw: any;
@@ -262,7 +271,7 @@ export async function fetchClassSpellsFull(classId: number): Promise<ClassSpellD
             if (spellIds.length === 0) return [];
 
             const spellQuery = spellIds.map((id) => `id[$in][]=${id}`).join("&");
-            const rawSpells = (await dofusdbFetch<any[]>(`/spells?${spellQuery}&$limit=100&lang=fr`)) || [];
+            const rawSpells = (await dofusdbFetch<any[]>(`/spells?${spellQuery}&$limit=100&lang=fr`, { source })) || [];
             rawSpells.forEach((s: any, idx: number) => {
                 rawSpellsList.push({ raw: s, isVariant: false, variantPairId: idx + 1 });
                 (Array.isArray(s?.spellLevels) ? s.spellLevels : []).forEach((id: any) => {
@@ -283,7 +292,7 @@ export async function fetchClassSpellsFull(classId: number): Promise<ClassSpellD
             const batchResults = await Promise.all(
                 chunks.map((chunk) => {
                     const q = chunk.map((id) => `id[$in][]=${id}`).join("&");
-                    return dofusdbFetch<any[]>(`/spell-levels?${q}&$limit=50&lang=fr`);
+                    return dofusdbFetch<any[]>(`/spell-levels?${q}&$limit=50&lang=fr`, { source });
                 })
             );
             batchResults.forEach((levels) => {
@@ -333,8 +342,8 @@ export async function fetchClassSpellsFull(classId: number): Promise<ClassSpellD
     }
 }
 
-/** Les 19 classes Dofus (ids Dofusbook) — même registre que l'écran God. */
-export const CLASS_SPELLBOOK_CLASS_IDS: readonly number[] = Array.from({ length: 19 }, (_, i) => i + 1);
+/** Toutes les classes Dofus (ids Dofusbook) — même registre que l'écran God. */
+export const CLASS_SPELLBOOK_CLASS_IDS: readonly number[] = DOFUS_CLASSES.map((c) => c.dofusbookId);
 
 export interface ClassSpellbookSyncResult {
     classes: number;
@@ -375,7 +384,7 @@ export async function upsertClassSpellbookWithJournal(
 }
 
 /**
- * 🧙 **Passe complète des 19 grimoires** — exécutable **sans session Next** (worker BullMQ / cron).
+ * 🧙 **Passe complète des grimoires** — exécutable **sans session Next** (worker BullMQ / cron).
  * C'est ce qui manquait : 14 classes restaient vides, faute de pouvoir lancer la boucle ailleurs que
  * dans un onglet ouvert (`warmClassSpellbook` est une action serveur, donc jamais lançable par le worker).
  *
@@ -385,6 +394,7 @@ export async function upsertClassSpellbookWithJournal(
 export async function siphonClassSpellbooksCore(
     onProgress?: (patch: { done: number; total: number; message?: string }) => void | Promise<void>,
     classIds: readonly number[] = CLASS_SPELLBOOK_CLASS_IDS,
+    source?: DofusDbSource,
 ): Promise<ClassSpellbookSyncResult> {
     const result: ClassSpellbookSyncResult = {
         classes: 0,
@@ -399,7 +409,7 @@ export async function siphonClassSpellbooksCore(
         const classId = classIds[index];
         const className = getClassName(classId) || `Classe ${classId}`;
         try {
-            const full = await fetchClassSpellsFull(classId);
+            const full = await fetchClassSpellsFull(classId, { source });
             if (full.length === 0) {
                 result.errors.push(`${className} : aucun sort récupéré (DofusDB injoignable ?)`);
             } else {

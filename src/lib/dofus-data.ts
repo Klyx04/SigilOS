@@ -2,7 +2,7 @@
 export const DOFUS_CLASSES = [
     "Cra", "Ecaflip", "Eliotrope", "Eniripsa", "Enutrof", "Feca", "Forgelance",
     "Huppermage", "Iop", "Ouginak", "Osamodas", "Pandawa", "Roublard", "Sacrieur",
-    "Sadida", "Sram", "Steamer", "Xelor", "Zobal"
+    "Sadida", "Sram", "Steamer", "Xelor", "Zobal", "Bellaphone"
 ].sort();
 
 export const DOFUS_JOBS = [

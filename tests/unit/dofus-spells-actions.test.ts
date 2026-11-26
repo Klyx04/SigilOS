@@ -83,7 +83,7 @@ describe("getClassSpells — onglet Sorts (dofusbook)", () => {
         const res = await getClassSpells(9);
         expect(res.success).toBe(true);
         expect(res.data?.classId).toBe(9);
-        expect(res.data?.className).toBe("Crâ"); // rempli via getClassName
+        expect(res.data?.className).toBe("Cra"); // rempli via getClassName
 
         const spell = res.data?.spells[0];
         expect(spell?.id).toBe(10591);

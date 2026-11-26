@@ -292,6 +292,11 @@ services:
     environment:
       - NODE_ENV=production
     working_dir: /app
+    volumes:
+      # Le veilleur de classes écrit le manifeste + les icônes dans le MÊME volume
+      # que l'app bêta : persistant entre deux deploys, et invisible de la prod.
+      - assets-beta-data:/app/public/uploads/assets-dofus
+      - /home/sigiladmin/SigilOS/public/game-data:/app/public/game-data
     networks:
       - beta-net
 
@@ -306,6 +311,9 @@ services:
     environment:
       - NODE_ENV=production
     working_dir: /app
+    volumes:
+      - assets-prod-data:/app/public/uploads/assets-dofus
+      - /home/sigiladmin/SigilOS/public/game-data:/app/public/game-data
     networks:
       - prod-net
 

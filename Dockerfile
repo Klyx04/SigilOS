@@ -29,6 +29,8 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npx prisma generate
+# Bundle du veilleur de classes (le conteneur ops n'a pas de build Next).
+RUN npm run build:class-watch
 
 # Rebuild the source code only when needed
 FROM base AS builder

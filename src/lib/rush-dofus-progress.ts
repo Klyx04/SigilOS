@@ -378,6 +378,83 @@ export function scopeGuildProgressForViewer<
 }
 
 /**
+ * Un **personnage** du guide : un profil + un `characterSlot`. Le panneau « par Dofus »
+ * doit voir chaque personnage séparément (principal, mules, autres membres) — jamais
+ * fusionner les slots d'un profil.
+ */
+export type GuildCharacterProgress<T> = {
+    key: string;
+    profileId: string;
+    characterSlot: string;
+    /** Nom affiché : pseudo du profil pour le principal, pseudo de la mule sinon. */
+    name: string;
+    avatar?: string | null;
+    isViewer: boolean;
+    rows: T[];
+};
+
+/**
+ * Groupe des lignes `PlayerGuideProgress` par **personnage** (`profileId::characterSlot`).
+ * Mesure du 25/11/2026 : le panneau agrégeait par profil et affichait « 1 membre » alors
+ * qu'il fallait voir Wylan, Cubi-Devomi et Chaudsept séparément. Aucune fusion de slots.
+ */
+export function groupGuildProgressByCharacter<
+    T extends {
+        profileId: string;
+        characterSlot?: string | null;
+        userName: string;
+        userAvatar?: string | null;
+    },
+>(
+    rows: readonly T[],
+    viewer: { profileId?: string | null; characterSlot?: string | null }
+): GuildCharacterProgress<T>[] {
+    const map = new Map<string, GuildCharacterProgress<T>>();
+    const viewerProfileId = viewer.profileId ?? null;
+    const viewerSlot = viewer.characterSlot || "PRINCIPAL";
+    for (const row of rows) {
+        const slot = row.characterSlot || "PRINCIPAL";
+        const key = `${row.profileId}::${slot}`;
+        let entry = map.get(key);
+        if (!entry) {
+            const baseName = slot === "PRINCIPAL" ? row.userName : slot;
+            // Un personnage principal et une mule peuvent partager le même pseudo : le
+            // slot « PRINCIPAL » garde le nom du profil, la mule est marquée comme telle.
+            const name = slot !== "PRINCIPAL" && baseName === row.userName ? `${baseName} (mule)` : baseName;
+            entry = {
+                key,
+                profileId: row.profileId,
+                characterSlot: slot,
+                name,
+                avatar: row.userAvatar ?? null,
+                isViewer: row.profileId === viewerProfileId && slot === viewerSlot,
+                rows: [],
+            };
+            map.set(key, entry);
+        }
+        entry.rows.push(row);
+    }
+    return [...map.values()];
+}
+
+/**
+ * Écarte seulement les **profils hérités du même compte** (même `userId`, `profileId`
+ * différent), sans toucher aux autres slots du profil courant : le panneau doit montrer
+ * toutes les mules du lecteur, mais pas un ancien profil dupliqué du même compte.
+ */
+export function excludeLegacyProfilesForViewer<
+    T extends { profileId: string; userId?: string | null },
+>(
+    rows: readonly T[],
+    viewer: { profileId?: string | null; userId?: string | null }
+): T[] {
+    if (!viewer.profileId || !viewer.userId) return [...rows];
+    return rows.filter(
+        (row) => row.profileId === viewer.profileId || row.userId !== viewer.userId
+    );
+}
+
+/**
  * Clés d'étapes d'un membre pour un ensemble de lignes de progression.
  *
  * **Un bloc `isCompleted` vaut toutes ses séquences** : la validation de bloc écrit

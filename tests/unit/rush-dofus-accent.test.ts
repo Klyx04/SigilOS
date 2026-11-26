@@ -102,9 +102,9 @@ describe("rush-dofus-accent — état accessible du bandeau Dofus (T2)", () => {
     "utf8"
   );
 
-  it("annonce chaque Dofus du bandeau (nom, avancement, membres) sur un vrai bouton", () => {
-    expect(panel).toMatch(/<button[\s\S]{0,400}?aria-label=\{`Voir où en sont les membres sur le Dofus/);
-    expect(panel).toContain("${d.pct} %, ${d.membersInProgress.length} membre(s) engagé(s)");
+  it("annonce chaque Dofus du bandeau (nom, avancement, personnages) sur un vrai bouton", () => {
+    expect(panel).toMatch(/<button[\s\S]{0,400}?aria-label=\{`Voir où en sont les personnages sur le Dofus/);
+    expect(panel).toContain("${d.pct} %, ${d.membersInProgress.length} personnage(s) engagé(s)");
   });
 
   it("annonce le titre et la description de la modale ouverte", () => {
@@ -116,7 +116,7 @@ describe("rush-dofus-accent — état accessible du bandeau Dofus (T2)", () => {
     );
     expect(detail).toContain("<DialogTitle");
     expect(detail).toContain("<DialogDescription");
-    expect(panel).toContain("selected.completedMilestones}/${selected.totalMilestones} blocs validés par au moins un membre");
+    expect(panel).toContain("selected.completedMilestones}/${selected.totalMilestones} blocs validés par au moins un personnage");
   });
 
   it("garde le geste de filtre dans la modale (le seul filtre Dofus réel)", () => {

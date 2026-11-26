@@ -132,7 +132,7 @@ describe("branchement du périmètre dans le guide interne", () => {
     it("le panneau applique la règle et les deux props du personnage actif", () => {
         const panel = read(PANEL);
         expect(panel).toContain("scopeGuildProgressForViewer");
-        expect(panel).toContain("visibleProgress");
+        expect(panel).toContain("viewerRows");
         expect(panel).toContain("activeCharacterSlot");
         expect(panel).toContain("viewerProfileId");
         expect(panel).toContain("viewerUserId");

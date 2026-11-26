@@ -1439,6 +1439,8 @@ export default function GuideOverlayClient({
       const prevCompleted = completedIds;
       const prevSteps = completedStepsByMs;
       const prevResources = resourceChecks;
+      const prevBookmarks = bookmarksByMs;
+      const prevDetail = detailSeq;
       setCompletedIds((prev) => {
         const n = new Set(prev);
         n.delete(ms.id);
@@ -1452,6 +1454,14 @@ export default function GuideOverlayClient({
         resourceChecks
       );
       setResourceChecks(nextResources);
+      // Même nettoyage que le reset complet, mais limité à ce bloc : le repère
+      // « Je suis ici » et la fiche ouverte du bloc disparaissent aussi.
+      setBookmarksByMs((prev) => {
+        const next = new Map(prev);
+        next.delete(ms.id);
+        return next;
+      });
+      if (detailSeq?.ms.id === ms.id) setDetailSeq(null);
 
       if (isGuest) {
         persistGuestResourceChecks(nextResources);
@@ -1466,6 +1476,12 @@ export default function GuideOverlayClient({
               `${storagePrefix}completed_ms`,
               JSON.stringify(Array.from(completedIds).filter((id) => id !== ms.id))
             );
+            const nextBk = new Map(bookmarksByMs);
+            nextBk.delete(ms.id);
+            localStorage.setItem(
+              `${storagePrefix}bookmarks`,
+              JSON.stringify(Object.fromEntries(nextBk))
+            );
           } catch {}
         }
         toast.success("Bloc réinitialisé");
@@ -1479,6 +1495,14 @@ export default function GuideOverlayClient({
           setCompletedIds(prevCompleted);
           setCompletedStepsByMs(prevSteps);
           setResourceChecks(prevResources);
+          setBookmarksByMs((prev) => {
+            const next = new Map(prev);
+            const previous = prevBookmarks.get(ms.id);
+            if (previous) next.set(ms.id, previous);
+            else next.delete(ms.id);
+            return next;
+          });
+          setDetailSeq(prevDetail);
           toast.error("error" in res ? res.error : "Erreur de réinitialisation");
           return;
         }
@@ -1488,6 +1512,14 @@ export default function GuideOverlayClient({
         setCompletedIds(prevCompleted);
         setCompletedStepsByMs(prevSteps);
         setResourceChecks(prevResources);
+        setBookmarksByMs((prev) => {
+          const next = new Map(prev);
+          const previous = prevBookmarks.get(ms.id);
+          if (previous) next.set(ms.id, previous);
+          else next.delete(ms.id);
+          return next;
+        });
+        setDetailSeq(prevDetail);
         toast.error("Erreur de réinitialisation");
       } finally {
         setLoadingIds((prev) => {
@@ -1504,6 +1536,8 @@ export default function GuideOverlayClient({
       guildId,
       effectiveAltPseudo,
       resourceChecks,
+      bookmarksByMs,
+      detailSeq,
       isGuest,
       persistGuestResourceChecks,
       storagePrefix,
@@ -2245,6 +2279,8 @@ export default function GuideOverlayClient({
             onOpenAlignment={!isGuest && guildId !== "public" ? () => setShowAlignment(true) : undefined}
             onOpenDungeons={openDungeonsOverview}
             dungeonsPending={Math.max(0, dungeonsCounter.total - dungeonsCounter.done)}
+            dungeonsDone={dungeonsCounter.done}
+            dungeonsTotal={dungeonsCounter.total}
           />
 
           <RushDungeonsOverviewModal

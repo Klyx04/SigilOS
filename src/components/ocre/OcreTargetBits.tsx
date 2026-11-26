@@ -12,7 +12,11 @@ import { ocreMonsterThumbChain, ocreStateLabel } from "@/lib/ocre-soul-stones";
  * même comportement d'écriture partout.
  */
 
-/** Vignette d'un monstre : image résolue par le serveur, puis PNG du dépôt, puis nos pictos (la chaîne est une règle pure, testée). */
+/**
+ * Vignette d'un monstre : image résolue par le serveur (espace entité), puis picto du jeu.
+ * Aucun repli construit depuis l'id Metamob de la cible — ce nombre désigne une AUTRE
+ * créature dans les fichiers de jeu (la chaîne est une règle pure, testée).
+ */
 export function OcreMonsterThumb({
   id,
   type,

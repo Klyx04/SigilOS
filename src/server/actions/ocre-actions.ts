@@ -54,7 +54,11 @@ import { internalDofusDbImageUrl, normalizeDofusAssetStoredUrl } from "@/lib/dof
 import { metamobQueue } from "@/lib/queue/metamob-queue";
 import { redis } from "@/lib/redis";
 import { getAppBaseUrl } from "@/lib/utils";
-import { OCRE_TOTAL_STEPS, isOcreMonsterNeeded } from "@/lib/ocre-soul-stones";
+import {
+    OCRE_TOTAL_STEPS,
+    isOcreMonsterNeeded,
+    resolveOcreMonsterImage,
+} from "@/lib/ocre-soul-stones";
 
 // -----------------------------------------------------------------------------
 // TYPES
@@ -681,7 +685,11 @@ export async function getMyOcreProgress(
                         select: { name: true, imageUrl: true, dofusdbId: true },
                     });
                     for (const a of ocreArchis) {
-                        const internal = internalDofusDbImageUrl(a.imageUrl)
+                        // Espace ENTITÉ en priorité : `dofusdbId` est un id de jeu vérifié par le
+                        // proxy, alors que l'`id` de la cible est un id Metamob (jamais une clé
+                        // d'image). Le cache disque de l'espace entité est bien plus couvert que
+                        // celui des apparences ⇒ moins de pictos, et jamais le mauvais monstre.
+                        const internal = resolveOcreMonsterImage(a.imageUrl, a.dofusdbId)
                             ?? normalizeDofusAssetStoredUrl("monsters", a.imageUrl, a.dofusdbId);
                         if (internal) nameToImageMap.set(imageKey(a.name), internal);
                     }

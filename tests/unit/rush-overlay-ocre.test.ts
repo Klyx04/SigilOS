@@ -12,8 +12,8 @@
  *
  * 🛡️ Ce que ce test verrouille : les seuils (bornes exactes), la règle « encore à
  * capturer » (identique au dashboard), le comptage des pierres par palier, la surface
- * (overlay INTERNE uniquement — jamais le guide public), et **l'absence totale d'URL
- * DofusDB** pour les images.
+ * (overlay INTERNE uniquement — jamais le guide public), et **l'absence d'URL distante**
+ * dans le DOM (les images passent par notre proxy, jamais par un hôte tiers).
  */
 
 import { describe, it, expect } from "vitest";
@@ -31,11 +31,11 @@ import {
   nextOcreQuantity,
   ocreLocalState,
   ocreMonsterIcon,
-  ocreMonsterImage,
   ocreMonsterImageUrl,
   ocreMonsterThumbChain,
   ocreStateLabel,
   classifyOcreType,
+  resolveOcreMonsterImage,
   soulStoneForLevel,
   soulStoneLevelLabel,
   toOcrePanelData,
@@ -239,25 +239,23 @@ describe("écriture en direct — pas ±1, état local, lien profil", () => {
   });
 });
 
-describe("images — 100 % chez nous (aucune référence DofusDB)", () => {
+describe("images — proxy interne, jamais l'id Metamob comme clé", () => {
   const sources = [
     "src/lib/ocre-soul-stones.ts",
     "src/components/ocre/OcreSoulStonesPanel.tsx",
     "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayOcreModal.tsx",
   ];
 
-  it("aucune URL DofusDB, aucun appel au proxy qui siphonne", () => {
+  it("aucune URL DofusDB en dur dans le DOM", () => {
     for (const rel of sources) {
       const src = read(rel);
       // Un hôte « dofusdb » (api.dofusdb.fr, www.dofusdb.fr, static.dofusdb.fr…) = dépendance.
       expect(src, rel).not.toMatch(/dofusdb\.[a-z]{2,}/i);
-      expect(src, rel).not.toContain("/api/assets-dofus");
     }
   });
 
-  it("l'image résolue par le serveur passe AVANT nos fichiers locaux", () => {
-    const upstream =
-      "/api/assets-dofus/monsters/90?url=https%3A%2F%2Fapi.dofusdb.fr%2Fimg%2Fmonsters%2F90.png&sprite=1";
+  it("l'image résolue par le serveur est la seule source de vignette", () => {
+    const upstream = "/api/assets-dofus/monsters/2385";
     // Relatif interne ⇒ accepté tel quel (aucune requête distante depuis le navigateur).
     expect(ocreMonsterImageUrl(upstream)).toBe(upstream);
     // URL absolue (DofusDB, Metamob, n'importe quel hôte) ⇒ refusée : jamais dans le DOM.
@@ -274,7 +272,6 @@ describe("images — 100 % chez nous (aucune référence DofusDB)", () => {
     expect(data.monsters[0].imageUrl).toBe(upstream);
     expect(data.monsters[1].imageUrl).toBeNull();
 
-    // La chaîne du composant : image serveur → PNG du dépôt → picto du jeu (règle pure ci-dessous).
     const bitsSrc = read("src/components/ocre/OcreTargetBits.tsx");
     const questPanelSrc = read("src/components/ocre/OcreQuestPanel.tsx");
     const overlaySrc = read("src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayOcreModal.tsx");
@@ -285,30 +282,38 @@ describe("images — 100 % chez nous (aucune référence DofusDB)", () => {
     expect(overlaySrc).toContain("imageUrl={t.imageUrl ?? null}");
   });
 
-  it("ne retente pas un WebP local quand l'image serveur est résolue (404 mesuré)", () => {
-    const upstream =
-      "/api/assets-dofus/monsters/90?url=https%3A%2F%2Fapi.dofusdb.fr%2Fimg%2Fmonsters%2F90.png&sprite=1";
+  it("n'utilise JAMAIS l'id Metamob pour construire une image (mauvais monstre mesuré)", () => {
+    const upstream = "/api/assets-dofus/monsters/2385";
 
-    // Image serveur connue ⇒ on ne demande PAS /uploads/…/<id Metamob>.webp (il n'existe pas).
     const resolved = ocreMonsterThumbChain(2508, "archimonstre", upstream);
-    expect(resolved[0]).toBe(upstream);
-    expect(resolved).not.toContain("/uploads/assets-dofus/monsters/2508.webp");
-    expect(resolved).toContain("/assets/dofus/monsters/2508.png");
-    expect(resolved[resolved.length - 1]).toBe("/assets/dofus/icons/archimonster.png");
+    expect(resolved).toEqual([upstream, "/assets/dofus/icons/archimonster.png"]);
+    expect(resolved.join(" ")).not.toContain("/uploads/assets-dofus/monsters/2508.webp");
+    expect(resolved.join(" ")).not.toContain("/assets/dofus/monsters/2508.png");
 
-    // Sans image serveur, la chaîne historique est conservée (le cache siphonné peut exister).
+    // Sans image serveur, aucun fichier indexé par l'id de la cible : le picto, point.
     const unresolvable = ocreMonsterThumbChain(301, "boss", null);
-    expect(unresolvable[0]).toBe("/uploads/assets-dofus/monsters/301.webp");
+    expect(unresolvable).toEqual(["/assets/dofus/icons/boss.png"]);
 
     // Une URL absolue (Metamob ou autre hôte) n'est jamais une étape de la chaîne.
     const unsafe = ocreMonsterThumbChain(301, "boss", "https://www.metamob.fr/img/monsters/x.png");
-    expect(unsafe).not.toContain("https://www.metamob.fr/img/monsters/x.png");
-    expect(unsafe[0]).toBe("/uploads/assets-dofus/monsters/301.webp");
+    expect(unsafe.join(" ")).not.toContain("https://www.metamob.fr/img/monsters/x.png");
+    expect(unsafe.join(" ")).not.toContain("/uploads/assets-dofus/monsters/301.webp");
   });
 
-  it("la progression Ocre résout l'image par NOM depuis la table locale, pas par l'id Metamob", () => {
-    // Mesure du 09/11/2026 : l'id du panneau est un id Metamob (347 → introuvable, 2508 → un
-    // AUTRE monstre). L'image doit donc venir de `Archimonstre`, résolue par nom puis proxifiée.
+  it("résout l'image par l'id de JEU (dofusdbId), pas par l'id Metamob", () => {
+    const fromMetamobImage = "https://api.dofusdb.fr/img/monsters/345.png";
+    expect(resolveOcreMonsterImage(fromMetamobImage, 2385)).toBe(
+      "/api/assets-dofus/monsters/2385"
+    );
+    // Sans id d'entité, l'URL d'apparence déjà résolue reste un repli interne.
+    expect(resolveOcreMonsterImage(fromMetamobImage, null)).toBe(
+      "/api/assets-dofus/monsters/345?url=https%3A%2F%2Fapi.dofusdb.fr%2Fimg%2Fmonsters%2F345.png&sprite=1"
+    );
+    expect(resolveOcreMonsterImage("https://www.metamob.fr/x.png", null)).toBeNull();
+    expect(resolveOcreMonsterImage(null, 0)).toBeNull();
+  });
+
+  it("la progression Ocre résout l'image par NOM depuis la table locale, via dofusdbId", () => {
     const src = read("src/server/actions/ocre-actions.ts");
     expect(src).toContain("db.archimonstre.findMany");
     // Aucun filtre `type` : la clé est le NOM (mesure du 09/11/2026, 4 Blops royaux non résolus).
@@ -316,7 +321,7 @@ describe("images — 100 % chez nous (aucune référence DofusDB)", () => {
     expect(src).not.toContain('type: { in: ["archimonstre", "boss"] }');
     expect(src).toContain("const imgVal = nameToImageMap.get(imageKey(norm.nameFr))");
     expect(src).toContain("if (imgVal) norm.image = imgVal");
-    expect(src).toContain("internalDofusDbImageUrl(a.imageUrl)");
+    expect(src).toContain("resolveOcreMonsterImage(a.imageUrl, a.dofusdbId)");
     // La clé de rapprochement ignore les accents (même règle que `getZoneArchmonsters`).
     expect(src).toContain('s.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase().trim()');
     // Aucune image construite depuis l'id du monstre affiché (espace d'entité ≠ id Metamob).
@@ -331,8 +336,7 @@ describe("images — 100 % chez nous (aucune référence DofusDB)", () => {
     expect(src).toContain("unresolved,");
   });
 
-  it("les vignettes viennent du WebP local, le repli de nos pictos du jeu", () => {
-    expect(ocreMonsterImage(301)).toBe("/uploads/assets-dofus/monsters/301.webp");
+  it("le repli visible est toujours l'un de nos pictos du jeu", () => {
     expect(ocreMonsterIcon("archimonstre")).toBe("/assets/dofus/icons/archimonster.png");
     expect(ocreMonsterIcon("boss")).toBe("/assets/dofus/icons/boss.png");
     expect(ocreMonsterIcon(undefined)).toBe("/assets/dofus/icons/crossedSwords.png");
@@ -357,7 +361,7 @@ const PANEL = {
   lastSync: "2026-09-21T13:50:00.000Z",
   monsters: [
     // Déclaré 1 sur les 2 copies demandées → encore « À faire », mais partiel.
-    monster({ id: 302, nameFr: "Abraknyde Ancestral", levelMin: 76, levelMax: 90, zone: "Amakna", owned: 1, state: "MANQUANT" }),
+    monster({ id: 302, nameFr: "Abraknyde Ancestral", levelMin: 76, levelMax: 90, zone: "Amakna", owned: 1, state: "MANQUANT", imageUrl: "/api/assets-dofus/monsters/97" }),
     monster({ id: 301, nameFr: "Blop Coco Royal", type: "boss", levelMin: 60, levelMax: 60, zone: "Amakna" }),
     // Validé (2/2) : masqué par le filtre « Restants », mais compté comme possédé.
     monster({ id: 303, nameFr: "Bouftou Royal", type: "boss", levelMin: 30, levelMax: 30, state: "POSSEDE", owned: 2 }),
@@ -381,9 +385,14 @@ describe("rendu réel — panneau de l'overlay (données fournies, aucun chargem
     expect(html).not.toContain("Tier");
   });
 
-  it("sert les vignettes locales (pierres ET monstres) et les états", () => {
+  it("sert les vignettes résolues par le serveur, jamais un fichier indexé par l'id Metamob", () => {
     expect(html).toContain("/uploads/assets-dofus/items/9687.webp");
-    expect(html).toContain("/uploads/assets-dofus/monsters/302.webp");
+    // Image résolue (espace entité) : c'est elle qui s'affiche.
+    expect(html).toContain("/api/assets-dofus/monsters/97");
+    // Les cibles sans image résolue gardent un picto honnête — jamais /uploads/.../301.webp
+    // (ce fichier porte l'image d'un AUTRE monstre, cf. mesure du 26/11/2026).
+    expect(html).toContain("/assets/dofus/icons/archimonster.png");
+    expect(html).not.toContain("/uploads/assets-dofus/monsters/301.webp");
     expect(html).toContain("À capturer ×1/2"); // déclaré 1 sur les 2 copies exigées
     expect(html).toContain("Archimonstres");
     expect(html).toContain("Gardiens");
@@ -617,7 +626,7 @@ describe("modale Mon Ocre (guide) — mêmes briques, zéro CSS dédié", () => 
     // La chaîne de vignette est une règle PURE (`src/lib`), consommée par le composant :
     // les replis locaux ne vivent donc qu'à un seul endroit.
     expect(bits).toContain("ocreMonsterThumbChain(id, type, imageUrl)");
-    expect(read("src/lib/ocre-soul-stones.ts")).toContain("ocreMonsterImage(id)");
+    expect(read("src/lib/ocre-soul-stones.ts")).toContain("resolveOcreMonsterImage");
     expect(bits).toContain("ocreStateLabel(owned, requiredCopies)"); // libellé : source unique
   });
 });

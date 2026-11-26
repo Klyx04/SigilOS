@@ -17,13 +17,19 @@
  *   • 9689 Énorme pierre d'âme        — monstres ≤ 190
  *   • 9690 Gigantesque pierre d'âme   — au-delà (en pratique : 191 → 200)
  *
- * IMAGES — 100 % locales (aucune dépendance DofusDB à l'exécution) :
+ * IMAGES — servies par NOTRE proxy, jamais directement par un hôte distant :
  *   • pierres   : `/uploads/assets-dofus/items/<id>.webp` (WebP siphonnés, présents)
- *   • monstres  : `/uploads/assets-dofus/monsters/<id>.webp` (WebP siphonnés)
+ *   • monstres  : `/api/assets-dofus/monsters/<dofusdbId>` (espace **entité**, identité
+ *     vérifiée par le proxy) ; l'id Metamob de la cible n'est JAMAIS un id de jeu
+ *     (mesuré : 301 → un autre monstre), donc il ne sert plus de clé d'image.
  *   • repli     : nos pictos du jeu (`/assets/dofus/icons/…`) — jamais une URL distante.
  */
 
-import { isSafeDofusImageSrc } from "@/lib/dofus-image-url";
+import {
+  internalDofusDbImageUrl,
+  isSafeDofusImageSrc,
+  resolveDofusAssetImageUrl,
+} from "@/lib/dofus-image-url";
 
 /**
  * Nombre d'étapes de la quête de l'Éternelle Moisson.
@@ -126,8 +132,6 @@ export interface OcrePlan {
 // IMAGES — TOUTES LOCALES (aucune requête vers DofusDB)
 // -----------------------------------------------------------------------------
 
-/** Dossier des WebP de monstres siphonnés chez nous. */
-export const OCRE_MONSTER_IMAGE_DIR = "/uploads/assets-dofus/monsters";
 /** Dossier des WebP d'items (ici : les pierres d'âme) siphonnés chez nous. */
 export const OCRE_ITEM_IMAGE_DIR = "/uploads/assets-dofus/items";
 
@@ -138,21 +142,28 @@ export const OCRE_MONSTER_ICONS: Record<string, string> = {
   monstre: "/assets/dofus/icons/crossedSwords.png",
 };
 
-/** Chemin STATIQUE du WebP local d'un monstre (jamais le proxy qui siphonne). */
-export function ocreMonsterImage(id: number): string {
-  return `${OCRE_MONSTER_IMAGE_DIR}/${id}.webp`;
-}
-
 /**
- * Repli **livré avec le dépôt** : `public/assets/dofus/monsters/{id}.png`.
+ * Image **serveur** d'une cible Ocre, résolue par son id de jeu.
  *
- * Mesure du 08/11 : les vignettes viennent du cache siphonné (`/uploads/assets-dofus/monsters`,
- * `.webp`), alors que le dépôt porte aussi des `.png` dans `assets/dofus/monsters`. Deux dossiers,
- * deux extensions, un seul lu — les monstres présents uniquement en `.png` restaient donc sur le
- * picto générique. On tente le PNG **avant** le picto.
+ * Mesure du 26/11/2026 : l'`id` d'une cible est un id **Metamob** (« 301 »), pas un id
+ * d'entité DofusDB. Les anciens replis `/uploads/…/301.webp` et `/assets/dofus/monsters/301.png`
+ * servaient donc l'image d'un AUTRE monstre dès que l'image résolue manquait — c'est la cause
+ * des « mauvaises images » de l'overlay. On ne construit plus aucune URL depuis cet id : on
+ * passe par l'espace **entité** (`dofusdbId`) que le proxy vérifie avant de servir.
+ *
+ * L'ordre est volontaire : l'espace entité est prioritaire car il est auto-réparateur et
+ * couvert par le cache disque ; l'URL d'apparence déjà résolue reste le repli.
  */
-export function ocreMonsterLegacyImage(id: number): string {
-  return `/assets/dofus/monsters/${id}.png`;
+export function resolveOcreMonsterImage(
+  image: string | null | undefined,
+  dofusdbId?: number | string | null
+): string | null {
+  const entityId = Number(dofusdbId);
+  const entity =
+    Number.isFinite(entityId) && entityId > 0
+      ? resolveDofusAssetImageUrl("monsters", entityId)
+      : null;
+  return entity ?? internalDofusDbImageUrl(image);
 }
 
 /** Repli local (picto du jeu) d'une cible — jamais une URL distante. */
@@ -180,24 +191,20 @@ export function ocreMonsterImageUrl(raw?: string | null): string | null {
  * Chaîne de repli d'une vignette de cible Ocre — **règle pure**, une seule source pour l'overlay
  * et la modale « Mon Ocre ».
  *
- * Mesure du 09/11/2026 (bêta) : quand le serveur a résolu l'image, le premier repli local
- * (`/uploads/…/<id>.webp`) ne peut PAS exister — ce dossier est indexé par un id d'entité de jeu,
- * alors que l'`id` d'une cible Ocre est un id Metamob (mesuré : 404 en série, un par vignette).
- * On ne le retente donc que lorsque le serveur n'a rien résolu ; le PNG du dépôt puis le picto du
- * jeu restent, eux, toujours tentés (ce sont des fichiers que nous livrons).
+ * On ne tente QUE l'image résolue par le serveur, puis le picto du jeu. Aucun repli construit
+ * depuis l'`id` de la cible : c'est un id Metamob, et les fichiers de jeu portant ce nombre
+ * appartiennent à d'autres créatures (mesure du 26/11/2026 : « mauvaises images » de l'overlay).
+ * Une image absente doit rester un picto honnête, jamais le visuel d'un autre monstre.
  */
 export function ocreMonsterThumbChain(
-  id: number,
+  _id: number,
   type?: string | null,
   imageUrl?: string | null
 ): string[] {
   const internal = ocreMonsterImageUrl(imageUrl);
-  return [
-    internal,
-    internal ? null : ocreMonsterImage(id),
-    ocreMonsterLegacyImage(id),
-    ocreMonsterIcon(type),
-  ].filter((src): src is string => typeof src === "string" && src.length > 0);
+  return [internal, ocreMonsterIcon(type)].filter(
+    (src): src is string => typeof src === "string" && src.length > 0
+  );
 }
 
 /**

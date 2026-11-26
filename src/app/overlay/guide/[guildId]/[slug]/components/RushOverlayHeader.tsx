@@ -70,6 +70,9 @@ interface RushOverlayHeaderProps {
    */
   onOpenDungeons?: () => void;
   dungeonsPending?: number;
+  /** Exigences faites / total — libellé « Donjons X / X » du menu. */
+  dungeonsDone?: number;
+  dungeonsTotal?: number;
   /**
    * Bloc actif de la DA « Gouache Wakfu » : donne l'image d'ambiance de l'en-tête
    * et la teinte de l'accent (`data-block`). Absent ⇒ Émeraude.
@@ -112,6 +115,8 @@ export function RushOverlayHeader({
   onOpenAlignment,
   onOpenDungeons,
   dungeonsPending,
+  dungeonsDone = 0,
+  dungeonsTotal = 0,
   block = "emeraude",
 }: RushOverlayHeaderProps) {
   // Confirmation en 2 temps du reset (évite le reset accidentel).
@@ -251,7 +256,7 @@ export function RushOverlayHeader({
                   {onOpenOcre && (
                     <button type="button" onClick={() => { setMoreOpen(false); onOpenOcre(); }} className={menuItemCls}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src="/assets/dofus/icons/archimonster.png" alt="" className="w-3.5 h-3.5 object-contain" /> Quête Ocre{ocre ? ` · ${ocre.missing}` : ""}
+                      <img src="/assets/dofus/icons/archimonster.png" alt="" className="w-3.5 h-3.5 object-contain" /> Quête Ocre
                     </button>
                   )}
                   {onOpenMetamob && (
@@ -263,7 +268,7 @@ export function RushOverlayHeader({
                   {onOpenDungeons && (
                     <button type="button" onClick={() => { setMoreOpen(false); onOpenDungeons(); }} className={menuItemCls}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src="/assets/dofus-ui/pictos/donjon.png" alt="" className="w-3.5 h-3.5 object-contain" /> Donjons{dungeonsPending ? ` · ${dungeonsPending}` : ""}
+                      <img src="/assets/dofus-ui/pictos/donjon.png" alt="" className="w-3.5 h-3.5 object-contain" /> Donjons{dungeonsTotal > 0 ? ` ${dungeonsDone} / ${dungeonsTotal}` : ""}
                     </button>
                   )}
                   <button
@@ -514,11 +519,15 @@ export function RushOverlayHeader({
               type="button"
               onClick={onOpenDungeons}
               aria-label={
-                dungeonsPending && dungeonsPending > 0
-                  ? `Progression Donjons : ${dungeonsPending} exigences restantes`
+                dungeonsTotal > 0
+                  ? `Progression Donjons : ${dungeonsDone} / ${dungeonsTotal} exigences faites`
                   : "Progression Donjons"
               }
-              title="Progression Donjons — ce qui est fait, ce qui reste, par étape et par membre"
+              title={
+                dungeonsTotal > 0
+                  ? `Progression Donjons — ${dungeonsDone} / ${dungeonsTotal} exigences faites`
+                  : "Progression Donjons — ce qui est fait, ce qui reste, par étape et par membre"
+              }
               className={cn(actionBtn, "relative")}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -592,7 +601,7 @@ export function RushOverlayHeader({
                     {onOpenOcre && (
                       <button type="button" onClick={() => { setMoreOpen(false); onOpenOcre(); }} className={menuItemCls}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src="/assets/dofus/icons/archimonster.png" alt="" className="w-3.5 h-3.5 object-contain" /> Quête Ocre{ocre ? ` · ${ocre.missing}` : ""}
+                        <img src="/assets/dofus/icons/archimonster.png" alt="" className="w-3.5 h-3.5 object-contain" /> Quête Ocre
                       </button>
                     )}
                     {onOpenMetamob && (
@@ -604,7 +613,7 @@ export function RushOverlayHeader({
                     {onOpenDungeons && (
                       <button type="button" onClick={() => { setMoreOpen(false); onOpenDungeons(); }} className={menuItemCls}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src="/assets/dofus-ui/pictos/donjon.png" alt="" className="w-3.5 h-3.5 object-contain" /> Donjons{dungeonsPending ? ` · ${dungeonsPending}` : ""}
+                        <img src="/assets/dofus-ui/pictos/donjon.png" alt="" className="w-3.5 h-3.5 object-contain" /> Donjons{dungeonsTotal > 0 ? ` ${dungeonsDone} / ${dungeonsTotal}` : ""}
                       </button>
                     )}
                     <button

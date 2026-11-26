@@ -93,7 +93,7 @@ import type { DungeonAchievementDungeon, DungeonAchievementPanelLoadInput, Dunge
 import { DungeonAchievementsModal } from "@/components/dofus-quests/rush/DungeonAchievementsModal";
 import { RushDungeonsProgressTile } from "@/components/dofus-quests/rush/RushDungeonsProgressTile";
 import { RushDungeonsOverviewModal } from "@/components/dofus-quests/rush/RushDungeonsOverviewModal";
-import { rushStepKeysBySequenceId } from "@/lib/rush-dofus-progress";
+import { rushStepKeysBySequenceId, mergeViewerProgressRows } from "@/lib/rush-dofus-progress";
 import {
   buildRushDungeonsOverview,
   rushDungeonsCounter,
@@ -2123,6 +2123,40 @@ const contentMilestones=useMemo(()=>milestones.filter(ms=>!isRushNonQuestBlock(m
 // de statut Dofus attendent des clés (`<subGuideRef>-<n>`). Une seule projection.
 const stepKeysBySequenceId=useMemo(()=>rushStepKeysBySequenceId(milestones),[milestones]);
 /**
+ * État **local** du personnage actif, destiné au panneau « Ma progression par Dofus ».
+ *
+ * Mesure du 26/11/2026 : le panneau et sa fiche ne lisaient que la prop serveur ; une
+ * rafale de coches ne déclenchait qu'un refresh (leading) et les cartes restaient sur un
+ * état partiel alors que les blocs, eux, étaient à jour. On remplace donc les lignes du
+ * personnage actif par exactement l'état des blocs ; les autres personnages et les autres
+ * membres restent alimentés par le serveur.
+ */
+const viewerProgressRows=useMemo(()=>{
+  if(!currentProfileId) return null;
+  const slot=effectiveAltPseudo??"PRINCIPAL";
+  const existing=guildProgress.find(
+    (row)=>row.profileId===currentProfileId&&(row.characterSlot||"PRINCIPAL")===slot
+  );
+  const userName=currentUserProfile?.pseudoDofus||existing?.userName||"Mon personnage";
+  return milestones.map((ms)=>({
+    profileId:currentProfileId,
+    milestoneId:ms.id,
+    characterSlot:slot,
+    userId:currentUserId??null,
+    isCompleted:completedIds.has(ms.id),
+    completedSteps:[...(completedStepsByMs.get(ms.id)??[])],
+    currentStep:bookmarksByMs.get(ms.id)??null,
+    userName,
+    userAvatar:existing?.userAvatar,
+  }));
+},[currentProfileId,currentUserId,effectiveAltPseudo,milestones,completedIds,completedStepsByMs,bookmarksByMs,currentUserProfile?.pseudoDofus,guildProgress]);
+const guildProgressForDofusPanel=useMemo(
+  ()=>currentProfileId&&viewerProgressRows
+    ?mergeViewerProgressRows(guildProgress,viewerProgressRows,{profileId:currentProfileId,characterSlot:effectiveAltPseudo??"PRINCIPAL"})
+    :guildProgress,
+  [guildProgress,viewerProgressRows,currentProfileId,effectiveAltPseudo]
+);
+/**
  * Quêtes ordonnées par Dofus, pour la modale « Progression Guilde par Dofus ».
  * Le serveur ne transmet que des **clés d'étapes** (`<subGuideRef>-<n>` / `-all`) :
  * il faut donc la table inverse (clé → libellé + catégorie) côté client pour dire
@@ -2134,6 +2168,9 @@ const dofusQuestsByDofus=useMemo(()=>{
     if(!ms.dofusId) continue;
     const list=(map[ms.dofusId]??=[]);
     for(const seq of ms.sequences){
+      // Même périmètre que la carte de bloc : un encart Conseil/Combat n'est pas une
+      // quête et ne doit jamais apparaître « À faire » dans la fiche Dofus.
+      if(isInfoSequence(seq)) continue;
       const steps=seq.stepFrom!=null&&seq.stepTo!=null?Math.max(1,seq.stepTo-seq.stepFrom+1):1;
       list.push({milestoneId:ms.id,category:ms.chapterLabel||ms.title,label:seq.subGuideName||seq.subGuideRef,step:seq.subGuideRef,steps,sequenceId:seq.id});
     }
@@ -2253,12 +2290,21 @@ const timelineItems=useMemo(()=>{
     try {
       const { resetGuideProgress } = await import("@/server/actions/optimized-guide-actions");
       await resetGuideProgress(guildId, guide.id, id === "PRINCIPAL" ? undefined : id);
-      if (id === selectedCharacter) setResourceChecks(new Set());
+      // Le reset est immédiat côté serveur, mais l'état local du guide (blocs, panneau
+      // Dofus, ressources) doit l'être aussi : sans ça, les cartes restent à 100 %
+      // jusqu'au prochain rendu serveur.
+      if (id === selectedCharacter) {
+        setCompletedIds(new Set());
+        setCompletedStepsByMs(new Map());
+        setBookmarksByMs(new Map());
+        setResourceChecks(new Set());
+        void dungeonsState.refresh();
+      }
       toast.success(id === "PRINCIPAL" ? "Progression du personnage principal réinitialisée" : `Progression de ${id} réinitialisée`);
       router.refresh();
     } catch { toast.error("Erreur réseau"); }
     finally { setResettingCharId(null); }
-  }, [guildId, guide.id, router, selectedCharacter]);
+  }, [guildId, guide.id, router, selectedCharacter, dungeonsState.refresh]);
   
   const activeMembersCount=useMemo(()=>new Set(guildProgress.map(p=>p.profileId)).size,[guildProgress]);
   const setLoading=useCallback((msId:string,val:boolean)=>setLoadingIds(prev=>{const n=new Set(prev);val?n.add(msId):n.delete(msId);return n;}),[]);
@@ -2323,14 +2369,22 @@ const timelineItems=useMemo(()=>{
   // rechargement de page, et la logique de progression n'est pas dupliquée.
   const liveRefreshTimer = React.useRef<number | null>(null);
   const scheduleLiveRefresh = React.useCallback(() => {
-    if (typeof window === "undefined" || liveRefreshTimer.current != null) return;
+    if (typeof window === "undefined") return;
+    // **Trailing**, pas leading : une rafale de coches (ou un bloc validé enchaîné avec
+    // des ressources) doit produire UN refresh APRÈS la dernière écriture. L'ancien
+    // early-return gardait le premier timer et rafraîchissait au milieu de la rafale :
+    // les blocs étaient à jour en local, mais le panneau Dofus restait sur un état partiel.
+    if (liveRefreshTimer.current != null) window.clearTimeout(liveRefreshTimer.current);
     liveRefreshTimer.current = window.setTimeout(() => {
       liveRefreshTimer.current = null;
       router.refresh();
     }, 900);
   }, [router]);
   React.useEffect(() => () => {
-    if (liveRefreshTimer.current != null) window.clearTimeout(liveRefreshTimer.current);
+    if (liveRefreshTimer.current != null) {
+      window.clearTimeout(liveRefreshTimer.current);
+      liveRefreshTimer.current = null;
+    }
   }, []);
   const handleToggleSequence=useCallback(async(ms:Milestone,seqId:string)=>{
     const prevSet=new Set(completedStepsByMs.get(ms.id)||[]);
@@ -3324,7 +3378,7 @@ const timelineItems=useMemo(()=>{
       {celebrate && <MilestoneCelebrationBurst title={celebrate.title} tint={celebrate.tint ?? undefined} />}
     </AnimatePresence>
     <RushAlignmentPanel onChooseAlignment={() => setAlignmentEditOpen(true)} />
-    <GuildStatusPanel milestones={contentMilestones} questsByDofus={dofusQuestsByDofus} guildProgress={guildProgress} stepKeysBySequenceId={stepKeysBySequenceId} activeFilter={dofusFilter} onFilterChange={setDofusFilter} viewerProfileId={currentProfileId} viewerUserId={currentUserId} activeCharacterSlot={effectiveAltPseudo ?? "PRINCIPAL"} onOpenQuest={scrollToSequence}/>
+    <GuildStatusPanel milestones={contentMilestones} questsByDofus={dofusQuestsByDofus} guildProgress={guildProgressForDofusPanel} stepKeysBySequenceId={stepKeysBySequenceId} activeFilter={dofusFilter} onFilterChange={setDofusFilter} viewerProfileId={currentProfileId} viewerUserId={currentUserId} activeCharacterSlot={effectiveAltPseudo ?? "PRINCIPAL"} onOpenQuest={scrollToSequence}/>
     {/* Prendre par la main SANS reproposer le tour : personnage → cité (optionnelle) → première quête. */}
     <RushStartHerePanel
       state={{
@@ -3491,7 +3545,7 @@ const timelineItems=useMemo(()=>{
     {resetModalOpen&&<ResetConfirmModal
       isOpen={resetModalOpen}
       onClose={()=>setResetModalOpen(false)}
-      onConfirm={async()=>{setResetLoading(true);try{const{resetGuideProgress}=await import("@/server/actions/optimized-guide-actions");await resetGuideProgress(guildId,guide.id,effectiveAltPseudo);setCompletedIds(new Set);setResourceChecks(new Set());setResetModalOpen(false);setWizardOpen(true);toast.success("Réinitialisée !");router.refresh();}catch{toast.error("Erreur");}finally{setResetLoading(false);}}}
+      onConfirm={async()=>{setResetLoading(true);try{const{resetGuideProgress}=await import("@/server/actions/optimized-guide-actions");await resetGuideProgress(guildId,guide.id,effectiveAltPseudo);setCompletedIds(new Set);setCompletedStepsByMs(new Map());setBookmarksByMs(new Map());setResourceChecks(new Set());setResetModalOpen(false);setWizardOpen(true);toast.success("Réinitialisée !");void dungeonsState.refresh();router.refresh();}catch{toast.error("Erreur");}finally{setResetLoading(false);}}}
       characterName={selectedCharacter}
       isLoading={resetLoading}
     />}

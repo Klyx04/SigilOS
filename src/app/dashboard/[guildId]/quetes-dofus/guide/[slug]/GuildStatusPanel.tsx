@@ -45,6 +45,8 @@ type DofusMemberStat = MemberDofusProgress & {
   characterSlot: string;
   userName: string;
   userAvatar?: string;
+  /** Pseudo du principal quand ce personnage est une mule. */
+  ownerName?: string | null;
   /** Personnage actif du lecteur (badge « MOI »). */
   isViewer: boolean;
 };
@@ -58,6 +60,10 @@ type DofusStat = {
   completedMilestones: number;
   pct: number;
   membersInProgress: DofusMemberStat[];
+  /** Vue « Mon personnage » : avancement au grain de la **quête** (même compteur que le bloc). */
+  viewerDone: number;
+  viewerTotal: number;
+  viewerPct: number;
 };
 
 // ─── GuildStatusPanel ─────────────────────────────────────────────────────────
@@ -94,8 +100,9 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
   /** Dofus dont la modale de détail est ouverte (un clic sur un Dofus). */
   const [openDofusId, setOpenDofusId] = useState<string | null>(null);
 
-  /** Vue par défaut : **tous les personnages** (le but du panneau est la vue guilde). */
-  const [scope, setScope] = useState<"all" | "me">("all");
+  /** Vue par défaut : **le personnage actif** (même état que les blocs, mise à jour immédiate).
+   *  « Tous les personnages » reste à un clic pour la vue granulaire de la guilde. */
+  const [scope, setScope] = useState<"all" | "me">("me");
 
   /**
    * Toutes les lignes de la guilde, **sauf les profils hérités du même compte** (même
@@ -137,6 +144,8 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
         profileId: viewerProfileId,
         characterSlot: slot,
         name: slot === "PRINCIPAL" ? "Mon personnage" : slot,
+        ownerName: null,
+        isMule: slot !== "PRINCIPAL",
         avatar: null,
         isViewer: true,
         rows: [],
@@ -182,6 +191,9 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
           completedMilestones: 0,
           pct: 0,
           membersInProgress: [],
+          viewerDone: 0,
+          viewerTotal: 0,
+          viewerPct: 0,
         });
       }
 
@@ -227,12 +239,20 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
             characterSlot: character.characterSlot,
             userName: character.name,
             userAvatar: character.avatar ?? undefined,
+            ownerName: character.ownerName ?? null,
             isViewer: character.isViewer,
             ...memberDofusProgress(quests, completedSteps, currentStep),
           } as DofusMemberStat;
         })
         .filter((member): member is DofusMemberStat => member !== null)
         .sort((a, b) => b.pct - a.pct || a.userName.localeCompare(b.userName, "fr"));
+
+      // Vue « Mon personnage » : le pourcentage suit les **quêtes** (pas les blocs), pour
+      // bouger dès qu'une quête est cochée — même compteur que la carte de bloc.
+      const viewerStat = stat.membersInProgress.find((member) => member.isViewer) ?? null;
+      stat.viewerDone = viewerStat?.done ?? 0;
+      stat.viewerTotal = viewerStat?.total ?? 0;
+      stat.viewerPct = viewerStat?.pct ?? 0;
     });
 
     return Array.from(map.values()).sort((a, b) => b.totalMilestones - a.totalMilestones);
@@ -273,6 +293,7 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
         name: character.name,
         avatar: character.avatar ?? null,
         isViewer: character.isViewer,
+        muleOf: character.isMule ? character.ownerName ?? null : null,
       }];
     });
     return questStatusForMembers(quests, members);
@@ -321,7 +342,11 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
             pas d'échelle au survol. La couleur ne sert qu'à l'état (filtre actif / terminé). */}
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent -mx-1 px-1">
           {dofusStats.map((d) => {
-            const isAllDone = d.completedMilestones === d.totalMilestones && d.totalMilestones > 0;
+            const personal = scope === "me";
+            const displayPct = personal ? d.viewerPct : d.pct;
+            const isAllDone = personal
+              ? d.viewerTotal > 0 && d.viewerDone === d.viewerTotal
+              : d.completedMilestones === d.totalMilestones && d.totalMilestones > 0;
             const isActive = activeFilter === d.id;
 
             return (
@@ -329,7 +354,11 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
                 key={d.id}
                 type="button"
                 onClick={() => setOpenDofusId(d.id)}
-                aria-label={`Voir où en sont les personnages sur le Dofus ${d.label} — ${d.pct} %, ${d.membersInProgress.length} personnage(s) engagé(s)`}
+                aria-label={`Voir le détail du Dofus ${d.label} — ${displayPct} %, ${
+                  personal
+                    ? `${d.viewerDone}/${d.viewerTotal} quêtes validées par ${characterLabel}`
+                    : `${d.completedMilestones}/${d.totalMilestones} blocs validés par au moins un personnage`
+                }`}
                 aria-pressed={isActive}
                 className={`relative flex flex-col items-center gap-1 p-1.5 text-center cursor-pointer shrink-0 w-[78px] rounded-[4px] border transition-colors ${
                   isActive
@@ -338,7 +367,11 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
                       ? "border-success/40 bg-success/5 hover:border-success/60"
                       : "border-transparent hover:border-border"
                 }`}
-                title={`${d.label} — ${d.pct} % — cliquer pour le détail par personnage`}
+                title={`${d.label} — ${displayPct} % — ${
+                  personal
+                    ? `${d.viewerDone}/${d.viewerTotal} quêtes`
+                    : `${d.completedMilestones}/${d.totalMilestones} blocs`
+                } — cliquer pour le détail par personnage`}
               >
                 {/* Dofus icon */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -366,15 +399,15 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
                   <div
                     className="h-full rounded-[2px] transition-all duration-300"
                     style={{
-                      width: `${d.pct}%`,
+                      width: `${displayPct}%`,
                       background: isAllDone ? "var(--success)" : d.color,
                     }}
                   />
                 </div>
 
-                {/* Percentage compact */}
+                {/* Percentage compact — le compteur exact est dans l'infobulle et la fiche */}
                 <span className="text-[10px] font-mono tabular-nums text-muted-foreground">
-                  {d.pct}%
+                  {displayPct}%
                 </span>
               </button>
             );
@@ -397,7 +430,7 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
         summary={
           selected
             ? scope === "me"
-              ? `${selected.completedMilestones}/${selected.totalMilestones} blocs validés par ${characterLabel}`
+              ? `${selected.viewerDone}/${selected.viewerTotal} quêtes validées par ${characterLabel}`
               : `${selected.completedMilestones}/${selected.totalMilestones} blocs validés par au moins un personnage · ${selected.membersInProgress.length} personnage(s) engagé(s)`
             : ""
         }
@@ -419,6 +452,7 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
                 done: member.done,
                 total: member.total,
                 pct: member.pct,
+                muleOf: member.characterSlot !== "PRINCIPAL" ? member.ownerName ?? null : null,
               }))
             : undefined
         }

@@ -61,6 +61,8 @@ export type DofusQuestMemberStatus = {
     avatar?: string | null;
     /** Vrai pour le lecteur lui-même — la fiche affiche le badge « Moi ». */
     isViewer?: boolean;
+    /** Mule d'un personnage principal : pseudo du principal (étiquette « mule de X »). */
+    muleOf?: string | null;
     done: boolean;
     /** La personne est sur cette quête (repère « Je suis ici »). */
     current: boolean;
@@ -104,6 +106,8 @@ export function questStatusForMembers(
         name?: string | null;
         avatar?: string | null;
         isViewer?: boolean;
+        /** Mule d'un principal : pseudo du principal. */
+        muleOf?: string | null;
     }>
 ): DofusQuestStatus[] {
     return quests.map((quest) => {
@@ -127,6 +131,7 @@ export function questStatusForMembers(
                 name,
                 avatar: member.avatar ?? null,
                 isViewer: member.isViewer === true,
+                ...(member.muleOf ? { muleOf: member.muleOf } : {}),
                 done,
                 current,
             });
@@ -388,6 +393,10 @@ export type GuildCharacterProgress<T> = {
     characterSlot: string;
     /** Nom affiché : pseudo du profil pour le principal, pseudo de la mule sinon. */
     name: string;
+    /** Pseudo du personnage principal quand cette entrée est une mule. */
+    ownerName?: string | null;
+    /** Vrai pour une mule (slot ≠ PRINCIPAL). */
+    isMule: boolean;
     avatar?: string | null;
     isViewer: boolean;
     rows: T[];
@@ -418,14 +427,17 @@ export function groupGuildProgressByCharacter<
         let entry = map.get(key);
         if (!entry) {
             const baseName = slot === "PRINCIPAL" ? row.userName : slot;
+            const isMule = slot !== "PRINCIPAL";
             // Un personnage principal et une mule peuvent partager le même pseudo : le
             // slot « PRINCIPAL » garde le nom du profil, la mule est marquée comme telle.
-            const name = slot !== "PRINCIPAL" && baseName === row.userName ? `${baseName} (mule)` : baseName;
+            const name = isMule && baseName === row.userName ? `${baseName} (mule)` : baseName;
             entry = {
                 key,
                 profileId: row.profileId,
                 characterSlot: slot,
                 name,
+                ownerName: isMule ? row.userName : null,
+                isMule,
                 avatar: row.userAvatar ?? null,
                 isViewer: row.profileId === viewerProfileId && slot === viewerSlot,
                 rows: [],
@@ -479,4 +491,36 @@ export function memberCompletedStepKeys(input: {
         for (const id of input.sequenceIdsByMilestone.get(row.milestoneId) ?? []) raw.add(id);
     }
     return projectRushStepKeys(raw, input.stepKeysBySequenceId);
+}
+
+/**
+ * Remplace les lignes du **personnage actif** par l'état local du guide, sans toucher aux
+ * autres personnages du profil ni aux autres membres.
+ *
+ * **Mesure du 26/11/2026** : le panneau « Ma progression par Dofus » ne lisait que la prop
+ * serveur. Une rafale de coches ne déclenchait qu'un `router.refresh()` (leading) : le
+ * panneau et la fiche restaient sur un état partiel alors que les blocs, eux, étaient à
+ * jour en local. Le panneau consomme donc le même état que les blocs pour le personnage
+ * actif ; les autres personnages restent alimentés par le serveur.
+ */
+export function mergeViewerProgressRows<
+    T extends {
+        profileId: string;
+        milestoneId: string;
+        characterSlot?: string | null;
+    },
+>(
+    serverRows: readonly T[],
+    viewerRows: readonly T[],
+    viewer: { profileId: string; characterSlot?: string | null }
+): T[] {
+    const slot = viewer.characterSlot || "PRINCIPAL";
+    const kept = serverRows.filter(
+        (row) =>
+            !(
+                row.profileId === viewer.profileId &&
+                (row.characterSlot || "PRINCIPAL") === slot
+            )
+    );
+    return [...kept, ...viewerRows];
 }

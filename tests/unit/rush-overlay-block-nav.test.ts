@@ -13,6 +13,8 @@ import path from "node:path";
 
 const BAR = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayChapterBar.tsx";
 const CLIENT = "src/app/overlay/guide/[guildId]/[slug]/GuideOverlayClient.tsx";
+const FOOTER = "src/app/overlay/guide/[guildId]/[slug]/components/RushOverlayFooter.tsx";
+const DASHBOARD = "src/app/dashboard/[guildId]/quetes-dofus/guide/[slug]/RushTimelineClient.tsx";
 const CSS = "src/app/da-wakfu.css";
 const read = (file: string) => readFileSync(path.join(process.cwd(), file), "utf8");
 
@@ -47,5 +49,16 @@ describe("overlay interne — navigation de bloc et reset lisible", () => {
         expect(css).toContain(".da-dock button.da-dock-nav");
         expect(css).toContain(".da-dock button.da-dock-reset[data-armed=\"true\"]");
         expect(css).toContain("flex: none;");
+    });
+
+    it("le footer échappe à la règle globale qui masque les <footer>", () => {
+        // Mesure du 26/11/2026 : le dashboard injecte une règle `footer { display:none }`
+        // pour son pied de site ; la PiP copie cette feuille, donc le vrai <footer> de
+        // l'overlay disparaissait. Il porte maintenant role="contentinfo" sur un div.
+        const footer = read(FOOTER);
+        expect(footer).not.toContain("<footer");
+        expect(footer).toContain('role="contentinfo"');
+        const dashboard = read(DASHBOARD);
+        expect(dashboard).toContain("footer,.site-footer,.app-footer");
     });
 });

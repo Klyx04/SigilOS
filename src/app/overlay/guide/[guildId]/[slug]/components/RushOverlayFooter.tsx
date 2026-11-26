@@ -18,6 +18,12 @@ interface RushOverlayFooterProps {
  * Pied de page fixe : navigation Précédent / Suivant entre les chapitres + libellé de
  * position. Le bouton « mode compact » (vue de jeu) **n'est plus ici** : c'est un réglage
  * d'affichage, il vit dans l'en-tête à côté du thème (retour user du 21/09/2026).
+ *
+ * ⚠️ **Pas de balise `footer`** : le guide interne injecte
+ * `footer,.site-footer,.app-footer,nav[class*="footer"]{display:none!important}` pour
+ * masquer le pied de site ; cette feuille est copiée dans la PiP, donc la balise footer
+ * disparaissait de l'overlay (mesure du 26/11/2026). Un `div role="contentinfo"` garde
+ * la sémantique sans subir la règle globale.
  */
 export function RushOverlayFooter({
   onPrev,
@@ -32,7 +38,8 @@ export function RushOverlayFooter({
   const baseBtn = "da-btn gap-1.5 px-3 py-1.5 text-xs";
 
   return (
-    <footer
+    <div
+      role="contentinfo"
       className={cn(
         "flex shrink-0 items-center justify-between gap-3 border-t border-border-strong bg-surface px-4 py-2.5",
         className
@@ -59,6 +66,6 @@ export function RushOverlayFooter({
         <span>Suivant</span>
         <ChevronRight className="w-3.5 h-3.5" />
       </button>
-    </footer>
+    </div>
   );
 }

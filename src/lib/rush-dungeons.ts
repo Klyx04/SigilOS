@@ -397,3 +397,45 @@ export function missingRequiredDungeons(
   }
   return out;
 }
+
+/**
+ * **Auto-validation** : après avoir coché un donjon **requis**, la quête doit-elle se
+ * valider seule ?
+ *
+ * Mesure du 26/11/2026 : cocher un donjon requis ne validait pas la quête (il fallait
+ * recliquer sur la quête), alors que décocher un donjon requis la dévalidait déjà (S0-7).
+ *
+ * Règles :
+ *  · le donjon qui vient d'être coché doit être **requis** (jamais un optionnel) ;
+ *  · il doit rester **au moins une exigence requise** (simple ou groupe « au choix ») ;
+ *  · toutes les exigences requises doivent être satisfaites ;
+ *  · un donjon **non identifiable** bloque l'auto-validation (fail-closed) : on ne devine
+ *    pas qu'il est optionnel ;
+ *  · un groupe « au choix » est satisfait par **une** de ses alternatives (même règle que
+ *    le verrou de validation).
+ *
+ * La quête déjà validée est filtrée par l'appelant ; la validation réelle passe ensuite
+ * par l'action de quête existante, qui revérifie prérequis et donjons côté serveur.
+ */
+export function shouldAutoValidateAfterDungeon(input: {
+  sequence: RushSequence | null | undefined;
+  states: RushDungeonStateMap | null | undefined;
+  sequenceId: string;
+  changedDungeonKey: string;
+  changedState: RushDungeonState | null;
+}): boolean {
+  if (!input.sequence || input.changedState !== "done" || !input.changedDungeonKey) return false;
+
+  const done = new Set(doneDungeonKeysForSequence(input.states, input.sequenceId));
+  done.add(input.changedDungeonKey);
+
+  const progress = sequenceDungeonProgress(input.sequence, done);
+  // Aucun requis identifié : rien à auto-valider. Un donjon non identifiable rend la
+  // décision incertaine : on ne valide pas (fail-closed).
+  if (progress.requiredBlocks === 0 || progress.unresolved > 0 || progress.blocked) return false;
+
+  const changed = resolveSequenceDungeons(input.sequence, done).requirements.find(
+    (requirement) => requirement.key === input.changedDungeonKey
+  );
+  return !!changed && !changed.isOptional;
+}

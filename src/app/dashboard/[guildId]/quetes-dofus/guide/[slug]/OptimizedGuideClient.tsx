@@ -1108,6 +1108,8 @@ export default function OptimizedGuideClient({
 
   const [milestones] = useState(() => initialMilestones);
   const [selected, setSelected] = useState<Milestone | null>(milestones[0] ?? null);
+  /** Préférences localStorage hydratées APRÈS le montage (SSR identique au 1er rendu). */
+  const [hydrated, setHydrated] = useState(false);
   const [completedIds, setCompletedIds] = useState<Set<string>>(
     new Set(userProgress.filter(p => p.isCompleted).map(p => p.milestoneId))
   );
@@ -1129,24 +1131,21 @@ export default function OptimizedGuideClient({
 
   const [bookmarkStepKey, setBookmarkStepKey] = useState<string | null>(() => {
     const activeProgress = userProgress.find(p => p.milestoneId === selected?.id);
-    if (activeProgress?.currentStep) return activeProgress.currentStep;
-    if (typeof window !== "undefined") return localStorage.getItem(bookmarkStepStorageKey) ?? null;
-    return null;
+    return activeProgress?.currentStep ?? null;
   });
 
   // Sync bookmarkStepKey with userProgress on load or selected milestone change
   useEffect(() => {
-    if (selected) {
-      const activeProgress = userProgress.find(p => p.milestoneId === selected.id);
-      if (activeProgress?.currentStep) {
-        setBookmarkStepKey(activeProgress.currentStep);
-        localStorage.setItem(bookmarkStepStorageKey, activeProgress.currentStep);
-      } else {
-        setBookmarkStepKey(null);
-        localStorage.removeItem(bookmarkStepStorageKey);
-      }
+    if (!hydrated || !selected) return;
+    const activeProgress = userProgress.find(p => p.milestoneId === selected.id);
+    if (activeProgress?.currentStep) {
+      setBookmarkStepKey(activeProgress.currentStep);
+      localStorage.setItem(bookmarkStepStorageKey, activeProgress.currentStep);
+    } else {
+      setBookmarkStepKey(null);
+      localStorage.removeItem(bookmarkStepStorageKey);
     }
-  }, [selected, userProgress, guide.slug, bookmarkStepStorageKey]);
+  }, [hydrated, selected, userProgress, guide.slug, bookmarkStepStorageKey]);
 
   const handleStepBookmark = useCallback((stepKey: string) => {
     setBookmarkStepKey(prev => {
@@ -1227,17 +1226,11 @@ export default function OptimizedGuideClient({
 
   const [globalHideCompletedSteps, setGlobalHideCompletedSteps] = useState(false);
   // Mode discret (Phase F) : masque la présence du membre courant (localStorage).
-  const [incognito, setIncognito] = useState(() => {
-    if (typeof window === "undefined") return false;
-    try { return localStorage.getItem(`guide-incognito-${guildId}`) === "true"; } catch { return false; }
-  });
+  const [incognito, setIncognito] = useState(false);
   // Identité du membre courant (nom/avatar) pour le heartbeat de présence.
   const [myIdentity, setMyIdentity] = useState<{ name?: string; image?: string }>({});
   // Effet d'ambiance (particules) — désactivable (localStorage, défaut activé).
-  const [particlesEnabled, setParticlesEnabled] = useState(() => {
-    if (typeof window === "undefined") return true;
-    try { return localStorage.getItem(`guide-particles-${guildId}`) !== "false"; } catch { return true; }
-  });
+  const [particlesEnabled, setParticlesEnabled] = useState(true);
 
   // ─── Guide tour (P2) : auto-start UNE SEULE fois (1ère arrivée), puis bouton « Aide » ─
   // v2 : flag bumpé le 13/08 (le tour était invisible avant le fix overlay → on veut
@@ -1453,10 +1446,23 @@ export default function OptimizedGuideClient({
     });
   }, [guildId]);
 
-  const [bookmarkId, setBookmarkId] = useState<string | null>(() => {
-    if (typeof window !== "undefined") return localStorage.getItem(bookmarkStorageKey) ?? null;
-    return null;
-  });
+  const [bookmarkId, setBookmarkId] = useState<string | null>(null);
+
+  // Hydratation APRÈS le montage : le SSR ne connaît pas localStorage. Les marque-pages,
+  // le mode discret et les particules partent des valeurs neutres, puis sont relus ici.
+  // Sentry 33 (26/11/2026) : ces initialiseurs provoquaient un mismatch d'hydratation.
+  useEffect(() => {
+    try {
+      setBookmarkId(localStorage.getItem(bookmarkStorageKey));
+      setIncognito(localStorage.getItem(`guide-incognito-${guildId}`) === "true");
+      setParticlesEnabled(localStorage.getItem(`guide-particles-${guildId}`) !== "false");
+      const storedStep = localStorage.getItem(bookmarkStepStorageKey);
+      if (storedStep) setBookmarkStepKey(prev => prev ?? storedStep);
+    } catch {
+      /* stockage indisponible : valeurs neutres */
+    }
+    setHydrated(true);
+  }, [bookmarkStorageKey, bookmarkStepStorageKey, guildId]);
 
   const handleBookmark = useCallback((milestoneId: string) => {
     const next = bookmarkId === milestoneId ? null : milestoneId;
@@ -1693,7 +1699,7 @@ export default function OptimizedGuideClient({
     milestoneId: selected?.id ?? null,
     userName: myIdentity.name,
     userAvatar: myIdentity.image,
-    enabled: !incognito,
+    enabled: hydrated && !incognito,
   });
 
   // Carte milestoneId → membres LIVE ; remplace presenceMap quand on est connecté.
@@ -2561,7 +2567,7 @@ export default function OptimizedGuideClient({
       <div className={"guide-shell" + (tocPinned ? " toc-pinned" : "")}>
 
       {/* Effet d'ambiance (particules) — désactivable via le menu Options */}
-      <GuideParticles active={particlesEnabled} />
+      <GuideParticles active={hydrated && particlesEnabled} />
 
       {/* ── Sommaire épinglé (rail fixe, visible tant que >=1200px) ── */}
       {tocPinned && (

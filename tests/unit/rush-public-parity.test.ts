@@ -504,7 +504,7 @@ describe("Donjons cochables — même coquille, même règle, verrou dans les é
     expect(PUB).not.toMatch(/@\/server\//);
     expect(PUB).toMatch(/readDungeonStates\(storagePrefix\)/);
     expect(PUB).toMatch(
-      /writeDungeonState\(storagePrefix, dungeonOccurrenceKey\(sequenceId, dungeonKey\), state\)/
+      /writeDungeonState\(\s*storagePrefix,\s*dungeonOccurrenceKey\(sequenceId, dungeonKey\),\s*state\s*\)/
     );
     expect(PUB).toMatch(/clearDungeonStates\(storagePrefix\)/);
     // Un visiteur (ou son personnage déclaré) = un emplacement de progression.
@@ -526,7 +526,7 @@ describe("Donjons cochables — même coquille, même règle, verrou dans les é
 
   it("le verrou donjon ne vise que la quête UNITAIRE ; le bloc bypass", () => {
     // Étape seule : le verrou est appliqué.
-    expect(PUB).toMatch(/if \(!was && isSeqBlockedByDungeon\(seqId\)\)/);
+    expect(PUB).toMatch(/if \(!was && isSeqBlockedByDungeon\(seqId(?:, doneKeysOverride)?\)\)/);
     // Chapitre entier et lot de quêtes : la validation par bloc bypass le verrou.
     expect(PUB).not.toMatch(
       /if \(completeAll && !current\.has\(s\.id\) && isSeqBlockedByDungeon\(s\.id\)\) return;/

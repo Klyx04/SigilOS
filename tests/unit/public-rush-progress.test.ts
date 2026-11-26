@@ -141,7 +141,7 @@ describe("Progression en base — le guide n'appelle rien sans session", () => {
         expect(client).toContain("adoptMyRushProgress(");
         expect(client).toContain("resetMyRushProgress(");
         expect(client).toContain("loadMyRushProgress(");
-        expect(client).toContain("if (!isConnected) return;");
+        expect(client).toContain("if (!hydrated || !isConnected");
     });
 
     it("la page transmet la session sans requête supplémentaire", () => {

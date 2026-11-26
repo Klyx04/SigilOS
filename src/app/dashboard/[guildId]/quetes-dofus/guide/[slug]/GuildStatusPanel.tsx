@@ -123,14 +123,27 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
   );
 
   const panelRows = scope === "me" ? viewerRows : allRows;
-  const characters = useMemo(
-    () =>
-      groupGuildProgressByCharacter(panelRows, {
-        profileId: viewerProfileId ?? null,
-        characterSlot: activeCharacterSlot ?? "PRINCIPAL",
-      }),
-    [panelRows, viewerProfileId, activeCharacterSlot]
-  );
+  const characters = useMemo(() => {
+    const grouped = groupGuildProgressByCharacter(panelRows, {
+      profileId: viewerProfileId ?? null,
+      characterSlot: activeCharacterSlot ?? "PRINCIPAL",
+    });
+    // Le personnage actif reste visible même à 0 (après un reset) : sans ligne de
+    // progression, il disparaîtrait de la liste « Tous les personnages ».
+    if (viewerProfileId && !grouped.some((character) => character.isViewer)) {
+      const slot = activeCharacterSlot || "PRINCIPAL";
+      grouped.push({
+        key: `${viewerProfileId}::${slot}`,
+        profileId: viewerProfileId,
+        characterSlot: slot,
+        name: slot === "PRINCIPAL" ? "Mon personnage" : slot,
+        avatar: null,
+        isViewer: true,
+        rows: [],
+      });
+    }
+    return grouped;
+  }, [panelRows, viewerProfileId, activeCharacterSlot]);
   const panelCharacters = scope === "me" ? characters.filter((character) => character.isViewer) : characters;
   const panelProgress = useMemo(
     () => panelCharacters.flatMap((character) => character.rows),

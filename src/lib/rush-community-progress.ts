@@ -12,7 +12,7 @@
  *  · **aucun agrégat inventé** : un membre sans bloc coché reste un membre à zéro.
  */
 
-import { memberDofusProgress, type DofusQuestRef } from "@/lib/rush-dofus-progress";
+import { memberDofusProgress, dofusQuestRefsForMilestone, type DofusQuestRef } from "@/lib/rush-dofus-progress";
 
 export const COMMUNITY_MAX_MEMBERS = 200;
 export const COMMUNITY_NAME_MAX = 40;
@@ -183,19 +183,7 @@ export function communityDofusStats(
         if (allowedDofusIds && !allowedDofusIds.has(ms.dofusId)) continue;
         const entry = byDofus.get(ms.dofusId) ?? { ids: new Set<string>(), quests: [] };
         entry.ids.add(ms.id);
-        for (const seq of ms.sequences) {
-            const steps =
-                seq.stepFrom != null && seq.stepTo != null
-                    ? Math.max(1, seq.stepTo - seq.stepFrom + 1)
-                    : 1;
-            entry.quests.push({
-                milestoneId: ms.id,
-                category: ms.chapterLabel || ms.title,
-                label: seq.subGuideName || seq.subGuideRef,
-                step: seq.subGuideRef,
-                steps,
-            });
-        }
+        entry.quests.push(...dofusQuestRefsForMilestone(ms));
         byDofus.set(ms.dofusId, entry);
     }
 

@@ -3,7 +3,8 @@
 import React, { useEffect, useState } from "react";
 import { ChevronDown, ChevronLeft, ChevronRight, Check, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { isNonCheckableBlock } from "@/lib/rush-guide-utils";
+import { isNonCheckableBlock, isInfoSequence } from "@/lib/rush-guide-utils";
+import { stepCounts } from "@/lib/rush-choice-groups";
 import { getDofusMeta } from "@/lib/rush-dofus-meta";
 import type { RushMilestone } from "@/types/rush-guide-types";
 
@@ -92,8 +93,12 @@ export function RushOverlayChapterBar({
   // Position du bloc courant dans les CHAPITRES (les séparateurs ne sont pas numérotés :
   // sinon « Chapitre 12 » sauterait des numéros au gré des séparateurs intercalés).
   const chapterPos = activeMs ? selectable.findIndex((ms) => ms.id === activeMs.id) : -1;
-  const done = activeMs ? (doneByMs.get(activeMs.id)?.size ?? 0) : 0;
-  const total = activeMs ? activeMs.sequences.length : 0;
+  const activeContent = activeMs ? activeMs.sequences.filter((sequence) => !isInfoSequence(sequence)) : [];
+  const activeCounts = activeMs
+    ? stepCounts(activeContent, doneByMs.get(activeMs.id) ?? new Set<string>())
+    : { done: 0, total: 0 };
+  const done = activeCounts.done;
+  const total = activeCounts.total;
   const pct = activeMs
     ? total > 0
       ? Math.round((done / total) * 100)
@@ -322,8 +327,10 @@ export function RushOverlayChapterBar({
             )}
           >
             {selectable.map((ms, idx) => {
-              const msDoneCount = doneByMs.get(ms.id)?.size ?? 0;
-              const msTotal = ms.sequences.length;
+              const content = ms.sequences.filter((sequence) => !isInfoSequence(sequence));
+              const counts = stepCounts(content, doneByMs.get(ms.id) ?? new Set<string>());
+              const msDoneCount = counts.done;
+              const msTotal = counts.total;
               const isDone = msTotal > 0 && msDoneCount >= msTotal;
               const isActive = ms.id === activeMsId;
               return (

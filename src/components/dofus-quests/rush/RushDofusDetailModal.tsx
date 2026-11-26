@@ -229,6 +229,9 @@ export function RushDofusDetailModal({
                                                                     {quest.category ? (
                                                                         <span className="block truncate text-[10px] text-muted-foreground">
                                                                             {quest.category}
+                                                                            {quest.variantCount && quest.variantCount > 1
+                                                                                ? ` · ${quest.variantCount} variantes`
+                                                                                : ""}
                                                                         </span>
                                                                     ) : null}
                                                                 </span>
@@ -251,6 +254,9 @@ export function RushDofusDetailModal({
                                                                     {quest.category ? (
                                                                         <p className="truncate text-[10px] text-muted-foreground">
                                                                             {quest.category}
+                                                                            {quest.variantCount && quest.variantCount > 1
+                                                                                ? ` · ${quest.variantCount} variantes`
+                                                                                : ""}
                                                                         </p>
                                                                     ) : null}
                                                                 </div>

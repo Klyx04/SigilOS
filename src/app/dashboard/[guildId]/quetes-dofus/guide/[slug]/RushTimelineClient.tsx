@@ -9,7 +9,7 @@ import {
   BookmarkCheck, Loader2, CheckCheck,
   Sparkles, Construction, Sword, Lock, MapPin, Plus,
   Pencil, Crown, ChevronRight, ListCollapse, Info, Check, Search, X, CircleHelp, ClipboardList,
-  Settings2, Ghost, Maximize2, Lightbulb
+  Settings2, Ghost, Maximize2, Lightbulb, DoorOpen
 } from "lucide-react";
 
 import Link from "next/link";
@@ -93,7 +93,7 @@ import type { DungeonAchievementDungeon, DungeonAchievementPanelLoadInput, Dunge
 import { DungeonAchievementsModal } from "@/components/dofus-quests/rush/DungeonAchievementsModal";
 import { RushDungeonsProgressTile } from "@/components/dofus-quests/rush/RushDungeonsProgressTile";
 import { RushDungeonsOverviewModal } from "@/components/dofus-quests/rush/RushDungeonsOverviewModal";
-import { rushStepKeysBySequenceId, mergeViewerProgressRows } from "@/lib/rush-dofus-progress";
+import { rushStepKeysBySequenceId, mergeViewerProgressRows, dofusQuestRefsForMilestone, type DofusQuestRef } from "@/lib/rush-dofus-progress";
 import {
   buildRushDungeonsOverview,
   rushDungeonsCounter,
@@ -813,18 +813,58 @@ const SequenceRow = memo(function SequenceRow({ seq, ms, isSeqCompleted, focused
             footer={
               (() => {
                 // Un donjon du tag peut ne pas être résolu en base (alternative « au
-                // choix » sans id) : « Chercher un groupe » vise le premier RÉSOLU.
-                const searchable = allDungeons.find((d) => !!d.id);
-                if (!searchable?.id) return undefined;
+                // choix » sans id). Plusieurs donjons résolus ⇒ menu explicite : l'ancien
+                // bouton visait toujours le PREMIER de la liste (retour 26/11/2026).
+                const searchable = [
+                  ...new Map(
+                    allDungeons
+                      .filter((d) => !!d.id)
+                      .map((d) => [d.id as string, d] as const)
+                  ).values(),
+                ];
+                if (searchable.length === 0) return undefined;
+                if (searchable.length === 1) {
+                  const only = searchable[0];
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => onDungeonClick(only.id as string, questName)}
+                      className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      <GameIcon src="crossed-swords.png" className="h-3 w-3" />
+                      Chercher un groupe
+                    </button>
+                  );
+                }
                 return (
-                  <button
-                    type="button"
-                    onClick={() => onDungeonClick(searchable.id as string, questName)}
-                    className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
-                  >
-                    <GameIcon src="crossed-swords.png" className="h-3 w-3" />
-                    Chercher un groupe
-                  </button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        aria-label="Chercher un groupe pour un donjon de cette quête"
+                        className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+                      >
+                        <GameIcon src="crossed-swords.png" className="h-3 w-3" />
+                        Chercher un groupe
+                        <ChevronDown className="h-3 w-3 opacity-60" aria-hidden="true" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      align="start"
+                      className="z-[120] min-w-[200px] rounded-[4px] border-border bg-background/95 p-1.5 text-foreground"
+                    >
+                      {searchable.map((dungeon) => (
+                        <DropdownMenuItem
+                          key={dungeon.id}
+                          onClick={() => onDungeonClick(dungeon.id as string, questName)}
+                          className="cursor-pointer gap-2 text-xs"
+                        >
+                          <DoorOpen className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                          <span className="min-w-0 truncate">{dungeon.name || dungeon.bossName || "Donjon"}</span>
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 );
               })()
             }
@@ -2183,17 +2223,10 @@ const guildProgressForDofusPanel=useMemo(
  * « il en est à telle quête, dans telle catégorie » sans requête supplémentaire.
  */
 const dofusQuestsByDofus=useMemo(()=>{
-  const map:Record<string,Array<{milestoneId:string;category:string;label:string;step:string;steps:number;sequenceId:string}>>={};
+  const map:Record<string,DofusQuestRef[]>={};
   for(const ms of contentMilestones){
     if(!ms.dofusId) continue;
-    const list=(map[ms.dofusId]??=[]);
-    for(const seq of ms.sequences){
-      // Même périmètre que la carte de bloc : un encart Conseil/Combat n'est pas une
-      // quête et ne doit jamais apparaître « À faire » dans la fiche Dofus.
-      if(isInfoSequence(seq)) continue;
-      const steps=seq.stepFrom!=null&&seq.stepTo!=null?Math.max(1,seq.stepTo-seq.stepFrom+1):1;
-      list.push({milestoneId:ms.id,category:ms.chapterLabel||ms.title,label:seq.subGuideName||seq.subGuideRef,step:seq.subGuideRef,steps,sequenceId:seq.id});
-    }
+    (map[ms.dofusId]??=[]).push(...dofusQuestRefsForMilestone(ms as any));
   }
   return map;
 },[contentMilestones]);

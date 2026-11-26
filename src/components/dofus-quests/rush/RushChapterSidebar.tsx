@@ -8,6 +8,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { getMetierIconPath, isInfoSequence, RUSH_RESOURCES_PICTO } from "@/lib/rush-guide-utils";
+import { stepCounts } from "@/lib/rush-choice-groups";
 import { copyToClipboard } from "@/lib/clipboard";
 import { ResourceImage } from "@/components/dofus-quests/ResourceImage";
 // UNE SEULE agrégation des ressources pour tout le module (V-A) : ce rail appelle la
@@ -117,7 +118,8 @@ export function RushChapterSidebar({
       // `info_sequence` n'a pas de case, il ne peut donc pas être validé (même règle
       // que les compteurs du guide public/dashboard/overlay).
       const allSeq = ch.milestones.flatMap((m) => m.sequences.filter((s) => !isInfoSequence(s)));
-      const isDone = allSeq.length > 0 && allSeq.every((s) => completedSeqIds.has(s.id));
+      const counts = stepCounts(allSeq, completedSeqIds);
+      const isDone = counts.total > 0 && counts.done === counts.total;
       if (!isDone) return ch.chapter;
     }
     return chapters[0]?.chapter || 1;
@@ -150,15 +152,10 @@ export function RushChapterSidebar({
     let completedSequences = 0;
 
     for (const ms of currentMilestones) {
-      for (const seq of ms.sequences) {
-        // Encart informatif : aucune case à cocher ⇒ hors compteur (sinon le chapitre
-        // resterait éternellement à « n/N », comme le guide public avant le 21/09).
-        if (isInfoSequence(seq)) continue;
-        totalSequences++;
-        if (completedSeqIds.has(seq.id)) {
-          completedSequences++;
-        }
-      }
+      const steps = ms.sequences.filter((seq) => !isInfoSequence(seq));
+      const counts = stepCounts(steps, completedSeqIds);
+      totalSequences += counts.total;
+      completedSequences += counts.done;
     }
 
     const percent = totalSequences > 0 ? Math.round((completedSequences / totalSequences) * 100) : 0;
@@ -296,10 +293,12 @@ export function RushChapterSidebar({
           <div className="flex shrink-0 flex-col gap-1">
             {chapters.map((ch) => {
               const allSeq = ch.milestones.flatMap((m) => m.sequences.filter((s) => !isInfoSequence(s)));
-              const doneSeq = allSeq.filter((s) => completedSeqIds.has(s.id)).length;
-              const pct = allSeq.length > 0 ? Math.round((doneSeq / allSeq.length) * 100) : 0;
+              const counts = stepCounts(allSeq, completedSeqIds);
+              const doneSeq = counts.done;
+              const totalSeq = counts.total;
+              const pct = totalSeq > 0 ? Math.round((doneSeq / totalSeq) * 100) : 0;
               const active = selectedChapter === ch.chapter;
-              const isDone = allSeq.length > 0 && doneSeq === allSeq.length;
+              const isDone = totalSeq > 0 && doneSeq === totalSeq;
               return (
                 <button key={ch.chapter} type="button" onClick={() => handleSelectChapter(ch.chapter)}
                   className={cn("w-full min-h-9 flex items-center gap-2.5 px-2 py-1.5 rounded-[4px] border transition-colors text-left",
@@ -310,7 +309,7 @@ export function RushChapterSidebar({
                     <span className="block text-xs text-foreground truncate">{ch.label}</span>
                     <span className="block h-[3px] rounded-[2px] bg-elevated mt-1 overflow-hidden"><span className="block h-full rounded-[2px] bg-success" style={{ width: `${pct}%` }}/></span>
                   </span>
-                  <span className="font-mono tabular-nums text-[11px] text-muted-foreground">{doneSeq}/{allSeq.length}</span>
+                  <span className="font-mono tabular-nums text-[11px] text-muted-foreground">{doneSeq}/{totalSeq}</span>
                 </button>
               );
             })}

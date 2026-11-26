@@ -4,6 +4,7 @@ import React, { useMemo } from "react";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isInfoSequence, rushChapterNumbers } from "@/lib/rush-guide-utils";
+import { stepCounts } from "@/lib/rush-choice-groups";
 import type { RushMilestone } from "@/types/rush-guide-types";
 
 /**
@@ -62,8 +63,9 @@ export function RushChapterNav({
       <ul>
         {blocks.map(({ ms, number }) => {
           const steps = ms.sequences.filter((s) => !isInfoSequence(s));
-          const done = steps.filter((s) => completedSeqIds.has(s.id)).length;
-          const total = steps.length;
+          const counts = stepCounts(steps, completedSeqIds);
+          const done = counts.done;
+          const total = counts.total;
           const isDone = total > 0 && done === total;
           const active = selectedMilestoneId === ms.id;
           return (

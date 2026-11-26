@@ -66,6 +66,14 @@ import {
   type RushBlockDungeonSequence,
 } from "@/lib/rush-block-dungeons";
 
+/** Refus anti-spam **retourné**, jamais jeté : un rate limit n'est pas un crash. */
+const RATE_LIMIT_ERROR = "Trop de requêtes, réessaie dans un instant.";
+const RATE_LIMIT_RESULT = {
+  success: false as const,
+  code: "RATE_LIMITED" as const,
+  error: RATE_LIMIT_ERROR,
+};
+
 /** La carte DPLN a des clés connues ; l'accès par `questId` est un index dynamique. */
 const RUSH_POSITION_MAP = RUSH_QUEST_POSITIONS as RushQuestPositionMap;
 
@@ -906,33 +914,35 @@ async function applyDungeonChecks(input: {
   if (input.checks.length === 0) return;
   // Un bloc = quelques donjons ; « tout valider » peut en cocher ~173. On découpe en
   // lots de 50 pour rester sous le délai d'une transaction (même règle que la synchro
-  // des positions).
+  // des positions). **Lot par createMany + updateMany** (mesure 26/11/2026) : l'ancien
+  // `upsert` par donjon faisait 12 à 173 requêtes (Sentry 37, transaction 668 ms).
   for (let index = 0; index < input.checks.length; index += 50) {
     const chunk = input.checks.slice(index, index + 50);
-    await db.$transaction(
-      chunk.map((check) =>
-        db.playerGuideDungeonState.upsert({
-          where: {
-            profileId_guideId_sequenceId_dungeonKey_characterSlot: {
-              profileId: input.profileId,
-              guideId: input.guideId,
-              sequenceId: check.sequenceId,
-              dungeonKey: check.dungeonKey,
-              characterSlot: input.characterSlot,
-            },
-          },
-          update: { state: "DONE" },
-          create: {
-            profileId: input.profileId,
-            guideId: input.guideId,
+    await db.$transaction([
+      db.playerGuideDungeonState.createMany({
+        data: chunk.map((check) => ({
+          profileId: input.profileId,
+          guideId: input.guideId,
+          sequenceId: check.sequenceId,
+          dungeonKey: check.dungeonKey,
+          characterSlot: input.characterSlot,
+          state: "DONE",
+        })),
+        skipDuplicates: true,
+      }),
+      db.playerGuideDungeonState.updateMany({
+        where: {
+          profileId: input.profileId,
+          guideId: input.guideId,
+          characterSlot: input.characterSlot,
+          OR: chunk.map((check) => ({
             sequenceId: check.sequenceId,
             dungeonKey: check.dungeonKey,
-            characterSlot: input.characterSlot,
-            state: "DONE",
-          },
-        })
-      )
-    );
+          })),
+        },
+        data: { state: "DONE" },
+      }),
+    ]);
   }
 }
 
@@ -1028,7 +1038,7 @@ export async function toggleMilestoneProgress(
 
   // 🛡️ RATE LIMIT (P0) : 30 toggle/min par membre.
   const { success: rateOk } = await rateLimit(`guide-toggle:${ctx.profileId}`, 30, 60_000);
-  if (!rateOk) throw new Error("Trop de requêtes, veuillez patienter.");
+  if (!rateOk) return RATE_LIMIT_RESULT;
 
   const target = await db.guideMilestone.findUnique({
     where: { id: milestoneId },
@@ -1228,7 +1238,7 @@ export async function resetMilestoneProgress(guildId: string, milestoneId: strin
 
   // 🛡️ RATE LIMIT (P0) : 15 reset jalon/min par membre.
   const { success: rateOk } = await rateLimit(`guide-reset-ms:${ctx.profileId}`, 15, 60_000);
-  if (!rateOk) throw new Error("Trop de requêtes, veuillez patienter.");
+  if (!rateOk) return RATE_LIMIT_RESULT;
 
   const milestone = await db.guideMilestone.findUnique({
     where: { id: milestoneId },
@@ -1321,7 +1331,7 @@ export async function resetGuideProgress(guildId: string, guideId: string, altPs
 
   // 🛡️ RATE LIMIT (P0) : 5 reset guide/min par membre.
   const { success: rateOk } = await rateLimit(`guide-reset-guide:${ctx.profileId}`, 5, 60_000);
-  if (!rateOk) throw new Error("Trop de requêtes, veuillez patienter.");
+  if (!rateOk) return RATE_LIMIT_RESULT;
 
   // Fetch all milestone IDs for this guide
   const milestones = await db.guideMilestone.findMany({
@@ -1371,7 +1381,7 @@ export async function completeGuideProgress(guildId: string, guideId: string, al
 
   // 🛡️ RATE LIMIT (P0) : 5 completions guide/min par membre.
   const { success: rateOk } = await rateLimit(`guide-complete:${ctx.profileId}`, 5, 60_000);
-  if (!rateOk) throw new Error("Trop de requêtes, veuillez patienter.");
+  if (!rateOk) return RATE_LIMIT_RESULT;
 
   // Fetch all milestones with their sequences (et les champs donjon) pour ce guide.
   const guide = await loadCompletionGuide(guideId);
@@ -1458,7 +1468,7 @@ export async function updateStepProgress(guildId: string, milestoneId: string, c
 
   // 🛡️ RATE LIMIT (P0) : 120 validations d'étapes/min par membre.
   const { success: rateOk } = await rateLimit(`guide-step-write:${ctx.profileId}`, 120, 60_000);
-  if (!rateOk) throw new Error("Trop de requêtes, veuillez patienter.");
+  if (!rateOk) return RATE_LIMIT_RESULT;
 
   // Validation + borne des clés d'étapes (anti-payload géant / clés arbitraires).
   // Format attendu `GPx-N` (subGuideRef-numéro). Max 500 clés par appel.
@@ -1595,7 +1605,7 @@ export async function updateBookmarkedStep(guildId: string, milestoneId: string,
 
   // 🛡️ RATE LIMIT (P0) : 30 marque-pages/min par membre.
   const { success: rateOk } = await rateLimit(`guide-bookmark:${ctx.profileId}`, 30, 60_000);
-  if (!rateOk) throw new Error("Trop de requêtes, veuillez patienter.");
+  if (!rateOk) return RATE_LIMIT_RESULT;
 
   const progress = await db.playerGuideProgress.upsert({
     where: {
@@ -1786,7 +1796,7 @@ export async function setRushSequenceProgress(guildId: string, milestoneId: stri
 
   // 🛡️ RATE LIMIT (P0) : 120 validations d'étapes/min par membre.
   const { success: rateOk } = await rateLimit(`guide-step-write:${ctx.profileId}`, 120, 60_000);
-  if (!rateOk) throw new Error("Trop de requêtes, veuillez patienter.");
+  if (!rateOk) return RATE_LIMIT_RESULT;
 
   const milestone = await db.guideMilestone.findUnique({
     where: { id: milestoneId },
@@ -1996,7 +2006,7 @@ export async function setRushBookmark(guildId: string, milestoneId: string, seqI
 
   // 🛡️ RATE LIMIT (P0) : 30 marque-pages/min par membre.
   const { success: rateOk } = await rateLimit(`guide-bookmark:${ctx.profileId}`, 30, 60_000);
-  if (!rateOk) throw new Error("Trop de requêtes, veuillez patienter.");
+  if (!rateOk) return RATE_LIMIT_RESULT;
 
   const milestone = await db.guideMilestone.findUnique({
     where: { id: milestoneId },
@@ -2097,7 +2107,7 @@ export async function setRushResourceChecks(
 
   // 🛡️ RATE LIMIT (P0) : 60 écritures de préparation/min par membre.
   const { success: rateOk } = await rateLimit(`guide-resource-check:${ctx.profileId}`, 60, 60_000);
-  if (!rateOk) throw new Error("Trop de requêtes, veuillez patienter.");
+  if (!rateOk) return RATE_LIMIT_RESULT;
 
   const parsed = rushResourceKeysSchema.safeParse(keys);
   if (!parsed.success) throw new Error("Données invalides");
@@ -2297,7 +2307,7 @@ export async function setRushDungeonState(
 
   // 🛡️ RATE LIMIT (P0) : 120 changements d'état de donjon/min par membre.
   const { success: rateOk } = await rateLimit(`guide-dungeon-state:${ctx.profileId}`, 120, 60_000);
-  if (!rateOk) return { success: false as const, error: "Trop de requêtes, veuillez patienter." };
+  if (!rateOk) return RATE_LIMIT_RESULT;
 
   const parsed = rushDungeonStateSchema.safeParse({ sequenceId, dungeonKey, state });
   if (!parsed.success) return { success: false as const, error: "Données invalides" };
@@ -2499,7 +2509,7 @@ export async function applyRushAlignmentFromSequence(
   if (!ctx.profileId) throw new Error("Profile ID manquant");
 
   const { success: rateOk } = await rateLimit(`guide-alignment:${ctx.profileId}`, 30, 60_000);
-  if (!rateOk) throw new Error("Trop de requêtes, veuillez patienter.");
+  if (!rateOk) return RATE_LIMIT_RESULT;
 
   const sequence = await db.guideSequence.findUnique({
     where: { id: sequenceId },
@@ -2635,7 +2645,7 @@ export async function resetRushAlignment(guildId: string, altPseudo?: string) {
   if (!ctx.profileId) throw new Error("Profile ID manquant");
 
   const { success: rateOk } = await rateLimit(`guide-alignment:${ctx.profileId}`, 10, 60_000);
-  if (!rateOk) throw new Error("Trop de requêtes, veuillez patienter.");
+  if (!rateOk) return RATE_LIMIT_RESULT;
 
   const { profileId, characterSlot } = resolvePlayerProgressKey(ctx.profileId, altPseudo);
   const isMule = characterSlot !== "PRINCIPAL";

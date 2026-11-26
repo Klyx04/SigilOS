@@ -2289,7 +2289,11 @@ const timelineItems=useMemo(()=>{
     setResettingCharId(id);
     try {
       const { resetGuideProgress } = await import("@/server/actions/optimized-guide-actions");
-      await resetGuideProgress(guildId, guide.id, id === "PRINCIPAL" ? undefined : id);
+      const res = await resetGuideProgress(guildId, guide.id, id === "PRINCIPAL" ? undefined : id);
+      if (!res.success) {
+        toast.error("error" in res ? res.error : "Erreur reset");
+        return;
+      }
       // Le reset est immédiat côté serveur, mais l'état local du guide (blocs, panneau
       // Dofus, ressources) doit l'être aussi : sans ça, les cartes restent à 100 %
       // jusqu'au prochain rendu serveur.
@@ -2472,8 +2476,8 @@ const timelineItems=useMemo(()=>{
     try{
       const res=await setRushSequenceProgress(guildId,ms.id,arr,effectiveAltPseudo);
       // Verrou de donjons : le serveur refuse (donjon requis non fait) → on l'explique.
-      if(!(res as any).success){ setResourceChecks(resourceBefore); toast.error((res as any)?.error || "Quête verrouillée par un donjon"); return; }
-      if((res as any).success){
+      if(!res.success){ setResourceChecks(resourceBefore); toast.error(res.error || "Quête verrouillée par un donjon"); return; }
+      if(res.success){
         scheduleLiveRefresh();
         void dungeonsState.refresh();
         // Validation → le repère de cette quête est retiré (soit validée, soit repère).
@@ -2556,7 +2560,7 @@ const timelineItems=useMemo(()=>{
       toast.error("Erreur réseau");
     }finally{setLoading(ms.id,false);}
   },[completedIds,bookmarksByMs,guildId,effectiveAltPseudo,setLoading,resourceChecks,scheduleLiveRefresh,dungeonsState.refresh,completedStepsByMs]);
-  const handleReset=useCallback(async(ms:Milestone)=>{setCompletedIds(prev=>{const n=new Set(prev);n.delete(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,new Set);return n;});setLoading(ms.id,true);try{await resetMilestoneProgress(guildId,ms.id,effectiveAltPseudo);toast.success("Réinitialisée");scheduleLiveRefresh();void dungeonsState.refresh();}catch{setCompletedIds(prev=>new Set([...prev,ms.id]));toast.error("Erreur reset");}finally{setLoading(ms.id,false);}},[guildId,effectiveAltPseudo,setLoading,scheduleLiveRefresh,dungeonsState.refresh]);
+  const handleReset=useCallback(async(ms:Milestone)=>{setCompletedIds(prev=>{const n=new Set(prev);n.delete(ms.id);return n;});setCompletedStepsByMs(prev=>{const n=new Map(prev);n.set(ms.id,new Set);return n;});setLoading(ms.id,true);try{const res=await resetMilestoneProgress(guildId,ms.id,effectiveAltPseudo);if(!res.success){setCompletedIds(prev=>new Set([...prev,ms.id]));toast.error("error" in res?res.error:"Erreur reset");return;}toast.success("Réinitialisée");scheduleLiveRefresh();void dungeonsState.refresh();}catch{setCompletedIds(prev=>new Set([...prev,ms.id]));toast.error("Erreur reset");}finally{setLoading(ms.id,false);}},[guildId,effectiveAltPseudo,setLoading,scheduleLiveRefresh,dungeonsState.refresh]);
 
   // ─── Bookmark par séquence ─────────────────────────────────────────────
   // 1 max par bloc : bookmarker une quête remplace le repère du même bloc
@@ -3545,7 +3549,7 @@ const timelineItems=useMemo(()=>{
     {resetModalOpen&&<ResetConfirmModal
       isOpen={resetModalOpen}
       onClose={()=>setResetModalOpen(false)}
-      onConfirm={async()=>{setResetLoading(true);try{const{resetGuideProgress}=await import("@/server/actions/optimized-guide-actions");await resetGuideProgress(guildId,guide.id,effectiveAltPseudo);setCompletedIds(new Set);setCompletedStepsByMs(new Map());setBookmarksByMs(new Map());setResourceChecks(new Set());setResetModalOpen(false);setWizardOpen(true);toast.success("Réinitialisée !");void dungeonsState.refresh();router.refresh();}catch{toast.error("Erreur");}finally{setResetLoading(false);}}}
+      onConfirm={async()=>{setResetLoading(true);try{const{resetGuideProgress}=await import("@/server/actions/optimized-guide-actions");const res=await resetGuideProgress(guildId,guide.id,effectiveAltPseudo);if(!res.success){toast.error("error" in res?res.error:"Erreur");return;}setCompletedIds(new Set);setCompletedStepsByMs(new Map());setBookmarksByMs(new Map());setResourceChecks(new Set());setResetModalOpen(false);setWizardOpen(true);toast.success("Réinitialisée !");void dungeonsState.refresh();router.refresh();}catch{toast.error("Erreur");}finally{setResetLoading(false);}}}
       characterName={selectedCharacter}
       isLoading={resetLoading}
     />}

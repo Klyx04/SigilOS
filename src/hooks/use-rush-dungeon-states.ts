@@ -41,16 +41,23 @@ export function useRushDungeonStates({
   slug,
   altPseudo,
   lazy = false,
+  enabled = true,
 }: {
   guildId: string;
   slug: string;
   /** Personnage (mule) dont on lit les coches ; absent = personnage principal. */
   altPseudo?: string;
   lazy?: boolean;
+  /**
+   * Faux sur une surface **invitée** (PiP du guide public) : aucun appel aux Server
+   * Actions membres. `getUserContext("public")` n'a pas de `profileId` et l'action
+   * jetait « Profile ID manquant » (Sentry 36, 26/11/2026).
+   */
+  enabled?: boolean;
 }): RushDungeonStatesHandle {
   const [states, setStates] = useState<Record<string, RushDungeonState>>({});
   const [others, setOthers] = useState<RushDungeonMemberState[]>([]);
-  const [loading, setLoading] = useState(!lazy);
+  const [loading, setLoading] = useState(!lazy && enabled);
   const [busyKey, setBusyKey] = useState<string | null>(null);
 
   // Un changement de guide ou de personnage change l'emplacement : on recharge.
@@ -58,6 +65,7 @@ export function useRushDungeonStates({
   const loadedScope = useRef<string | null>(null);
 
   const load = useCallback(async () => {
+    if (!enabled) return;
     if (loadedScope.current === scope) return;
     loadedScope.current = scope;
     setLoading(true);
@@ -76,7 +84,7 @@ export function useRushDungeonStates({
     } finally {
       setLoading(false);
     }
-  }, [guildId, slug, altPseudo, scope]);
+  }, [enabled, guildId, slug, altPseudo, scope]);
 
   useEffect(() => {
     setStates({});
@@ -84,17 +92,27 @@ export function useRushDungeonStates({
   }, [scope]);
 
   useEffect(() => {
-    if (!lazy) void load();
-  }, [lazy, load]);
+    if (enabled && !lazy) void load();
+  }, [enabled, lazy, load]);
 
-  const ensureLoaded = useCallback(() => load(), [load]);
+  useEffect(() => {
+    if (enabled) return;
+    loadedScope.current = null;
+    setStates({});
+    setOthers([]);
+    setLoading(false);
+  }, [enabled]);
+
+  const ensureLoaded = useCallback(() => (enabled ? load() : Promise.resolve()), [enabled, load]);
   const refresh = useCallback(async () => {
+    if (!enabled) return;
     loadedScope.current = null;
     await load();
-  }, [load]);
+  }, [enabled, load]);
 
   const setState = useCallback(
     async (sequenceId: string, dungeonKey: string, state: RushDungeonState | null) => {
+      if (!enabled) return null;
       const occurrenceKey = dungeonOccurrenceKey(sequenceId, dungeonKey);
       const previousValue = states[occurrenceKey];
       setBusyKey(occurrenceKey);

@@ -462,10 +462,13 @@ export default function GuideOverlayClient({
     guildId,
     slug: guide.slug,
     altPseudo: effectiveAltPseudo,
-    // **Eager** : le verrou de quête a besoin des donjons cochés dès l'ouverture, sinon
-    // une quête dont un donjon requis manque reste « cochable » jusqu'à ce qu'on ouvre
-    // un panneau donjon (mesure du 22/10/2026 : clic → refus serveur → toast d'erreur).
+    // **Eager** côté membre : le verrou de quête a besoin des donjons cochés dès
+    // l'ouverture, sinon une quête dont un donjon requis manque reste « cochable »
+    // jusqu'à ce qu'on ouvre un panneau donjon (mesure du 22/10/2026 : clic → refus
+    // serveur → toast d'erreur). **Désactivé côté invité/public** : aucune Server Action
+    // membre (Sentry 36, 26/11/2026 : « Profile ID manquant » dans la PiP publique).
     lazy: false,
+    enabled: !isGuest,
   });
   const [guestDungeonStates, setGuestDungeonStates] = useState<RushDungeonStateMap>(() =>
     isGuest ? readDungeonStates(storagePrefix) : {}
@@ -1341,7 +1344,14 @@ export default function GuideOverlayClient({
 
       setLoadingIds((prev) => new Set([...prev, ms.id]));
       try {
-        await resetMilestoneProgress(guildId, ms.id, effectiveAltPseudo);
+        const res = await resetMilestoneProgress(guildId, ms.id, effectiveAltPseudo);
+        if (!res.success) {
+          setCompletedIds(prevCompleted);
+          setCompletedStepsByMs(prevSteps);
+          setResourceChecks(prevResources);
+          toast.error("error" in res ? res.error : "Erreur de réinitialisation");
+          return;
+        }
         toast.success("Bloc réinitialisé");
         void guildDungeons.refresh();
       } catch {

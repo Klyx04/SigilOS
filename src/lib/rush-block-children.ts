@@ -49,6 +49,30 @@ export function rushChildPositionAfter(sequenceOrder: number): number {
     return after >= RUSH_CHILD_POSITION_END ? RUSH_CHILD_POSITION_END : after;
 }
 
+/**
+ * Ajoute un sous-bloc, ou **remplace** celui qui porte le même id.
+ * Ne mute jamais l'entrée : le parent peut mettre à jour son état sans perdre
+ * la liste affichée (création / édition immédiate).
+ */
+export function upsertRushChild(
+    children: ReadonlyArray<RushMilestoneChild>,
+    child: RushMilestoneChild
+): RushMilestoneChild[] {
+    const index = children.findIndex((item) => item.id === child.id);
+    if (index === -1) return [...children, child];
+    const next = [...children];
+    next[index] = child;
+    return next;
+}
+
+/** Retire un sous-bloc par son id, sans muter la liste. */
+export function removeRushChild(
+    children: ReadonlyArray<RushMilestoneChild>,
+    id: string
+): RushMilestoneChild[] {
+    return children.filter((child) => child.id !== id);
+}
+
 export type RushBlockItem =
     | { kind: "sequence"; sequence: RushSequence; position: number; order: number }
     | { kind: "child"; child: RushMilestoneChild; position: number; order: number };

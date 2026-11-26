@@ -6,7 +6,7 @@
 > Historique complet (171 blocs) : `docs/agents/journal-sessions-2026.md` — **à la demande**, jamais au démarrage.
 > **Tenue.** Un chantier livré quitte le tableau et rejoint le §5. Aucun récit de session ici.
 > **Plus aucun fichier d'amorce** (15/11/2026) : l'ordre et l'état vivent ici ; `docs/plans/` ne porte que les références de module (décisions, mesures).
-> **Dernière MàJ** : 23/11/2026 · SHA courant injecté par `/reprise`.
+> **Dernière MàJ** : 26/11/2026 · SHA courant injecté par `/reprise`.
 
 ## 0. Reprise immédiate
 
@@ -125,6 +125,8 @@ Reste **réel** : **TOCTOU DNS** et **Caddy POST** → corrigés localement (com
 |---|---|---|---|---|---|
 | B1 | `boss-fiche-simu-responsive` | Fiche boss : simulation vide + responsive des fiches avis/boss | **livré le 16/11/2026** : `knownSpellIdsForMerge` (garde vide ⇒ sorts Dofensive conservés), vues Succès empilées avant `2xl`, verrou `boss-simulation-spells`. **Complété le 17/11/2026 (#1415)** : `SpellRangeGrid` à seuil **conteneur** (`@container` + `@5xl` = 64 rem) au lieu de la fenêtre (`2xl`), prop `embedded` (plus de seconde carte sur la fiche avis/monstre) | — | `docs/CONTEXT.md` |
 
+## 2 sexies. Objectif Dofus — refonte (26/11/2026) — `PLAN-REFONTE-OBJECTIF-DOFUS.md` ; L0–L6 sans migration, L7 après accord ; L0 → L1 → L2.
+
 ## 3. P2 — Dette, hygiène, documentation (ordre souple)
 
 | Rang | ID | Chantier | État mesuré | Prochain lot | Plan |
@@ -192,7 +194,7 @@ Reste **réel** : **TOCTOU DNS** et **Caddy POST** → corrigés localement (com
 | **D-H1** | `harebourg-solver.ts` : brancher (quel écran ?) ou retirer ? | rang 38 |
 | **D-AC1** | `activeContext.md` : purge effective des blocs, ou abandon de la règle des 6 ? | rang 41 |
 | **D-SIM1** | **Écart de dégâts en simulation** : Intelligence 1991 (jeu) vs 1323 (calcul) — ratio 1,39 = exactement 1242/893. Trancher : (a) fournir le **payload Dofusbook brut** de la fiche concernée, ou (b) autoriser un dump temporaire des stats passées à `computeSpellDamage`. Sans mesure, aucun chiffre ne bouge : la géométrie d'`Attirance` est déjà prouvée par test, mais la référence de poussée (« vers le centre de la zone » vs « vers le lanceur ») reste à confirmer pour Glacier | rendu fidèle de la simulation (rang 49) |
-| **D-G1** | Guide Rush — **onglet de suivi entre membres** (présence, donjons validés, métiers) : quel périmètre et quelle surface (guide interne / overlay) ? | aucun — idée notée le 22/10/2026, remplace le badge « qui peut aider » retiré |
+| **D-G1** | ~~Suivi entre membres~~ **Cadré 26/11** : `?tab=guilde` = **L6** du plan Objectif Dofus | — |
 
 ## 5. Registre des chantiers clos (une ligne, jamais de détail)
 

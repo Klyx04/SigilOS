@@ -7,7 +7,9 @@ import {
     isRushChildType,
     mergeRushBlockItems,
     normalizeRushChildPosition,
+    removeRushChild,
     rushChildPositionAfter,
+    upsertRushChild,
 } from "@/lib/rush-block-children";
 
 /**
@@ -83,6 +85,46 @@ describe("sous-blocs — ordre d'affichage", () => {
         mergeRushBlockItems(sequences, children);
 
         expect(JSON.stringify({ sequences, children })).toBe(before);
+    });
+});
+
+describe("sous-blocs — sauvegarde immédiate", () => {
+    it("ajoute un sous-bloc sans muter la liste", () => {
+        const before = [child("tips", 0.5)];
+        const next = upsertRushChild(before, child("dofus", 1.5));
+
+        expect(next.map((item) => item.id)).toEqual(["tips", "dofus"]);
+        expect(before.map((item) => item.id)).toEqual(["tips"]);
+    });
+
+    it("remplace le sous-bloc au même id (édition) sans muter la liste", () => {
+        const before = [child("tips", 0.5), child("dofus", 1.5)];
+        const edited = { ...child("tips", 2.5), title: "Tips déplacé" };
+        const next = upsertRushChild(before, edited);
+
+        expect(next.map((item) => [item.id, item.position, item.title])).toEqual([
+            ["tips", 2.5, "Tips déplacé"],
+            ["dofus", 1.5, "dofus"],
+        ]);
+        expect(before[0].position).toBe(0.5);
+    });
+
+    it("retire un sous-bloc sans muter la liste", () => {
+        const before = [child("tips", 0.5), child("dofus", 1.5)];
+        const next = removeRushChild(before, "tips");
+
+        expect(next.map((item) => item.id)).toEqual(["dofus"]);
+        expect(before.map((item) => item.id)).toEqual(["tips", "dofus"]);
+    });
+
+    it("le studio remonte la liste et isole chaque bloc", () => {
+        const studio = read("src/components/god/rush-editor/RushEditorStudio.tsx");
+        const editor = read("src/components/god/rush-editor/RushBlockChildrenEditor.tsx");
+
+        expect(studio).toContain("onChildrenChange={onChildrenChange}");
+        expect(studio).toContain("key={milestone.id}");
+        expect(editor).toContain("onChildrenChange?.(upsertRushChild(childBlocks, saved))");
+        expect(editor).toContain("onChildrenChange?.(removeRushChild(childBlocks, id))");
     });
 });
 

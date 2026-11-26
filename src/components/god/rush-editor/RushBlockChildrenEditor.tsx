@@ -10,7 +10,7 @@
  * Le sous-bloc ne participe ni à la progression ni à la route : il ne change aucun compteur.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Pencil, Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
@@ -19,7 +19,9 @@ import {
     RUSH_CHILD_POSITION_END,
     RUSH_CHILD_TYPES,
     isRushChildType,
+    removeRushChild,
     rushChildPositionAfter,
+    upsertRushChild,
 } from "@/lib/rush-block-children";
 import { RUSH_DOFUS_META } from "@/lib/rush-dofus-meta";
 import {
@@ -86,19 +88,46 @@ function positionLabel(position: number, sequences: readonly SequenceOption[]): 
     return after ? `Après ${sequenceLabel(after)}` : "Début du bloc";
 }
 
+/**
+ * Le serveur renvoie un `GuideMilestoneChild` Prisma : `type` y est l'enum large
+ * `GuideMilestoneType`. Le schéma d'écriture n'accepte que `RUSH_CHILD_TYPES` ; on
+ * normalise donc la valeur au retour, sans jamais élargir le type côté client.
+ */
+function normalizeServerChild(
+    child: Omit<RushMilestoneChild, "type"> & { type: string },
+    fallbackType: RushMilestoneChildType
+): RushMilestoneChild {
+    return {
+        ...child,
+        type: isRushChildType(child.type) ? child.type : fallbackType,
+        position: Number(child.position),
+        order: Number(child.order),
+    };
+}
+
 export function RushBlockChildrenEditor({
     milestoneId,
     sequences,
     childBlocks,
+    onChildrenChange,
 }: {
     milestoneId: string;
     sequences: readonly SequenceOption[];
     childBlocks: readonly RushMilestoneChild[];
+    /** Remonte la liste immédiatement, sans attendre le `router.refresh()`. */
+    onChildrenChange?: (children: RushMilestoneChild[]) => void;
 }) {
     const router = useRouter();
     const [pending, setPending] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [draft, setDraft] = useState<ChildDraft | null>(null);
+
+    // Ceinture + bretelles : le studio monte aussi l'éditeur avec une `key` par bloc,
+    // mais aucun brouillon d'un autre bloc ne doit pouvoir survivre à un changement.
+    useEffect(() => {
+        setEditingId(null);
+        setDraft(null);
+    }, [milestoneId]);
 
     const sortedChildren = [...childBlocks].sort(
         (a, b) => a.position - b.position || a.order - b.order
@@ -115,10 +144,10 @@ export function RushBlockChildrenEditor({
                 position: RUSH_CHILD_POSITION_END,
             });
             if (!res?.success || !res.child) throw new Error("Création refusée");
-            const child = res.child;
+            const child = normalizeServerChild(res.child, type);
             setEditingId(child.id);
             setDraft({
-                type: isRushChildType(child.type) ? child.type : type,
+                type: child.type,
                 title: child.title ?? DEFAULT_TITLE[type],
                 description: child.description ?? "",
                 tips: child.tips ?? "",
@@ -126,6 +155,7 @@ export function RushBlockChildrenEditor({
                 imageUrl: child.imageUrl ?? "",
                 position: Number(child.position) || RUSH_CHILD_POSITION_END,
             });
+            onChildrenChange?.(upsertRushChild(childBlocks, child));
             router.refresh();
             toast.success("Sous-bloc créé");
         } catch (error) {
@@ -155,7 +185,9 @@ export function RushBlockChildrenEditor({
                 imageUrl: draft.imageUrl || null,
                 position: draft.position,
             });
-            if (!res?.success) throw new Error("Enregistrement refusé");
+            if (!res?.success || !res.child) throw new Error("Enregistrement refusé");
+            const saved = normalizeServerChild(res.child, draft.type);
+            onChildrenChange?.(upsertRushChild(childBlocks, saved));
             setEditingId(null);
             setDraft(null);
             router.refresh();
@@ -173,6 +205,7 @@ export function RushBlockChildrenEditor({
         try {
             const res = await deleteRushMilestoneChild(id);
             if (!res?.success) throw new Error("Suppression refusée");
+            onChildrenChange?.(removeRushChild(childBlocks, id));
             if (editingId === id) {
                 setEditingId(null);
                 setDraft(null);

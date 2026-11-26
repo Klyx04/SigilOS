@@ -81,7 +81,8 @@ describe("ops-runbook — harnais", () => {
   it("expose la mesure combats en lecture seule", () => {
     expect(SCRIPT).toContain("rush-combats");
     expect(SCRIPT).toContain("combats_constraints");
-    expect(SCRIPT).toContain("monstres_sans_id");
+    expect(SCRIPT).toContain("monstres_sans_image");
+    expect(SCRIPT).toContain("sequences_tags_sans_combats");
     expect(SCRIPT).toContain("tags_combat_activity");
   });
 

@@ -66,6 +66,8 @@ O10 (3 densités `wide/normal/tight`, mesurées sur le conteneur) · O12 (bulles
 >
 > **Correctif 26/11 (PR #1556)** — le panneau « Ma progression par Dofus » consomme l'**état local du personnage actif** (le même que les blocs) au lieu de la seule prop serveur : le pourcentage suit les **quêtes** (il bouge dès une coche), le reset efface immédiatement blocs, repères et panneau, et le refresh serveur est un **debounce trailing** (une rafale de coches ne fige plus la fiche). Étiquette **« mule de X »** dans la fiche (liste des quêtes + membres engagés). Verrous : `rush-dofus-panel-sync`, `rush-dofus-personal-view`, `rush-dofus-characters`, `rush-dofus-accent`.
 >
+> **Overlay 26/11 (PR #1557)** — le footer `Précédent / x / N / Suivant` existait mais était masqué dans la PiP : le dashboard injecte `footer{display:none!important}` et la PiP copie la feuille. `RushOverlayFooter` passe en `div role="contentinfo"`. La barre de bloc gagne des boutons **‹ ›** et la position **`x/N`** toujours visible, et le reset devient **« Réinitialiser » → « Confirmer »** (plus d'icône seule). Verrou : `rush-overlay-block-nav` (5 cas).
+>
 > **Perf / idées (25/11)** — la validation d'un succès enchaîne encore **un `toggleMilestoneProgress` par bloc** (~20 appels, guide rechargé à chaque fois) : lot **batch** à faire. L'agrégat « Progression Guilde » lit toutes les lignes de la guilde (cache Redis 3 s) : prévoir cache plus long/pagination. **Idées** : graphe des succès/quetes en lecture (sous-graphe par succès/Dofus, lazy, SVG) et raccourcis overlay + sélecteur de bloc (focus PiP, localStorage) — à cadrer, non codés.
 
 ### D. Bloqué par le mainteneur / données à vérifier

@@ -45,6 +45,13 @@ function asciiAssetPath(path: string): string {
 }
 
 /**
+ * Pseudo-succès **système** qui n'ont pas d'asset : leur repli est le glyphe `Trophy`
+ * du composant. Le 26/11/2026, `donjon-valide` fabriquait
+ * `/game-data/achievements/donjon-valide.png` → 404 Sentry à chaque affichage.
+ */
+const SYSTEM_ACHIEVEMENT_SLUGS = new Set(["donjon-valide"]);
+
+/**
  * Résout l'icône d'un succès / challenge DofusDB.
  *
  * 🐛 Mesure du 11/10/2026 (succès « Spécial » d'un boss : **case noire**, page DofusDB montrant
@@ -70,7 +77,9 @@ export function getAchievementIconUrl(slug: string | null | undefined, apiIconUr
     // persiste »). On sert donc sa forme ASCII (`special.png`), jamais un accent.
     if (apiIconUrl && apiIconUrl.startsWith("/game-data/")) return encodeURI(asciiAssetPath(apiIconUrl));
     // ③ Dernier repli : asset local nommé d'après le slug (les 28 challenges historiques).
-    if (slug) return `/game-data/achievements/${asciiAssetPath(slug)}.png`;
+    if (slug && !SYSTEM_ACHIEVEMENT_SLUGS.has(slug)) {
+        return `/game-data/achievements/${asciiAssetPath(slug)}.png`;
+    }
     return null;
 }
 

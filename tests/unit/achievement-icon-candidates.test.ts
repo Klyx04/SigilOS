@@ -9,7 +9,7 @@
  * et le fait qu'une valeur morte laisse une **seconde** chance à l'asset local.
  */
 import { describe, it, expect } from "vitest";
-import { achievementIconCandidates } from "@/lib/achievement-icon";
+import { achievementIconCandidates, getAchievementIconUrl } from "@/lib/achievement-icon";
 import { normalizeChallengeIconUrl } from "@/lib/dofus-image-url";
 
 describe("achievementIconCandidates", () => {
@@ -38,6 +38,13 @@ describe("achievementIconCandidates", () => {
     it("un chemin accentué vise l'asset ASCII jumeau", () => {
         expect(achievementIconCandidates("/game-data/achievements/spécial.png", "sp-cial")[0])
             .toBe("/game-data/achievements/special.png");
+    });
+
+    it("le pseudo-succès système donjon-valide n'a pas d'icône inventée", () => {
+        // Mesure 26/11/2026 : `iconUrl: null` + slug `donjon-valide` fabriquait un
+        // `/game-data/achievements/donjon-valide.png` inexistant → 404 Sentry.
+        expect(achievementIconCandidates(null, "donjon-valide")).toEqual([]);
+        expect(getAchievementIconUrl("donjon-valide", null)).toBeNull();
     });
 
     it("la normalisation des icônes de défi ne perd plus un chemin local accentué", () => {

@@ -37,6 +37,12 @@ interface RushOverlayChapterBarProps {
   canNextChapter?: boolean;
   /** Bloc courant en cours d'écriture serveur : la case ne repart pas en double. */
   loading?: boolean;
+  /**
+   * PiP tight : le reset du bloc passe dans le menu ⋮ de l'en-tête et les flèches
+   * ‹ › restent dans le footer. Le dock ne garde que nœud + médaillon + titre +
+   * 10/12 + chevron, ce qui rend le titre lisible sur une ligne.
+   */
+  compact?: boolean;
 }
 
 /**
@@ -73,6 +79,7 @@ export function RushOverlayChapterBar({
   canPrevChapter = false,
   canNextChapter = false,
   loading = false,
+  compact = false,
 }: RushOverlayChapterBarProps) {
   const [open, setOpen] = useState(false);
   const [resetArmed, setResetArmed] = useState(false);
@@ -157,7 +164,7 @@ export function RushOverlayChapterBar({
         {/* Réinitialiser le bloc courant — manque signalé le 23/11/2026 dans l'overlay.
             Confirmation en 2 temps : le premier clic arme, le second écrit. Le libellé
             remplace l'icône seule (retour du 26/11/2026 : « pas assez clair »). */}
-        {activeMs && onResetChapter && showProgress && (
+        {!compact && activeMs && onResetChapter && showProgress && (
           <button
             type="button"
             onClick={() => {
@@ -227,7 +234,7 @@ export function RushOverlayChapterBar({
               compteur au milieu de la barre (mesure du 05/11/2026). Le numéro de
               chapitre y vit aussi : la grille n'a que trois colonnes. */}
           <span className="da-dock-trail">
-            {showChapterCount && (
+            {!compact && showChapterCount && (
               <span
                 className="shrink-0 font-mono text-[9px] font-semibold tabular-nums text-muted-foreground"
                 aria-label={`Bloc ${chapterPos + 1} sur ${selectable.length}`}
@@ -267,7 +274,7 @@ export function RushOverlayChapterBar({
         </button>
         {/* Navigation bloc précédent / suivant — même action que le footer, mais
             TOUJOURS visible dans la barre (la PiP peut couper le bas de la fenêtre). */}
-        {onPrevChapter && onNextChapter ? (
+        {!compact && onPrevChapter && onNextChapter ? (
           <div className="flex shrink-0 items-center gap-1">
             <button
               type="button"

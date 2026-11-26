@@ -54,7 +54,10 @@ describe("DA « Grimoire Sylvestre » — en-tête", () => {
         // largeur + losange en bout). Une seule reste : celle de la DA.
         expect(src).toMatch(/className="da-track"/);
         expect(src).not.toMatch(/h-\[2px\] w-full overflow-hidden rounded-full bg-elevated/);
-        expect((src.match(/role="progressbar"/g) ?? []).length).toBe(1);
+        // Deux branches EXCLUSIVES depuis le 26/11/2026 : l'en-tête micro (tight)
+        // et l'en-tête large/normal. Une seule est rendue à la fois (early return),
+        // donc jamais deux jauges dans le même overlay.
+        expect((src.match(/role="progressbar"/g) ?? []).length).toBe(2);
     });
 });
 

@@ -48,7 +48,12 @@ export function preparePipDocument(win: Window): Document {
     doc.head.prepend(base);
   }
 
-  // Copie des feuilles de style via <style>
+  // Copie des feuilles de style via <style>.
+  // ⚠️ C'est un **instantané** : en dev, une modification de `da-wakfu.css`
+  // n'atteint PAS une PiP déjà ouverte (HMR ne touche que la page hôte). Après
+  // un changement de CSS de l'overlay, fermer puis rouvrir la PiP — sinon la
+  // nouvelle structure JSX tourne avec l'ancienne feuille (en-tête/toolbar
+  // empilés). En production le CSS est figé au build : aucun impact.
   for (const sheet of Array.from(document.styleSheets)) {
     try {
       const css = Array.from(sheet.cssRules)

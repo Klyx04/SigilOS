@@ -1,7 +1,7 @@
 "use client";
 
 import React, { forwardRef } from "react";
-import { Search, X } from "lucide-react";
+import { ChevronUp, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface RushOverlaySearchProps {
@@ -12,6 +12,8 @@ interface RushOverlaySearchProps {
   className?: string;
   /** PiP étroite : hauteur réduite, placeholder court, pas de raccourci `/`. */
   compact?: boolean;
+  /** Replie la recherche (loupe de l'en-tête micro). */
+  onClose?: () => void;
 }
 
 /**
@@ -22,7 +24,7 @@ interface RushOverlaySearchProps {
  */
 export const RushOverlaySearch = forwardRef<HTMLInputElement, RushOverlaySearchProps>(
   function RushOverlaySearch(
-    { value, onChange, onClear, placeholder, className, compact = false },
+    { value, onChange, onClear, placeholder, className, compact = false, onClose },
     ref
   ) {
     return (
@@ -60,6 +62,18 @@ export const RushOverlaySearch = forwardRef<HTMLInputElement, RushOverlaySearchP
           <kbd className="rounded border border-border-strong px-1.5 py-0.5 font-mono text-[9px] font-semibold text-muted-foreground">
             /
           </kbd>
+        )}
+
+        {compact && onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Replier la recherche"
+            title="Replier la recherche"
+            className="rounded p-0.5 text-muted-foreground transition-colors hover:text-foreground motion-reduce:transition-none"
+          >
+            <ChevronUp className="w-3.5 h-3.5" />
+          </button>
         )}
       </div>
     );

@@ -62,6 +62,7 @@ import { RushOverlayDungeonAchievementsModal } from "./components/RushOverlayDun
 import { RushOverlaySearch } from "./components/RushOverlaySearch";
 import { RushOverlayChapterBar } from "./components/RushOverlayChapterBar";
 import { RushOverlayActions } from "./components/RushOverlayActions";
+import { RushOverlayToolbar } from "./components/RushOverlayToolbar";
 import { DaThemeProvider } from "@/components/da/da-theme";
 import { resolveRushDaTheme } from "@/lib/rush-da-theme";
 import { useDaRail } from "@/components/da/use-da-rail";
@@ -741,24 +742,34 @@ export default function GuideOverlayClient({
 
   // ─── Recherche ─────────────────────────────────────────────────────────────
   const [search, setSearch] = useState("");
+  /**
+   * En PiP tight, la recherche n'occupe plus une rangée permanente : la loupe
+   * de l'en-tête micro l'ouvre, `/` l'ouvre, Échap la replie (ou la vide si une
+   * requête est en cours).
+   */
+  const [searchOpen, setSearchOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+  const isTight = overlayDensity === "tight";
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "/" && document.activeElement?.tagName !== "INPUT") {
         e.preventDefault();
+        setSearchOpen(true);
         setTimeout(() => searchRef.current?.focus(), 50);
       }
-      // Échap ne fait que vider la recherche (jamais de fermeture surprise :
-      // le bouton ✕ de l'en-tête ferme).
-      if (e.key === "Escape" && search) {
-        setSearch("");
-        searchRef.current?.blur();
+      if (e.key === "Escape") {
+        if (search) {
+          setSearch("");
+          searchRef.current?.blur();
+        } else if (searchOpen) {
+          setSearchOpen(false);
+        }
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [search]);
+  }, [search, searchOpen]);
 
   // ─── Stats Globales ───────────────────────────────────────────────────────
   // Les séquences info (bandeaux/conseils) ne comptent pas dans la progression.
@@ -1235,6 +1246,17 @@ export default function GuideOverlayClient({
     }
     return out;
   }, [allProgress, currentMs]);
+
+  /** Même geste depuis la ligne « Sur ce chapitre » (large) et les avatars du toolbar (tight). */
+  const handleOpenChapterMembers = useCallback(() => {
+    openChapterMembers(
+      chapterMembers.map((m) => ({
+        name: m.name,
+        avatar: m.avatar,
+        subtitle: m.stepId ? "a posé un repère ici" : undefined,
+      }))
+    );
+  }, [chapterMembers, openChapterMembers]);
 
 
   // ─── Mutations Optimistes ──────────────────────────────────────────────────
@@ -2075,6 +2097,10 @@ export default function GuideOverlayClient({
             onOpenFeedback={() => setFeedbackOpen(true)}
             character={overlayCharacter}
             onResetGuide={handleResetGuide}
+            onOpenSearch={() => setSearchOpen((open) => !open)}
+            searchOpen={searchOpen}
+            onResetChapter={currentMs ? () => handleResetMs(currentMs) : undefined}
+            activeChapterTitle={currentMs?.title}
             isGuest={isGuest}
             block={daBlock}
             ocre={ocreSummary}
@@ -2110,14 +2136,27 @@ export default function GuideOverlayClient({
             }}
           />
 
-          {/* ══ RECHERCHE ══ */}
-          <RushOverlaySearch
-            value={search}
-            onChange={setSearch}
-            onClear={() => setSearch("")}
-            compact={overlayDensity === "tight"}
-            ref={searchRef}
-          />
+          {/* ══ RECHERCHE ══
+              Tight : repliée par défaut (la loupe de l'en-tête ou `/` l'ouvre),
+              pour rendre ~48 px à la liste. Si une requête est active, elle reste
+              visible même repliée : on ne cache jamais un filtre appliqué. */}
+          {(!isTight || searchOpen || !!search.trim()) && (
+            <RushOverlaySearch
+              value={search}
+              onChange={setSearch}
+              onClear={() => setSearch("")}
+              compact={isTight}
+              onClose={
+                isTight
+                  ? () => {
+                      setSearch("");
+                      setSearchOpen(false);
+                    }
+                  : undefined
+              }
+              ref={searchRef}
+            />
+          )}
 
           {/* ══ BARRE DE CHAPITRE (UNE seule) ══
               Le sélecteur déroulant, la barre « Chapitre n / N » et la barre du bloc courant
@@ -2136,28 +2175,44 @@ export default function GuideOverlayClient({
             canPrevChapter={currentMsIndex > 0}
             canNextChapter={currentMsIndex < milestones.length - 1}
             loading={!!currentMs && loadingIds.has(currentMs.id)}
+            compact={isTight}
           />
 
           {/* ══ RANGÉE D'ACTIONS ══
               Reprendre (saut à la prochaine quête à faire) + Ressources (la modale,
               qui n'a plus d'icône dans l'en-tête : un seul point d'entrée). */}
-          <RushOverlayActions
-            onResume={scrollToNextQuest}
-            onOpenResources={() => setShowResources(true)}
-            checked={resourcesChecked}
-            total={chapterResources.length}
-            compact={overlayDensity === "tight"}
-          />
+          {isTight ? (
+            /* Une seule rangée : filtre + Reprendre + ressources + avatars. */
+            <RushOverlayToolbar
+              filter={questFilter}
+              counts={daCounts}
+              onFilterChange={setQuestFilter}
+              onResume={scrollToNextQuest}
+              onOpenResources={() => setShowResources(true)}
+              checked={resourcesChecked}
+              total={chapterResources.length}
+              members={chapterMembers}
+              onOpenMembers={handleOpenChapterMembers}
+            />
+          ) : (
+            <>
+              <RushOverlayActions
+                onResume={scrollToNextQuest}
+                onOpenResources={() => setShowResources(true)}
+                checked={resourcesChecked}
+                total={chapterResources.length}
+              />
 
-          {/* Filtre d'affichage — Toutes / En cours / Verrouillées. */}
-          <RushOverlayQuestFilter
-            value={questFilter}
-            onChange={setQuestFilter}
-            counts={daCounts}
-            compact={overlayDensity === "tight"}
-            hideCompleted={hideCompleted}
-            onToggleHideCompleted={() => setHideCompleted((value) => !value)}
-          />
+              {/* Filtre d'affichage — Toutes / En cours / Verrouillées. */}
+              <RushOverlayQuestFilter
+                value={questFilter}
+                onChange={setQuestFilter}
+                counts={daCounts}
+                hideCompleted={hideCompleted}
+                onToggleHideCompleted={() => setHideCompleted((value) => !value)}
+              />
+            </>
+          )}
 
           {/* F9 — le bandeau du bloc courant (image + titre + écriteau « N/M ») est
               retiré : le dock juste au-dessus porte déjà le titre du chapitre et son
@@ -2177,19 +2232,13 @@ export default function GuideOverlayClient({
               juste en dessous dit déjà quoi faire, avec sa coordonnée et ses donjons —
               un encart doré qui répète la première ligne ne servait à rien (user, 21/09). */}
 
-          {/* ══ PRÉSENCE COMMUNAUTÉ ══ */}
-          {chapterMembers.length > 0 && (
+          {/* ══ PRÉSENCE COMMUNAUTÉ ══
+              En tight, les avatars sont DANS le toolbar (une seule rangée) ; cette
+              ligne ne reste que pour les modes large/normal. */}
+          {!isTight && chapterMembers.length > 0 && (
             <button
               type="button"
-              onClick={() =>
-                openChapterMembers(
-                  chapterMembers.map((m) => ({
-                    name: m.name,
-                    avatar: m.avatar,
-                    subtitle: m.stepId ? "a posé un repère ici" : undefined,
-                  }))
-                )
-              }
+              onClick={handleOpenChapterMembers}
               title="Voir les membres sur ce chapitre"
               className="px-3 pt-2 flex items-center gap-2 text-left"
             >

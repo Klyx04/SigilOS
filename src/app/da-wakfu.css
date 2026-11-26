@@ -1940,3 +1940,216 @@ details.da-conseil[open] .da-conseil-body {
   display: none;
 }
 
+/* ── En-tête MICRO de la PiP tight (26/11/2026) ─────────────────────────────
+   80 px de hero + 48 px de recherche permanente = 128 px avant la première
+   quête. Le micro garde la DA (image de bloc, jauge 2 px, œuf) mais tombe à
+   34 px : œuf + % + compteur à gauche, loupe + ⋮ à droite. Le détail est dans
+   le footer (`3/34`) ; le titre du chapitre reste dans le dock. */
+.da-hero[data-density="micro"] {
+  min-height: 0;
+  border-bottom: 1.5px solid var(--da-ln);
+}
+
+.da-micro-row {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  height: 32px;
+  align-items: center;
+  gap: .5rem;
+  padding: 0 .55rem;
+}
+
+.da-micro-left {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: .4rem;
+}
+
+.da-micro-egg {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / .55));
+}
+
+.da-micro-pct {
+  color: var(--da-ink);
+  font: 700 15px/1 var(--da-font-title);
+  letter-spacing: .04em;
+  text-shadow: 0 1px 3px rgb(0 0 0 / .8);
+}
+
+.da-micro-count {
+  color: var(--da-muted);
+  font: 600 9px/1 var(--da-font-mono);
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 3px rgb(0 0 0 / .8);
+}
+
+.da-micro-actions {
+  margin-left: auto;
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: .25rem;
+}
+
+.da-micro-btn {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 1px solid var(--da-ln);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--da-field) 72%, transparent);
+  color: var(--da-muted);
+  cursor: pointer;
+}
+
+.da-micro-btn:hover {
+  border-color: var(--da-ln);
+  color: var(--da-ink);
+}
+
+.da-micro-btn:focus-visible {
+  outline: 2px solid var(--da-acc);
+  outline-offset: 1px;
+}
+
+/* Jauge 2 px collée au bas du header : le losange reste, la rangée de 9 px part. */
+.da-micro-track {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 3;
+  height: 2px;
+  margin: 0;
+}
+
+.da-micro-track::before {
+  display: none;
+}
+
+.da-micro-track i {
+  top: 0;
+  bottom: 0;
+  left: 0;
+  min-width: 2px;
+  border-radius: 0;
+}
+
+.da-micro-track i::after {
+  width: 5px;
+  height: 5px;
+  margin-top: -2.5px;
+  border-width: 1px;
+  border-radius: 3px 0 3px 0;
+}
+
+/* ── Dock tight : le titre reprend la largeur du reset et des flèches ─────── */
+.da-window[data-compact="true"] .da-dock {
+  padding: .25rem .6rem 0;
+}
+
+.da-window[data-compact="true"] .da-dock .da-dock-trigger {
+  gap: .45rem;
+  padding: .2rem .2rem .35rem;
+}
+
+.da-window[data-compact="true"] .da-dock .da-dock-label {
+  -webkit-line-clamp: 1;
+  font-size: 12.5px;
+  line-height: 1.05;
+}
+
+.da-window[data-compact="true"] .da-dock .da-medal {
+  width: 23px;
+  height: 23px;
+}
+
+.da-window[data-compact="true"] .da-dock .da-plank[data-size="mini"] {
+  width: 36px;
+  height: 25px;
+}
+
+.da-window[data-compact="true"] .da-dock .da-plank[data-size="mini"] span {
+  font-size: 12px;
+}
+
+/* ── Toolbar tight : filtre + Reprendre + ressources + avatars sur UNE rangée */
+.da-toolbar {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: .35rem;
+  padding: .3rem .5rem .35rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--da-ln) 55%, transparent);
+}
+
+.da-toolbar .da-filter-select-inline {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+.da-toolbar .da-filter-trigger {
+  height: 30px;
+  padding: 0 .45rem;
+  font-size: 10.5px;
+}
+
+.da-toolbar .da-toolbar-resume {
+  flex: none;
+  height: 30px;
+  padding: 0 .5rem;
+  gap: .25rem;
+  font-size: 10.5px;
+}
+
+.da-toolbar .da-toolbar-resume::before {
+  border-radius: 5px 1px;
+}
+
+.da-toolbar .da-toolbar-resources {
+  flex: none;
+  height: 30px;
+  padding: 0 .45rem;
+  gap: .25rem;
+}
+
+.da-toolbar .da-toolbar-resources .da-badge {
+  padding: 0 .25rem;
+  font-size: 8px;
+}
+
+.da-toolbar-members {
+  display: flex;
+  flex: none;
+  align-items: center;
+  margin-left: auto;
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.da-toolbar-more {
+  margin-left: .2rem;
+  color: var(--da-muted);
+  font: 700 8px/1 var(--da-font-text);
+}
+
+/* Footer tight : la navigation reste visible mais ne prend plus 56 px. */
+.da-window[data-compact="true"] [role="contentinfo"] {
+  padding: .3rem .6rem;
+}
+
+.da-window[data-compact="true"] [role="contentinfo"] .da-btn {
+  padding: .35rem .6rem;
+  font-size: 11px;
+}
+

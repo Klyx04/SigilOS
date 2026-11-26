@@ -24,6 +24,7 @@ export function RushOverlayQuestFilter({
   onChange,
   counts,
   compact = false,
+  inline = false,
   hideCompleted = false,
   onToggleHideCompleted,
 }: {
@@ -33,6 +34,8 @@ export function RushOverlayQuestFilter({
   counts?: RushQuestCounts;
   /** PiP étroite : un seul dropdown DA, jamais quatre onglets qui wrappent. */
   compact?: boolean;
+  /** Barre d'outils tight : pas de marge externe, le select prend la largeur utile. */
+  inline?: boolean;
   /** Contrôle « masquer les faites » VISIBLE dans la barre de filtres (demande 25/11). */
   hideCompleted?: boolean;
   onToggleHideCompleted?: () => void;
@@ -59,8 +62,11 @@ export function RushOverlayQuestFilter({
 
   if (compact) {
     return (
-      <div className="flex items-center gap-1.5">
-      <div className="da-filter-select relative" ref={rootRef}>
+      <div className={cn("flex items-center gap-1.5", inline && "min-w-0 flex-1")}>
+      <div
+        className={cn("da-filter-select relative", inline && "da-filter-select-inline")}
+        ref={rootRef}
+      >
         <button
           type="button"
           className="da-filter-trigger"

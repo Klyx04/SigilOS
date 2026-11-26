@@ -72,7 +72,7 @@ describe("masquer les étapes faites — un seul contrôle visible", () => {
   });
 
   it("une recherche n'est jamais vidée par le masquage", () => {
-    expect(read(PUBLIC)).toContain("hideDone && !searchQuery.trim()");
+    expect(read(PUBLIC)).toContain("hideDone && !deferredSearchQuery.trim()");
     expect(read(DASHBOARD)).toContain("hideDone&&!searchFilter");
   });
 });

@@ -113,8 +113,8 @@ describe("Overlay — les bannières sont dans le flux, pas dans la navigation",
   it("les bannières du chapitre sont rendues AVANT et APRÈS son contenu", () => {
     const code = codeOf(OVERLAY);
     expect(code).toMatch(/bannersForChapter\(rawMilestones, currentMs\?\.id\)/);
-    expect(code).toMatch(/\{!search\.trim\(\) && banners\.before\.map\(renderBanner\)\}/);
-    expect(code).toMatch(/\{!search\.trim\(\) && banners\.after\.map\(renderBanner\)\}/);
+    expect(code).toMatch(/\{!deferredSearch\.trim\(\) && banners\.before\.map\(renderBanner\)\}/);
+    expect(code).toMatch(/\{!deferredSearch\.trim\(\) && banners\.after\.map\(renderBanner\)\}/);
   });
 
   it("chaque bannière garde son composant PARTAGÉ (aucune mise en page locale)", () => {

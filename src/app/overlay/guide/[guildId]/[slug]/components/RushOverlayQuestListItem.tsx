@@ -1,7 +1,7 @@
 "use client";
 
-import React, { memo, useState } from "react";
-import { Check, Flag, BookmarkCheck, Info } from "lucide-react";
+import React, { memo, useEffect, useState } from "react";
+import { Check, Flag, BookmarkCheck, Info, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getSequenceCoord, getDungeons, isDungeonSequence, type DungeonInfo } from "./overlay-utils";
 import { RushOverlayPrereqModal } from "./RushOverlayPrereqModal";
@@ -26,50 +26,7 @@ import type {
   RushDungeonState,
   RushDungeonStateMap,
 } from "@/lib/rush-dungeons";
-import { dungeonKeyOf, sequenceDungeonProgress, type RushMissingDungeon } from "@/lib/rush-dungeons";
-
-/**
- * Vignette cliquable d'un donjon **manquant** : la vraie image du donjon, ou **rien**.
- * Aucun picto générique de repli — il se répétait à l'identique et donnait l'impression
- * d'une icône factice (retour user du 22/10/2026). Le nom reste en infobulle.
- */
-function MissingDungeonThumb({
-  name,
-  imageUrl,
-  onOpen,
-}: {
-  name: string;
-  imageUrl?: string | null;
-  onOpen: () => void;
-}) {
-  const [broken, setBroken] = useState(false);
-  if (!imageUrl || broken) return null;
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      title={`Cocher : ${name}`}
-      aria-label={`Ouvrir ${name} dans les donjons de cette quête`}
-      className="rounded-[3px] border border-danger/40 p-0.5 transition-colors da-alert hover:bg-danger/10 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-danger"
-    >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={imageUrl}
-        alt=""
-        className="h-4 w-4 rounded-[2px] object-cover"
-        loading="lazy"
-        onLoad={(event) => {
-          // Le proxy d'assets renvoie parfois un PNG **transparent 1×1** (mesure du
-          // chantier Ocre) : il « charge » sans erreur et laissait un cadre vide.
-          // Une vraie vignette fait au moins quelques pixels — sinon on n'affiche rien,
-          // conformément à la règle « pas d'image ⇒ rien » du 22/10/2026.
-          if (event.currentTarget.naturalWidth <= 2) setBroken(true);
-        }}
-        onError={() => setBroken(true)}
-      />
-    </button>
-  );
-}
+import { sequenceDungeonProgress, type RushMissingDungeon } from "@/lib/rush-dungeons";
 
 interface RushOverlayQuestListItemProps {
   seq: RushSequence;
@@ -186,6 +143,20 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
   // manquants l'ouvrent **en ciblant** le donjon cliqué (`targetKey`).
   const [dungeonPanelOpen, setDungeonPanelOpen] = useState(false);
   const [dungeonTarget, setDungeonTarget] = useState<string | null>(null);
+  /**
+   * Fermeture automatique pilotée par la LIGNE, pas par la popover : quand le dernier
+   * donjon requis est coché, la quête se déverrouille et le bandeau change de branche —
+   * la popover est remontée. Un état local dans la popover serait perdu ; ce drapeau
+   * survit et referme le panneau dès que `missingDungeons` tombe à zéro.
+   */
+  const [dungeonCloseOnComplete, setDungeonCloseOnComplete] = useState(false);
+  useEffect(() => {
+    if (!dungeonPanelOpen || !dungeonCloseOnComplete) return;
+    if (missingDungeons.length > 0) return;
+    setDungeonPanelOpen(false);
+    setDungeonTarget(null);
+    setDungeonCloseOnComplete(false);
+  }, [dungeonPanelOpen, dungeonCloseOnComplete, missingDungeons.length]);
   // Mini-modale des prérequis (un seul encadré dans la ligne, la liste s'ouvre au clic).
   const [prereqsOpen, setPrereqsOpen] = useState(false);
   // Mini-modale de choix des liens de la quête (DPLN / DofusDB / détails).
@@ -260,6 +231,112 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
   );
 
   /**
+   * Repère « je suis ici » — icône seule. Une quête verrouillée ne peut pas en
+   * POSER un, mais doit pouvoir retirer celui posé avant le verrou (sinon il
+   * resterait collé) : c'est la seule action conservée sur une carte verrouillée,
+   * comme dans le guide interne.
+   */
+  const bookmarkAction = (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        if (!isDone && !(isLocked && !isBookmarked)) onBookmark();
+      }}
+      disabled={isDone || (isLocked && !isBookmarked)}
+      aria-label={
+        isDone
+          ? "Quête déjà validée"
+          : isBookmarked
+            ? "Retirer le repère"
+            : isLocked
+              ? "Quête verrouillée — repère indisponible"
+              : "Poser le repère ici"
+      }
+      title={
+        isDone
+          ? "Quête déjà validée — repère désactivé"
+          : isBookmarked
+            ? "Repère posé ici"
+            : isLocked
+              ? "Quête verrouillée — terminez d'abord ses prérequis"
+              : "Je suis ici"
+      }
+      className={cn(
+        "grid h-6 w-6 shrink-0 place-items-center rounded-[3px] transition-colors",
+        (isDone || (isLocked && !isBookmarked)) && "cursor-not-allowed opacity-40",
+        isBookmarked && !isDone
+          ? "bg-warning/15 text-warning"
+          : "text-muted-foreground hover:bg-warning/10 hover:text-warning",
+      )}
+    >
+      {isBookmarked && !isDone ? (
+        <BookmarkCheck className="h-3.5 w-3.5" aria-hidden="true" />
+      ) : (
+        <Flag className="h-3.5 w-3.5" aria-hidden="true" />
+      )}
+    </button>
+  );
+
+  /**
+   * Pastille donjon + son panneau. C'est la SEULE action conservée sur une carte
+   * verrouillée : sans elle, la phrase « Donjons requis non validés » ouvrait un
+   * panneau qui n'était plus monté (mesure 26/11/2026) — le joueur ne pouvait
+   * plus cocher le donjon qui bloque la quête.
+   */
+  const dungeonAction = hasDungeon ? (
+    <RushOverlayDungeonPopover
+      seq={seq}
+      dungeons={dungeons}
+      guildId={guildId}
+      open={dungeonPanelOpen}
+      onOpenChange={(next) => {
+        setDungeonPanelOpen(next);
+        if (next) {
+          setDungeonCloseOnComplete(missingDungeons.length > 0);
+        } else {
+          setDungeonTarget(null);
+          setDungeonCloseOnComplete(false);
+        }
+      }}
+      targetKey={dungeonTarget}
+      states={dungeonActions?.states}
+      busyKey={dungeonActions?.busyKey}
+      others={dungeonActions?.others}
+      onSet={dungeonActions?.onSet}
+      onEnsureLoaded={dungeonActions?.ensureLoaded}
+      capturedOcreNames={capturedOcreNames}
+      onOpenOcre={onOpenOcre}
+      onOpenAchievements={
+        onOpenAchievements
+          ? (key, dungeon) => onOpenAchievements(seq.id, key, dungeon)
+          : undefined
+      }
+    >
+      <span
+        className={cn(
+          "inline-flex h-6 items-center gap-0.5 rounded-[3px] px-1 text-[11px] font-semibold text-warning transition-colors hover:bg-warning/10",
+          missingDungeons.length > 0 && "border border-danger/40 da-alert",
+        )}
+        title={
+          requiredDungeonBlocks > 1
+            ? `Donjons requis ×${requiredDungeonBlocks} — cliquer pour cocher fait / à faire`
+            : "Donjon requis — cliquer pour cocher fait / à faire"
+        }
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/assets/dofus-ui/pictos/donjon.png"
+          alt=""
+          className="h-3.5 w-3.5 shrink-0 object-contain"
+          aria-hidden="true"
+        />
+        {requiredDungeonBlocks > 1 && <span>×{requiredDungeonBlocks}</span>}
+      </span>
+    </RushOverlayDungeonPopover>
+  ) : null;
+
+  /**
    * Bandeau d'icônes du bloc — TOUTES les actions au même endroit, au-dessus du
    * nom (demande user du 25/11/2026). En colonne, le nom garde toute la largeur
    * et « respire » ; les icônes ne le tronquent plus à « RETOURNER VOIR… ».
@@ -288,92 +365,9 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
           mapId={parsedCoord.mapId ?? null}
         />
       )}
-      {hasDungeon && (
-        <RushOverlayDungeonPopover
-          seq={seq}
-          dungeons={dungeons}
-          guildId={guildId}
-          open={dungeonPanelOpen}
-          onOpenChange={(next) => {
-            setDungeonPanelOpen(next);
-            if (!next) setDungeonTarget(null);
-          }}
-          targetKey={dungeonTarget}
-          states={dungeonActions?.states}
-          busyKey={dungeonActions?.busyKey}
-          others={dungeonActions?.others}
-          onSet={dungeonActions?.onSet}
-          onEnsureLoaded={dungeonActions?.ensureLoaded}
-          capturedOcreNames={capturedOcreNames}
-          onOpenOcre={onOpenOcre}
-          onOpenAchievements={
-            onOpenAchievements
-              ? (key, dungeon) => onOpenAchievements(seq.id, key, dungeon)
-              : undefined
-          }
-        >
-          <span
-            className={cn(
-              "inline-flex h-6 items-center gap-0.5 rounded-[3px] px-1 text-[11px] font-semibold text-warning transition-colors hover:bg-warning/10",
-              missingDungeons.length > 0 && "border border-danger/40 da-alert",
-            )}
-            title={
-              requiredDungeonBlocks > 1
-                ? `Donjons requis ×${requiredDungeonBlocks} — cliquer pour cocher fait / à faire`
-                : "Donjon requis — cliquer pour cocher fait / à faire"
-            }
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/assets/dofus-ui/pictos/donjon.png"
-              alt=""
-              className="h-3.5 w-3.5 shrink-0 object-contain"
-              aria-hidden="true"
-            />
-            {requiredDungeonBlocks > 1 && <span>×{requiredDungeonBlocks}</span>}
-          </span>
-        </RushOverlayDungeonPopover>
-      )}
+      {dungeonAction}
       {/* Repère « je suis ici » — icône seule, en haut, sans titre visible. */}
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          if (!isDone && !(isLocked && !isBookmarked)) onBookmark();
-        }}
-        disabled={isDone || (isLocked && !isBookmarked)}
-        aria-label={
-          isDone
-            ? "Quête déjà validée"
-            : isBookmarked
-              ? "Retirer le repère"
-              : isLocked
-                ? "Quête verrouillée — repère indisponible"
-                : "Poser le repère ici"
-        }
-        title={
-          isDone
-            ? "Quête déjà validée — repère désactivé"
-            : isBookmarked
-              ? "Repère posé ici"
-              : isLocked
-                ? "Quête verrouillée — terminez d'abord ses prérequis"
-                : "Je suis ici"
-        }
-        className={cn(
-          "grid h-6 w-6 shrink-0 place-items-center rounded-[3px] transition-colors",
-          (isDone || (isLocked && !isBookmarked)) && "cursor-not-allowed opacity-40",
-          isBookmarked && !isDone
-            ? "bg-warning/15 text-warning"
-            : "text-muted-foreground hover:bg-warning/10 hover:text-warning",
-        )}
-      >
-        {isBookmarked && !isDone ? (
-          <BookmarkCheck className="h-3.5 w-3.5" aria-hidden="true" />
-        ) : (
-          <Flag className="h-3.5 w-3.5" aria-hidden="true" />
-        )}
-      </button>
+      {bookmarkAction}
       {/* Détails — dernière icône du bandeau, plus dans le corps de la carte. */}
       <button
         type="button"
@@ -426,21 +420,30 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
       <div className="da-card">
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           {/* Bandeau supérieur : toutes les actions au même endroit, au-dessus du
-              nom. Le nom garde ainsi toute la largeur, même en PiP étroite. */}
-          <div className="flex w-full flex-wrap items-center gap-1 border-b border-border/40 pb-1">
-            <span
-              className={cn(
-                "text-[9px] font-semibold uppercase tracking-[0.1em]",
-                isDone ? "text-success" : "text-muted-foreground"
-              )}
-            >
-              {daState}
-            </span>
-            <div className="ml-auto flex shrink-0 items-center gap-0.5">{rowActions}</div>
-          </div>
+              nom. Une quête VERROUILLÉE ne montre que ses prérequis (parité avec
+              les guides navigateur) : succès, position, donjon, détails et état
+              disparaissent ; seul le retrait d'un repère déjà posé reste possible. */}
+          {!isLocked ? (
+            <div className="flex w-full flex-wrap items-center gap-1 border-b border-border/40 pb-1">
+              <span
+                className={cn(
+                  "text-[9px] font-semibold uppercase tracking-[0.1em]",
+                  isDone ? "text-success" : "text-muted-foreground"
+                )}
+              >
+                {daState}
+              </span>
+              <div className="ml-auto flex shrink-0 items-center gap-0.5">{rowActions}</div>
+            </div>
+          ) : hasDungeon || isBookmarked ? (
+            <div className="flex w-full items-center justify-end gap-0.5 pb-1">
+              {dungeonAction}
+              {isBookmarked ? bookmarkAction : null}
+            </div>
+          ) : null}
           <div className="flex min-w-0 items-start gap-1.5 pt-0.5">
             {titleIcon}
-            {seqNpc && (seqNpc.imageUrl || seqNpc.id !== null) && (
+            {!isLocked && seqNpc && (seqNpc.imageUrl || seqNpc.id !== null) && (
               <NpcBadge npcId={seqNpc.id} name={seqNpc.name} imageUrl={seqNpc.imageUrl} bare />
             )}
             <div className="min-w-0 flex-1">
@@ -448,23 +451,31 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
                 {alignmentSet && alignLabel && (
                   <RushAlignmentBadge label={alignmentLabel} tone="da" />
                 )}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setLinksOpen(true);
-                  }}
-                  title="Liens de la quête"
-                  className="da-qtitle block min-w-0 flex-1 cursor-pointer text-left transition-colors hover:text-accent hover:underline"
-                >
-                  <span className="line-clamp-2">{name}</span>
-                </button>
+                {isLocked ? (
+                  // Parité guides navigateur : le titre reste lisible, mais il n'ouvre
+                  // plus la modale de liens tant que la quête est verrouillée.
+                  <span className="da-qtitle block min-w-0 flex-1 text-left">
+                    <span className="line-clamp-2">{name}</span>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLinksOpen(true);
+                    }}
+                    title="Liens de la quête"
+                    className="da-qtitle block min-w-0 flex-1 cursor-pointer text-left transition-colors hover:text-accent hover:underline"
+                  >
+                    <span className="line-clamp-2">{name}</span>
+                  </button>
+                )}
               </div>
             </div>
           </div>
 
           {/* 2e ligne : membres qui ont posé un repère (le reste vit dans le bandeau). */}
-          {!isDone && bookmarkers.length > 0 && (
+          {!isDone && !isLocked && bookmarkers.length > 0 && (
             <div className="flex flex-wrap items-center gap-1">
               <RushOverlayMemberBubbles
                 members={bookmarkers}
@@ -538,32 +549,30 @@ export const RushOverlayQuestListItem = memo(function RushOverlayQuestListItem({
             />
           )}
           {missingDungeons.length > 0 && (
-            /* Une seule mention + les **vignettes** des donjons manquants : chacune ouvre
-               le panneau de la quête en ciblant SON donjon (anneau + mise en vue). Les
-               noms restent en infobulle — la liste en texte alourdissait la ligne
-               (retour user du 22/10/2026). */
-            <div className="flex items-center gap-1">
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-danger">
+            /* Un seul geste, aligné sur la ligne « Terminer : <quête> » juste au-dessus :
+               la phrase ouvre le panneau donjon de la quête. Plus de vignettes dans la
+               ligne — la vraie image de chaque donjon reste dans le panneau, au clic
+               (retour user du 26/11/2026). Couleur distincte de la quête prérequis :
+               le donjon manquant est un verrou de jeu, pas une étape du guide. */
+            <button
+              type="button"
+              onClick={() => {
+                dungeonActions?.ensureLoaded?.();
+                setDungeonTarget(missingDungeons[0]?.key ?? null);
+                setDungeonCloseOnComplete(missingDungeons.length > 0);
+                setDungeonPanelOpen(true);
+              }}
+              aria-haspopup="dialog"
+              aria-expanded={dungeonPanelOpen}
+              title={`Ouvrir les donjons requis : ${missingDungeons.map((d) => d.name).join(", ")}`}
+              className="group inline-flex max-w-full items-center gap-1 rounded-[3px] px-1.5 py-0.5 text-left text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <span className="shrink-0">Terminer :</span>
+              <span className="min-w-0 truncate font-semibold text-danger group-hover:underline">
                 Donjons requis non validés
               </span>
-              {missingDungeons.map((d) => {
-                const info = dungeons.find((dj) => dungeonKeyOf(dj) === d.key);
-                // VRAIE vignette du donjon uniquement : sans image (ou image 404), on
-                // n'affiche RIEN — un picto générique répété 3 fois faisait « faux »
-                // (retour user du 22/10/2026).
-                return (
-                  <MissingDungeonThumb
-                    key={d.key}
-                    name={d.name}
-                    imageUrl={info?.imageUrl ?? null}
-                    onOpen={() => {
-                      setDungeonTarget(d.key);
-                      setDungeonPanelOpen(true);
-                    }}
-                  />
-                );
-              })}
-            </div>
+              <ChevronRight className="h-3 w-3 shrink-0 opacity-70" aria-hidden="true" />
+            </button>
           )}
         </div>
       </div>

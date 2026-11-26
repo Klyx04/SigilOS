@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useDaTheme } from "@/components/da/da-theme";
 import { cn } from "@/lib/utils";
@@ -92,6 +92,26 @@ export function RushOverlayDungeonPopover({
     doneDungeonKeysForSequence(states, seq.id),
   );
   const missing = progress.missingBlocks > 0;
+  // Fermeture automatique : dès qu'un « Fait » complète les exigences de la quête
+  // (un seul donjon requis, ou le dernier d'une liste / d'un groupe « au choix »),
+  // la petite modale se referme pour rendre la main à la quête (retour user 26/11).
+  const [pendingClose, setPendingClose] = useState(false);
+
+  const handleSet = useCallback(
+    (sequenceId: string, dungeonKey: string, state: RushDungeonState | null) => {
+      onSet?.(sequenceId, dungeonKey, state);
+      if (state === "done") setPendingClose(true);
+    },
+    [onSet]
+  );
+
+  useEffect(() => {
+    if (!isOpen || !pendingClose) return;
+    if (progress.missingBlocks === 0) {
+      setPendingClose(false);
+      setOpen(false);
+    }
+  }, [isOpen, pendingClose, progress.missingBlocks, setOpen]);
 
   const open = useCallback(() => {
     onEnsureLoaded?.();
@@ -151,7 +171,7 @@ export function RushOverlayDungeonPopover({
                 busyKey={busyKey}
                 others={others}
                 highlightKey={targetKey}
-                onSet={onSet}
+                onSet={onSet ? handleSet : undefined}
                 capturedOcreNames={capturedOcreNames}
                 onOpenOcre={onOpenOcre}
                 onOpenAchievements={onOpenAchievements}

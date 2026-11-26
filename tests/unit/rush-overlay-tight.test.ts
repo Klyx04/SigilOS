@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { RushOverlayHeader } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayHeader";
 import { RushOverlayChapterBar } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayChapterBar";
 import { RushOverlayToolbar } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayToolbar";
+import { RushOverlayQuestListItem } from "@/app/overlay/guide/[guildId]/[slug]/components/RushOverlayQuestListItem";
 
 const BASE = "src/app/overlay/guide/[guildId]/[slug]";
 const HEADER = `${BASE}/components/RushOverlayHeader.tsx`;
@@ -127,7 +128,93 @@ describe("overlay tight — en-tête micro", () => {
     });
 });
 
+describe("overlay tight — quête verrouillée", () => {
+    const lockedHtml = () =>
+        renderToStaticMarkup(
+            React.createElement(RushOverlayQuestListItem, {
+                seq: {
+                    id: "s1",
+                    subGuideRef: "s1",
+                    subGuideName: "Chasse au trésor archéologique",
+                    isOptional: false,
+                    order: 0,
+                } as any,
+                isDone: false,
+                isBookmarked: false,
+                isLocked: true,
+                prereqs: [
+                    { seqId: "s0", milestoneId: "ms-1", name: "Comment perdre ses plumes" },
+                ],
+                missingDungeons: [],
+                onToggle: () => {},
+                onBookmark: () => {},
+                onOpenDetail: () => {},
+            }),
+        );
+
+    it("ne montre QUE le titre et le prérequis, comme les guides navigateur", () => {
+        // Demande user du 26/11/2026 : « les quêtes bloquées n'affichent rien
+        // d'autre que le/les prérequis ; il faut faire idem dans l'overlay ».
+        // Le bandeau succès / position / détails disparaît.
+        const html = lockedHtml();
+        expect(html).toContain("Chasse au trésor archéologique");
+        expect(html).toContain("Comment perdre ses plumes");
+        expect(html).not.toContain("Détails");
+        expect(html).not.toContain("Poser le repère ici");
+        expect(html).not.toContain("Liens de la quête");
+        expect(html).not.toContain("Verrouillée");
+    });
+
+    it("garde la pastille donjon pour pouvoir cocher le requis", () => {
+        // Bug mesuré le 26/11/2026 : en cachant tout le bandeau, la phrase
+        // « Donjons requis non validés » ouvrait un panneau qui n'était plus monté.
+        // La pastille donjon reste donc la seule action de la carte verrouillée.
+        const html = renderToStaticMarkup(
+            React.createElement(RushOverlayQuestListItem, {
+                seq: {
+                    id: "s2",
+                    subGuideRef: "s2",
+                    subGuideName: "Aventure miniature",
+                    isOptional: false,
+                    order: 0,
+                    dungeons: [{ id: "d1", name: "Donjon des Bworks" }],
+                } as any,
+                isDone: false,
+                isBookmarked: false,
+                isLocked: true,
+                prereqs: [],
+                missingDungeons: [{ key: "d1", name: "Donjon des Bworks" }],
+                onToggle: () => {},
+                onBookmark: () => {},
+                onOpenDetail: () => {},
+            }),
+        );
+        expect(html).toContain("Aventure miniature");
+        expect(html).toContain("Donjons requis non validés");
+        expect(html).toContain('aria-label="Donjons de cette quête (fait / à faire)"');
+    });
+});
+
+describe("overlay tight — recherche", () => {
+    it("la frappe est différée et l'index de recherche est construit une fois", () => {
+        // Mesure du 26/11/2026 : chaque touche rescannait tout le guide et
+        // re-rendait l'overlay. `useDeferredValue` garde le champ réactif.
+        const shell = read(SHELL);
+        expect(shell).toContain("useDeferredValue(search)");
+        expect(shell).toContain("const searchIndex = useMemo(");
+        expect(shell).toContain("entry.haystack.includes(q)");
+    });
+});
+
 describe("overlay tight — dock et toolbar", () => {
+    it("le voile du dropdown ne vole pas la largeur du titre (backdrop fixed)", () => {
+        // Bug mesuré le 26/11/2026 : `.da-dock button { position:relative; flex:1 }`
+        // écrasait le `fixed` Tailwind du voile ; il devenait un flex item de ~190 px
+        // et le nom du bloc était réduit à « ELI… » dès l'ouverture.
+        expect(read(DOCK)).toContain("da-dock-backdrop");
+        expect(read(CSS)).toContain(".da-dock button.da-dock-backdrop");
+    });
+
     it("le dock compact garde le titre et 10/12, sans reset, sans flèches, sans 3/34", () => {
         const html = dockHtml(true);
         expect(html).toContain("Prérequis Dofus Sylvestre");

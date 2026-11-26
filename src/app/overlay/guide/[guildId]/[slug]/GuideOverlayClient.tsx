@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useMemo, useRef, useEffect } from "react";
+import React, { useState, useCallback, useMemo, useRef, useEffect, useDeferredValue } from "react";
 import { CheckCircle2, Users } from "lucide-react";
 import { useOverlayToast } from "@/components/rush/overlay-toast";
 import {
@@ -59,6 +59,7 @@ import {
 } from "@/lib/rush-dungeon-achievements";
 import { getRushDungeonAchievementPanel, toggleDungeonAchievement as toggleDungeonAchievementAction } from "@/server/actions/dungeon-achievement-actions";
 import { RushOverlayDungeonAchievementsModal } from "./components/RushOverlayDungeonAchievementsModal";
+import { RushOverlayResumeModal, type RushResumeChoice } from "./components/RushOverlayResumeModal";
 import { RushOverlaySearch } from "./components/RushOverlaySearch";
 import { RushOverlayChapterBar } from "./components/RushOverlayChapterBar";
 import { RushOverlayActions } from "./components/RushOverlayActions";
@@ -69,6 +70,7 @@ import { useDaRail } from "@/components/da/use-da-rail";
 import { OverlayToaster } from "@/components/rush/overlay-toast";
 import { RushOverlayQuestFilter } from "./components/RushOverlayQuestFilter";
 import { countRushQuests, matchesRushQuestFilter, nextQuestId, type RushQuestCounts, type RushQuestFilter } from "@/lib/rush-quest-filter";
+import { buildRushResumeChoices, findRushResumeTarget, type RushResumeCandidate } from "@/lib/rush-resume";
 import { RushOverlayQuestListItem } from "./components/RushOverlayQuestListItem";
 import { RushChoiceGroupCard } from "@/components/dofus-quests/rush/RushChoiceGroupCard";
 import {
@@ -233,6 +235,10 @@ export default function GuideOverlayClient({
   // Le mode est déduit de la surface : membre (guildId réel), visiteur connecté
   // (PiP publique + session), invité. Le guest reste en lecture seule.
   const achievementMode = achievementPanelMode({ guildId, isGuest, feedbackSignedIn });
+  // Surface des fiches de monstre : le membre garde la fiche interne, l'invité reçoit
+  // le lien public. Une seule décision, réutilisée par les conseils, les bandeaux et
+  // la fiche détail (26/11/2026). Le studio God garde son défaut `preview`.
+  const viewer = isGuest ? "visitor" : "member";
   const [achievementTarget, setAchievementTarget] = useState<{
     sequenceId: string;
     dungeonKey: string;
@@ -743,6 +749,12 @@ export default function GuideOverlayClient({
   // ─── Recherche ─────────────────────────────────────────────────────────────
   const [search, setSearch] = useState("");
   /**
+   * La frappe reste **immédiate** dans le champ ; le filtrage lit une valeur différée.
+   * Mesure du 26/11/2026 : chaque touche rescannait tout le guide (400+ quêtes) et
+   * re-rendait l'overlay, ce qui rendait la recherche pâteuse dans une PiP.
+   */
+  const deferredSearch = useDeferredValue(search);
+  /**
    * En PiP tight, la recherche n'occupe plus une rangée permanente : la loupe
    * de l'en-tête micro l'ouvre, `/` l'ouvre, Échap la replie (ou la vide si une
    * requête est en cours).
@@ -848,15 +860,8 @@ export default function GuideOverlayClient({
     [chapterResources, resourceChecks]
   );
 
-  // « Reprendre » : la prochaine quête à faire du chapitre affiché. On interroge la
-  // LISTE, jamais la fenêtre entière (le nœud du dock porte lui aussi un `data-state`).
-  // `next` depuis E1e ; `todo` sinon (liste entièrement verrouillée).
-  const scrollToNextQuest = useCallback(() => {
-    const list = listRef.current;
-    if (!list) return;
-    const target = list.querySelector<HTMLElement>('[data-state="next"], [data-state="todo"]');
-    target?.scrollIntoView({ block: "center" });
-  }, []);
+  // « Reprendre » : défini plus bas, après `nextSeqId` — il vise d'abord le repère,
+  // puis la prochaine quête disponible du bloc, puis le guide entier.
 
   // Alignement de la guilde : `allProgress` porte déjà camp / Ordre / tranche
   // (`GuideProgressRow`), et la présence live dit qui est connecté — zéro requête.
@@ -1043,6 +1048,9 @@ export default function GuideOverlayClient({
   );
 
   const [pendingFocus, setPendingFocus] = useState<{ seqId: string; name: string } | null>(null);
+  // Sélecteur « Reprendre où ? » quand plusieurs repères existent dans des blocs
+  // différents (26/11/2026). 0/1 repère ⇒ saut direct, pas de modale inutile.
+  const [resumeChoices, setResumeChoices] = useState<RushResumeChoice[] | null>(null);
 
   const jumpToQuest = useCallback(
     (target: { seqId: string; milestoneId: string }): boolean => {
@@ -1750,8 +1758,8 @@ export default function GuideOverlayClient({
   const visibleSequences = useMemo(() => {
     if (!currentMs) return [];
     let seqs = currentMs.sequences;
-    if (search.trim()) {
-      const q = search.toLowerCase();
+    if (deferredSearch.trim()) {
+      const q = deferredSearch.toLowerCase();
       seqs = seqs.filter(
         (s) =>
           s.subGuideName.toLowerCase().includes(q) ||
@@ -1774,7 +1782,7 @@ export default function GuideOverlayClient({
       });
     }
     return seqs;
-  }, [currentMs, search, hideCompleted, currentMsDoneSeqs, questFilter, getSeqGate]);
+  }, [currentMs, deferredSearch, hideCompleted, currentMsDoneSeqs, questFilter, getSeqGate]);
 
   // Séries d'alignement (« Ali 12 », « Rang 2 ») : dérivées du guide ENTIER, jamais du
   // nom stocké — les prérequis sont résolus par nom (`resolvePrereqTag`).
@@ -1811,6 +1819,82 @@ export default function GuideOverlayClient({
     [visibleSequences, currentMsDoneSeqs, getSeqGate]
   );
 
+  /**
+   * « Reprendre » — un clic ne doit JAMAIS être muet, même sans repère.
+   * La sélection vit dans la règle pure `findRushResumeTarget` (testée sans DOM) :
+   * repère → prochaine quête du bloc → guide entier (après le bloc, puis début)
+   * → dernière verrouillée (avec toast) → « tout est terminé ».
+   */
+  const resumeCandidates = useMemo<RushResumeCandidate[]>(() => {
+    const out: RushResumeCandidate[] = [];
+    for (const ms of milestones) {
+      for (const seq of ms.sequences ?? []) {
+        if (isInfoSequence(seq)) continue;
+        out.push({
+          seqId: seq.id,
+          milestoneId: ms.id,
+          isDone: completedStepsByMs.get(ms.id)?.has(seq.id) ?? false,
+          isLocked: getSeqGate(seq).locked,
+        });
+      }
+    }
+    return out;
+  }, [milestones, completedStepsByMs, getSeqGate]);
+
+  // Repères « je suis ici » encore valides, dans l'ordre du guide. 2+ ⇒ le bouton
+  // ouvre le sélecteur au lieu de choisir arbitrairement le premier bloc.
+  const resumeBookmarkChoices = useMemo(
+    () =>
+      buildRushResumeChoices({
+        milestones: milestones.map((ms) => ({
+          id: ms.id,
+          title: ms.title,
+          sequences: (ms.sequences ?? []).map((seq) => ({
+            id: seq.id,
+            name: seq.subGuideName || seq.subGuideRef || "Quête",
+            isInfo: isInfoSequence(seq),
+          })),
+        })),
+        bookmarks: bookmarksByMs,
+        isDone: (milestoneId, seqId) =>
+          completedStepsByMs.get(milestoneId)?.has(seqId) ?? false,
+      }),
+    [milestones, bookmarksByMs, completedStepsByMs]
+  );
+
+  const scrollToNextQuest = useCallback(() => {
+    // Plusieurs repères dans des blocs différents : le joueur choisit où reprendre.
+    if (resumeBookmarkChoices.length > 1) {
+      setResumeChoices(resumeBookmarkChoices);
+      return;
+    }
+    const target = findRushResumeTarget({
+      candidates: resumeCandidates,
+      bookmarks: Array.from(bookmarksByMs, ([milestoneId, seqId]) => ({
+        milestoneId,
+        seqId,
+      })),
+      preferredSeqId: nextSeqId,
+      currentMilestoneId: currentMs?.id ?? null,
+    });
+    if (target.kind === "done") {
+      toast.success("Tout le guide est terminé.");
+      return;
+    }
+    jumpToQuest({ seqId: target.seqId, milestoneId: target.milestoneId });
+    if (target.kind === "locked") {
+      toast.info("Cette quête est verrouillée : termine son prérequis.");
+    }
+  }, [
+    resumeBookmarkChoices,
+    resumeCandidates,
+    bookmarksByMs,
+    nextSeqId,
+    currentMs,
+    jumpToQuest,
+    toast,
+  ]);
+
   // ─── Fil de sève ────────────────────────────────────────────────────────────
   // Règle partagée : `useDaRail` mesure `--da-grow` (offsetTop + 26 de la première
   // quête ni validée ni verrouillée ; tout validé ⇒ clientHeight − 48).
@@ -1823,25 +1907,38 @@ export default function GuideOverlayClient({
 
   // Recherche GLOBALE : matche sur TOUT le guide (tous chapitres), pas seulement
   // le milestone courant. Un clic sur un résultat bascule vers son chapitre.
-  const globalResults = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return [];
-    const out: { ms: RushMilestone; seq: RushSequence }[] = [];
+  //
+  // Index construit UNE fois par guide : chaque quête garde sa chaîne normalisée,
+  // la frappe ne relit plus `tips`/`note`/donjons à chaque touche (mesure 26/11/2026).
+  const searchIndex = useMemo(() => {
+    const out: { ms: RushMilestone; seq: RushSequence; haystack: string }[] = [];
     for (const ms of milestones) {
       for (const seq of ms.sequences) {
         if (isInfoSequence(seq)) continue;
         const dungeons = (seq as any).dungeons as { name?: string }[] | undefined;
-        const hit =
-          (seq.subGuideName || "").toLowerCase().includes(q) ||
-          (seq.tips || "").toLowerCase().includes(q) ||
-          (seq.note || "").toLowerCase().includes(q) ||
-          (seq.dungeon?.name || "").toLowerCase().includes(q) ||
-          !!dungeons?.some((d) => (d.name || "").toLowerCase().includes(q));
-        if (hit) out.push({ ms, seq });
+        const haystack = [
+          seq.subGuideName,
+          seq.tips,
+          seq.note,
+          seq.dungeon?.name,
+          ...(dungeons?.map((d) => d.name) ?? []),
+        ]
+          .filter(Boolean)
+          .join("\n")
+          .toLowerCase();
+        out.push({ ms, seq, haystack });
       }
     }
     return out;
-  }, [milestones, search]);
+  }, [milestones]);
+
+  const globalResults = useMemo(() => {
+    const q = deferredSearch.trim().toLowerCase();
+    if (!q) return [];
+    return searchIndex
+      .filter((entry) => entry.haystack.includes(q))
+      .map(({ ms, seq }) => ({ ms, seq }));
+  }, [searchIndex, deferredSearch]);
 
   const bookmarkSeqId = currentMs ? bookmarksByMs.get(currentMs.id) || null : null;
   // Étape courante : contexte exact pré-rempli dans le retour bug.
@@ -1922,11 +2019,12 @@ export default function GuideOverlayClient({
           className="my-3"
           collapsible
           bodyText={infoText}
+          viewer={viewer}
         >
           {/* Pavé DofusDex (13 blocs, 463–1 956 caractères) : replié par la règle
               partagée ; un conseil ordinaire garde `normalizeMeta` (positions, liens). */}
           {splitDofusDexTip(infoText).official ? (
-            <RushDofusDexTip text={infoText} />
+            <RushDofusDexTip text={infoText} viewer={viewer} />
           ) : (
             <RushRichText text={infoText} normalizeMeta />
           )}
@@ -1978,7 +2076,7 @@ export default function GuideOverlayClient({
       }
       // Bandeau d'une séquence informative : composant PARTAGÉ (dashboard,
       // guide public, overlay) — rien à cocher, ce n'est pas une quête.
-      return <RushInfoSequenceBanner seq={seq} accentColor={currentMs.accentColor} collapsible />;
+      return <RushInfoSequenceBanner seq={seq} accentColor={currentMs.accentColor} collapsible viewer={viewer} />;
     }
     const isSeqDone = currentMsDoneSeqs.has(seq.id);
     const gate = getSeqGate(seq);
@@ -2036,7 +2134,7 @@ export default function GuideOverlayClient({
     <>
       {renderOverlaySequence(seq)}
       {(overlayChildrenByAnchor.get(seq.id) ?? []).map((child) => (
-        <RushBlockChild key={child.id} child={child} surface="pip" />
+        <RushBlockChild key={child.id} child={child} surface="pip" viewer={viewer} />
       ))}
     </>
   );
@@ -2302,8 +2400,8 @@ export default function GuideOverlayClient({
             {/* Bannières qui INTRODUISENT ce chapitre — leur place chronologique dans le
                 flux. Elles suivent le chapitre, donc on les retrouve dès qu'on l'ouvre
                 (dropdown, précédent/suivant, repère) : c'est ce qui manquait. */}
-            {!search.trim() && banners.before.map(renderBanner)}
-            {search.trim() ? (
+            {!deferredSearch.trim() && banners.before.map(renderBanner)}
+            {deferredSearch.trim() ? (
               globalResults.length === 0 ? (
                 <div className="py-12 text-center text-[#929aa5] text-xs">
                   <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-[#39bc95] opacity-40" />
@@ -2358,7 +2456,7 @@ export default function GuideOverlayClient({
               <div className="py-12 text-center text-xs text-muted-foreground">
                 <CheckCircle2 className="mx-auto mb-2 h-8 w-8 text-success opacity-40" />
                 <p className="font-serif text-sm font-semibold text-foreground">
-                  {search.trim()
+                  {deferredSearch.trim()
                     ? "Aucune quête ne correspond"
                     : questFilter === "active"
                       ? "Aucune quête à faire ici"
@@ -2367,7 +2465,7 @@ export default function GuideOverlayClient({
                         : "Toutes les quêtes sont terminées !"}
                 </p>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  {search.trim()
+                  {deferredSearch.trim()
                     ? "Essayez un autre mot-clé."
                     : questFilter !== "all"
                       ? "Changez de filtre pour voir les autres quêtes."
@@ -2414,14 +2512,14 @@ export default function GuideOverlayClient({
                     </React.Fragment>
                   ))}
                   {overlayEndChildren.map((child) => (
-                    <RushBlockChild key={child.id} child={child} surface="pip" />
+                    <RushBlockChild key={child.id} child={child} surface="pip" viewer={viewer} />
                   ))}
                 </div>
               </div>
             ) : null}
 
             {/* Bannières de fin de guide : rattachées au dernier chapitre (même règle) */}
-            {!search.trim() && banners.after.map(renderBanner)}
+            {!deferredSearch.trim() && banners.after.map(renderBanner)}
           </main>
 
           {/* ══ FOOTER FIXE ══ */}
@@ -2482,12 +2580,24 @@ export default function GuideOverlayClient({
               ? (key, dungeon) => achievementHandler(detailSeq.seq.id, key, dungeon)
               : undefined
           }
-          viewer={isGuest ? "visitor" : "member"}
+          viewer={viewer}
           guideQuests={guideQuests}
           guideMilestones={milestones}
           successValidation={successValidation}
           onGoToQuest={handleGoToDungeonStep}
           onClose={() => setDetailSeq(null)}
+        />
+      )}
+
+      {/* ══ SÉLECTEUR « REPRENDRE OÙ ? » (plusieurs repères) ══ */}
+      {resumeChoices && (
+        <RushOverlayResumeModal
+          choices={resumeChoices}
+          onGoTo={(choice) => {
+            setResumeChoices(null);
+            jumpToQuest({ seqId: choice.seqId, milestoneId: choice.milestoneId });
+          }}
+          onClose={() => setResumeChoices(null)}
         />
       )}
 

@@ -60,7 +60,7 @@ export function RushOverlayToolbar({
             <button
                 type="button"
                 onClick={onResume}
-                title="Aller à la prochaine quête à faire"
+                title="Reprendre : repère « je suis ici » ou prochaine quête à faire"
                 className="da-btn da-toolbar-resume"
             >
                 <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />

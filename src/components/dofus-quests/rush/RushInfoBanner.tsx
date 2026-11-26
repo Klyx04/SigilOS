@@ -5,6 +5,7 @@ import { AlertTriangle, BookOpen, Lightbulb, Sparkles } from "lucide-react";
 import { safeImageUrl } from "@/lib/security";
 import { cn } from "@/lib/utils";
 import { RushTipLines } from "./RushTipLines";
+import type { RushTagViewer } from "./RushTagBadge";
 
 /**
  * RushInfoBanner — le bandeau d'un bloc CONSEIL / TIPS (type `INFO`) du Rush Sylvestre.
@@ -54,6 +55,7 @@ export function RushInfoBanner({
   accentColor,
   className,
   collapsible = false,
+  viewer = "preview",
 }: {
   title?: string | null;
   /** Contenu du conseil — fourni par l'appelant (chaque surface a son rendu de liens). */
@@ -69,6 +71,8 @@ export function RushInfoBanner({
    * ouvert en permanence coûtait la moitié de la hauteur utile.
    */
   collapsible?: boolean;
+  /** Surface des fiches de monstre incluses dans le texte : interne ou publique. */
+  viewer?: RushTagViewer;
 }) {
   const tone = infoBannerTone(accentColor);
   const ToneIcon = TONE_ICON[tone.tone];
@@ -85,7 +89,7 @@ export function RushInfoBanner({
           <span>{title ? `${tone.label} · ${title}` : tone.label}</span>
         </summary>
         <div className="da-conseil-body">
-          {bodyText ? <RushTipLines text={bodyText} /> : children}
+          {bodyText ? <RushTipLines text={bodyText} viewer={viewer} /> : children}
         </div>
       </details>
     );

@@ -299,18 +299,26 @@ export function RushOverlayChapterBar({
           </div>
         ) : null}
       </div>
-      {/* Jauge fine collée au bas de la barre : la progression ne coûte plus une rangée. */}
-      {showProgress && (
+      {/* Jauge fine collée au bas de la barre : la progression ne coûte plus une rangée.
+          En tight, le mini-écriteau `n/N` porte déjà la progression du bloc : la
+          jauge ferait un second trait de couleur sous le titre (retour user 26/11). */}
+      {!compact && showProgress && (
         <span
-          className="absolute inset-x-0 bottom-0 h-[2px] bg-elevated"
+          className="da-dock-progress absolute inset-x-0 bottom-0 h-[2px]"
           aria-hidden="true"
         >
           <span
-            className="relative block h-full bg-gold transition-[width] duration-150 ease-out motion-reduce:transition-none"
-            style={{ width: `${pct}%`, ...(msDone ? { background: "var(--da-ok)" } : {}) }}
+            className="relative block h-full transition-[width] duration-150 ease-out motion-reduce:transition-none"
+            style={{
+              width: `${pct}%`,
+              background: msDone ? "var(--da-ok)" : "var(--da-acc2)",
+            }}
           >
             {pct > 0 && (
-              <span className="absolute -right-[3px] top-1/2 h-1.5 w-1.5 -translate-y-1/2 rotate-45 bg-gold" />
+              <span
+                className="absolute -right-[3px] top-1/2 h-1.5 w-1.5 -translate-y-1/2 rotate-45"
+                style={{ background: msDone ? "var(--da-ok)" : "var(--da-acc2)" }}
+              />
             )}
           </span>
         </span>
@@ -323,7 +331,7 @@ export function RushOverlayChapterBar({
             type="button"
             aria-label="Fermer la liste des chapitres"
             onClick={() => setOpen(false)}
-            className="fixed inset-0 z-40 cursor-default"
+            className="da-dock-backdrop fixed inset-0 z-40 cursor-default"
           />
           <ul
             role="listbox"

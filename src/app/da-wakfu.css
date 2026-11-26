@@ -1047,6 +1047,24 @@ details.da-conseil[open] .da-conseil-body {
   outline-offset: 1px;
 }
 
+/* Le voile de fermeture du dropdown est un `button` DANS le dock : sans cette
+   règle, `.da-dock button { position: relative; flex: 1 }` l'arrachait au
+   `fixed` de Tailwind et il devenait un flex item de ~190 px — c'est ce qui
+   écrasait le nom du bloc à l'ouverture (mesure du 26/11/2026). */
+.da-dock button.da-dock-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: block;
+  flex: none;
+  width: auto;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: default;
+}
+
 /* Compteur + chevron : un seul bloc collé à droite, insensible au passage du titre
    sur deux lignes (sinon le compteur glissait au milieu de la barre). */
 .da-dock .da-dock-trail {
@@ -1140,6 +1158,12 @@ details.da-conseil[open] .da-conseil-body {
 .da-dock .da-node[data-state="done"]::before {
   border-color: var(--da-outline);
   background: var(--da-ok);
+}
+
+/* Jauge de bloc : le fond est un champ de la DA, jamais le token produit
+   `bg-elevated` ; le remplissage est `--da-acc2` (ou `--da-ok` si le bloc est fini). */
+.da-dock-progress {
+  background: color-mix(in srgb, var(--da-field) 82%, transparent);
 }
 
 /* ── En-tête illustré — 3 paliers de densité (hôte court = jeu) ──────────── */
@@ -2064,6 +2088,19 @@ details.da-conseil[open] .da-conseil-body {
   -webkit-line-clamp: 1;
   font-size: 12.5px;
   line-height: 1.05;
+}
+
+/* Le bloc courant n'a plus DEUX traits verts (filet du trigger + jauge du dock) :
+   en tight, le mini-écriteau `n/N` reste le seul repère de progression. */
+.da-window[data-compact="true"] .da-dock button[aria-current="true"]::after {
+  display: none;
+}
+
+/* Dropdown ouvert : le nom complet reprend deux lignes, pour ne jamais le casser
+   pendant qu'on choisit un autre bloc. La barre s'agrandit, la liste est ouverte. */
+.da-window[data-compact="true"] .da-dock-trigger[aria-expanded="true"] .da-dock-label {
+  -webkit-line-clamp: 2;
+  white-space: normal;
 }
 
 .da-window[data-compact="true"] .da-dock .da-medal {

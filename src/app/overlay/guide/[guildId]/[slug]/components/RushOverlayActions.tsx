@@ -40,7 +40,7 @@ export function RushOverlayActions({
       <button
         type="button"
         onClick={onResume}
-        title="Aller à la prochaine quête à faire"
+        title="Reprendre : repère « je suis ici » ou prochaine quête à faire"
         className="da-btn"
         data-variant="main"
       >

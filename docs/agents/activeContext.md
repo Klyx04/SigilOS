@@ -6,6 +6,15 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 26/11/2026 (suite 77) — **Rush : hydratation des préférences et auto-validation donjons** — branche `fix/rush-hydration-2026-11-26` (PR **#1561**)
+
+> **Demande user (verbatim)** : « go » après l'explication des deux lots restants (lot B hydratation, auto-validation quête / donjons requis).
+> **Mesuré** : les préférences localStorage étaient lues dans des initialiseurs `useState` (personnage, route, progression, donjons, marque-pages, mode discret, particules) → premier rendu client différent du SSR ; cocher un donjon requis ne validait pas la quête, alors que le décocher la dévalidait (S0-7).
+> **Fait** : hydratation après montage sur le guide public, le guide optimisé et le timeline ; présence et particules gateées sur `hydrated` ; règle pure `shouldAutoValidateAfterDungeon` (dernier requis coché, optionnels ignorés, groupes « au choix », unresolved fail-closed) ; branchement **dashboard / overlay / public-invité** avec les clés de donjons à jour (override) ; tests `rush-hydration` et `rush-dungeon-auto-validation`.
+> **Preuves** : **8 608 tests ✅** (844 fichiers) · `tsc` 0 · `lint` 0 · aucune migration · 5 cas purs + test source des 3 surfaces.
+> **Reste** : déployer la bêta ; vérifier **0 event 33/1M sur 24 h** ; ⑮ manuel, ⑱ `test`, batch succès, perf agrégat, graphe ㉙, raccourcis ㉚ ; prod standby. **32** à ignorer, **34** optionnel.
+> **Rotation** : bloc « suite 71 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
 ## 📝 Session 26/11/2026 (suite 76) — **Sentry Rush lot A : PiP publique, rate limit, donjons, icône** — branche `fix/sentry-rush-lot-a-2026-11-26` (PR **#1560**)
 
 > **Demande user (verbatim)** : « traitement maintenant les bugs sentry stp » · plan mesuré des 4 bugs réels (36 PiP publique, 38 rate limit, 37 N+1 donjons, 35 icône `donjon-valide`).
@@ -52,14 +61,5 @@
 > **Preuves** : **8 516 tests ✅** · `tsc` 0 · `lint` 0 erreur · CI verte #1539/#1540 · public vérifié : clic sans personnage ⇒ modale et **aucune écriture**, Iop → carte cité → « Plus tard » → « Commence ici », toggle « Afficher les étapes faites 81 » ; script rejoué = « déjà appliqué ».
 > **Reste** : ⑮ **98 conseils Brâkmarien** (rédaction, aucune source), ⑯ combats 746/742 (re-mesurer bêta), ⑰ actage Brâkmarien, ⑱ Touglie VPS, **ops** : `add-rush-choice-variants --apply` bêta/prod, `fix-rush-pos-worlds --trust-hd --apply` bêta/prod, conditions/positions prod, V-C purge, phases 4/5.
 > **Rotation** : 6 blocs conservés (aucun sorti).
-
-## 🗓️ Session 25/11/2026 (suite 71) — **Rush : overlay PiP, zaap iso DPLN, blocs terminés** — branche `fix/rush-overlay-position-dungeon-2026-11-25` (PR **#1537**)
-
-> **Demande user (verbatim)** : « les positions dans l'overlay s'ouvrent hors de l'overlay » · « une petite modale au clic sur la position : copier, voir la map HD en petit » · « les positions avec le zaap, très implémenté côté DPLN — on ne peut pas inventer des positions, iso DPLN pour l'entièreté des quêtes, non négociable » · « un double contour pour les modales de boss non validé » · « les notifs de copie de position dans l'overlay doivent rester dans l'overlay » · « dans chaque bloc de quête un bandeau en haut avec toutes les icônes, la quête en dessous qui respire ».
-> **Mesuré** : 770 `pos_tags` (tous guides) / **531 `allowZaap`** ; le calcul du zaap utilisait `zaaps.json` (39 en monde 1, Bonta `[-32,-56]`) au lieu de la liste DPLN (37, Bonta `[-31,-56]`) ; l'ancien siphon posait `allowZaap: true` partout — le contrôle DPLN (529 pages) mesure **65 exclusions `[x,y!]`** et **51 zaaps explicites** que le guide affichait à tort ; `RushPositionMenu` portalait dans `document.body` (page principale) et utilisait le `toast` global ; `RushOverlayDungeonPopover` cumulait deux halos.
-> **Fait** : position + donjons portés dans le `ownerDocument` (PiP), mini-modale position avec copie / carte HD / zaap ; **`dplnNearestZaap`** (liste DPLN exacte, Manhattan + pénalité, garde monde 1) côté client ; **`scripts/check-rush-dpln-zaap.ts`** (dry-run/`--apply`, `!`, zaap explicite) ; `buildRushPositionTag` fait gagner la donnée DPLN sur l'ancien `allowZaap` (**115 corrections**, **116 séquences locales synchronisées**) ; toasts partagés routés par `useOverlayToast` (overlay = PiP, navigateur = global) ; bloc terminé **scellé** (sceau, filet vert, jauge verte) ; modale donjon **un seul contour**, actions sur 2ᵉ ligne ; progression donjons (barre d'en-tête, compteurs, barres de bloc) ; **bandeau d'icônes** au-dessus du nom dans chaque bloc de quête + numéro d'alignement avec le titre ; **maps HD** : 513 corrections `worldId`/`mapId` en local (ex. « Les racines du mal » → monde 25, carte 201458178) + option `--trust-hd` pour ops ; revalidation des fiches `/q/[slug]` (ISR 3600).
-> **Preuves** : **8 491 tests ✅** · `tsc` 0 · `lint` 0 erreur · **aucune migration** · bêta le 25/11 : **392 conditions** écrites (161 multi-combats, 719 combats), **116 positions** synchronisées, dialogue God à **0 restant**, base **467 `true` / 65 `false` / 2 hors carte**.
-> **Reste** : choix Brak 55/66 + God ; **bêta faite le 25/11** (392 conditions, 116 positions) ; reste `fix-rush-pos-worlds --trust-hd --apply` sur bêta/prod, puis prod (conditions + positions) ; mode clair #1536 mergée.
-> **Rotation** : bloc « suite 65 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
 

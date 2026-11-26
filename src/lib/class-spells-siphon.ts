@@ -14,6 +14,7 @@
 
 import { logger } from "@/lib/logger";
 import { db } from "@/lib/prisma";
+import { isLocalThrottleDeferredMessage } from "@/lib/dofusdb-throttle";
 import { dofusdbFetch, type DofusDbSource } from "@/lib/dofusdb-fetch";
 import { DOFUS_CLASSES } from "@/lib/dofus-assets";
 import { getClassName } from "@/lib/dofusbook-utils";
@@ -351,6 +352,11 @@ export interface ClassSpellbookSyncResult {
     grades: number;
     icons: number;
     failedIcons: number;
+    /**
+     * Budget local épuisé (limiteur partagé) : ce n'est **pas** un échec d'icône.
+     * La passe s'arrête ici et sera rejouée au prochain passage (aucun faux `PARTIAL`).
+     */
+    deferred: boolean;
     errors: string[];
 }
 
@@ -402,6 +408,7 @@ export async function siphonClassSpellbooksCore(
         grades: 0,
         icons: 0,
         failedIcons: 0,
+        deferred: false,
         errors: [],
     };
 
@@ -421,19 +428,45 @@ export async function siphonClassSpellbooksCore(
                 result.grades += full.reduce((total, spell) => total + (spell.grades?.length ?? 0), 0);
 
                 // 🖼️ Icône de chaque sort (elle n'était résolue qu'**à chaud** sur DofusDB).
+                let deferred = false;
                 for (const spell of full) {
                     if (!spell.imageUrl) continue;
                     try {
                         const icon = await siphonAndCompressImage(spell.imageUrl, "spells", spell.id);
-                        if (icon.success) result.icons++;
-                        else result.failedIcons++;
-                    } catch {
+                        if (icon.success) {
+                            result.icons++;
+                        } else if (isLocalThrottleDeferredMessage(icon.error)) {
+                            // 🚦 Budget local épuisé : ce n'est PAS une icône manquante.
+                            // On arrête la passe ici, elle sera rejouée au prochain passage
+                            // (même sémantique que les items : aucun faux `PARTIAL`).
+                            result.deferred = true;
+                            deferred = true;
+                            break;
+                        } else {
+                            result.failedIcons++;
+                        }
+                    } catch (error) {
+                        const message = error instanceof Error ? error.message : String(error);
+                        if (isLocalThrottleDeferredMessage(message)) {
+                            result.deferred = true;
+                            deferred = true;
+                            break;
+                        }
                         result.failedIcons++;
                     }
                 }
+                if (deferred) break;
             }
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
+            if (isLocalThrottleDeferredMessage(message)) {
+                result.deferred = true;
+                logger.warn(
+                    "[class-spells-siphon] limite locale atteinte — passe reprise au prochain passage",
+                    { classId },
+                );
+                break;
+            }
             result.errors.push(`${className} : ${message}`);
             logger.warn("[class-spells-siphon] classe en échec", { classId, error: message });
         }
@@ -446,7 +479,9 @@ export async function siphonClassSpellbooksCore(
     }
 
     logger.info(
-        `[class-spells-siphon] ${result.classes}/${classIds.length} grimoire(s) · ${result.spells} sort(s) · ${result.icons} icône(s) (${result.failedIcons} en échec)`,
+        `[class-spells-siphon] ${result.classes}/${classIds.length} grimoire(s) · ${result.spells} sort(s) · ${result.icons} icône(s)` +
+            `${result.failedIcons > 0 ? ` (${result.failedIcons} en échec)` : ""}` +
+            `${result.deferred ? " · limite locale atteinte, reprise au prochain passage" : ""}`,
     );
     return result;
 }

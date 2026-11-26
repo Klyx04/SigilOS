@@ -362,7 +362,7 @@ async function runItemBatches(ctx: RunContext): Promise<InlineRunResult> {
 /** Grimoires des 19 classes : un appel **par classe** (idempotent, icônes disque). */
 async function runClassSpellbooks(ctx: RunContext): Promise<InlineRunResult> {
     /** 🔎 `iconsFailed` est compté **à part** des échecs de passe (règle tranchée en A5, 28/09/2026). */
-    const totals = { spells: 0, grades: 0, icons: 0, iconsFailed: 0 };
+    const totals = { spells: 0, grades: 0, icons: 0, iconsFailed: 0, iconsDeferred: 0 };
     let failedRuns = 0;
 
     for (let i = 0; i < GAME_DATA_CLASS_IDS.length; i++) {
@@ -375,9 +375,11 @@ async function runClassSpellbooks(ctx: RunContext): Promise<InlineRunResult> {
                 totals.grades += res.data.grades;
                 totals.icons += res.data.iconsSiphoned;
                 totals.iconsFailed += res.data.iconsFailed;
+                if (res.data.iconsDeferred) totals.iconsDeferred += 1;
                 ctx.log(
                     `✅ ${label} : ${res.data.spells} sort(s) (${res.data.grades} grades), ${res.data.iconsSiphoned} icône(s) OK` +
-                        (res.data.iconsFailed > 0 ? `, ${res.data.iconsFailed} en échec` : ""),
+                        (res.data.iconsFailed > 0 ? `, ${res.data.iconsFailed} en échec` : "") +
+                        (res.data.iconsDeferred ? ", limite locale atteinte (reprise au prochain passage)" : ""),
                 );
             } else {
                 failedRuns++;
@@ -400,9 +402,12 @@ async function runClassSpellbooks(ctx: RunContext): Promise<InlineRunResult> {
     const iconsNote = totals.iconsFailed > 0
         ? `, ${totals.iconsFailed} icône(s) en échec (non bloquant — re-tenté au prochain passage)`
         : "";
+    const deferredNote = totals.iconsDeferred > 0
+        ? `, ${totals.iconsDeferred} classe(s) avec icônes différées (limite locale — reprise au prochain passage)`
+        : "";
     const summary =
         `Grimoires : ${totals.spells} sort(s) (${totals.grades} grades), ${totals.icons} icône(s) OK` +
-        `${iconsNote}, ${failedRuns} classe(s) en échec.`;
+        `${iconsNote}${deferredNote}, ${failedRuns} classe(s) en échec.`;
     ctx.log(`🎉 ${summary}`);
     return { ok: failedRuns === 0, summary, error: failedRuns > 0 ? `${failedRuns} classe(s) en échec` : undefined };
 }

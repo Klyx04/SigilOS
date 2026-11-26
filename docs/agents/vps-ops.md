@@ -61,7 +61,16 @@ cd ~/SigilOS
 ./scripts/ops/vps.sh class-watch beta          # dry-run : lire le diff
 ./scripts/ops/vps.sh class-watch beta --apply  # manifeste + icônes + journal
 cat public/uploads/assets-dofus/class-catalog.json | head   # preuve (volume beta)
+
+./scripts/ops/vps.sh dump prod                 # ceinture
+./scripts/ops/vps.sh class-watch prod          # dry-run
+./scripts/ops/vps.sh class-watch prod --apply  # manifeste + icônes + journal
 ```
+
+Puis, sur **chaque** environnement : **God ▸ Tableau ▸ « Grimoires de classes » ▸ Lancer**
+(ou attendre la passe complète du dimanche) pour créer/mettre à jour `ClassSpellbook`,
+dont **Bellaphone** (`classId=20`, 44 sorts). Preuve : `ClassSpellbook.classId=20` +
+`class-catalog.json` dans le volume de l'environnement.
 
 - Le manifeste et les icônes sont dans le **volume de l'environnement** (`assets-beta-data`
   ou `assets-prod-data`) : beta et prod ne se contaminent pas.
@@ -72,6 +81,10 @@ cat public/uploads/assets-dofus/class-catalog.json | head   # preuve (volume bet
   le cron `class-watch` les met en file et les reprend au passage suivant si la file est
   occupée. Le **dimanche**, il met en file une **passe complète** des grimoires (un
   rééquilibrage de sorts ne change pas le nombre de sorts de la classe).
+- Une **limite locale** (`LOCAL_THROTTLE_DEFERRED`) n'est pas un échec : la passe
+  s'arrête, l'icône est rejouée au passage suivant, et le statut ne passe pas `PARTIAL`.
+- Les deux lignes de crontab (beta 04h45, prod 04h50, secrets séparés) sont dans
+  `docs/MAINTENANCE.md` § « Crontab VPS ».
 
 ## 4. Ce que ce runbook ne fait pas
 

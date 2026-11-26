@@ -21,6 +21,7 @@ import { deriveDofensiveMonsterName, resolveMonsterKey } from '@/lib/dofensive-b
 import { getClassName } from '@/lib/dofusbook-utils';
 import { getDofusClassByDofusbookId } from '@/lib/dofus-assets';
 import { upsertClassSpellbookWithJournal, fetchClassSpellsFull } from '@/lib/class-spells-siphon';
+import { isLocalThrottleDeferredMessage } from '@/lib/dofusdb-throttle';
 import {
     GUIDE_ICON_CHUNK_SIZE,
     RUSH_GUIDE_SLUG,
@@ -395,6 +396,8 @@ export interface ClassSpellbookWarmResult {
     iconsSiphoned: number;
     iconsSkipped: number;
     iconsFailed: number;
+    /** Budget local épuisé : les icônes restantes seront rejouées, aucun faux échec. */
+    iconsDeferred: boolean;
 }
 
 /**
@@ -431,6 +434,7 @@ export async function warmClassSpellbook(classId: number): Promise<ActionRespons
         let iconsSiphoned = 0;
         let iconsSkipped = 0;
         let iconsFailed = 0;
+        let iconsDeferred = false;
         for (const sp of full) {
             if (!sp.imageUrl) {
                 iconsSkipped++;
@@ -439,14 +443,28 @@ export async function warmClassSpellbook(classId: number): Promise<ActionRespons
             try {
                 // `success` = présent sur disque (déjà siphonné → 0 réseau, ou téléchargé).
                 const res = await siphonAndCompressImage(sp.imageUrl, 'spells', sp.id);
-                if (res.success) iconsSiphoned++;
-                else iconsFailed++;
-            } catch {
+                if (res.success) {
+                    iconsSiphoned++;
+                } else if (isLocalThrottleDeferredMessage(res.error)) {
+                    iconsDeferred = true;
+                    break;
+                } else {
+                    iconsFailed++;
+                }
+            } catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                if (isLocalThrottleDeferredMessage(message)) {
+                    iconsDeferred = true;
+                    break;
+                }
                 iconsFailed++;
             }
         }
 
-        logger.info(`[warmClassSpellbook] ${className}: ${full.length} sorts persistés, icônes OK=${iconsSiphoned} KO=${iconsFailed}.`);
+        logger.info(
+            `[warmClassSpellbook] ${className}: ${full.length} sorts persistés, icônes OK=${iconsSiphoned} KO=${iconsFailed}` +
+                `${iconsDeferred ? ' (limite locale atteinte, reprise au prochain passage)' : ''}.`,
+        );
         return {
             success: true,
             data: {
@@ -457,6 +475,7 @@ export async function warmClassSpellbook(classId: number): Promise<ActionRespons
                 iconsSiphoned,
                 iconsSkipped,
                 iconsFailed,
+                iconsDeferred,
             },
         };
     } catch (error: any) {

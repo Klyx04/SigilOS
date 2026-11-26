@@ -13,6 +13,7 @@
 #   rush-archive <beta|prod> [--apply]        archive le guide + en crée un vide
 #   rush-delete-archive <env> <slug> [--apply]
 #   rush-verify <beta|prod>                   compteurs du guide (lecture)
+#   rush-combats <beta|prod>                  combats et monstres sans id (lecture)
 #
 # Sans `--apply`, tout est en dry-run. `--apply` est le seul mot qui écrit.
 # Procédure et rollback : docs/agents/vps-ops.md.
@@ -33,6 +34,7 @@ Usage : ./scripts/ops/vps.sh <verbe> <beta|prod> [options]
   rush-archive <env> [--apply]                  archive le guide Rush + crée un vide
   rush-delete-archive <env> <slug> [--apply]    supprime UNIQUEMENT une archive
   rush-verify <env>                             compteurs du guide Rush
+  rush-combats <env>                            combats : tags et monstres sans id (lecture)
 
 Sans --apply, tout est en dry-run.
 EOF
@@ -133,6 +135,75 @@ LATERAL jsonb_array_elements(s."activityTags") t
 WHERE g.slug = 'rush-sylvestre'
   AND t->>'type' IN ('combat_solo', 'combat_plusieurs')
   AND (t->'monsters') IS NOT NULL;
+SQL
+    ;;
+
+  rush-combats)
+    env="$(env_or_die "${2:-}")"
+    trace "rush-combats $env"
+    # Lecture seule : aucun `--apply`, aucun dump nécessaire. Le SQL ne sort jamais
+    # du runbook (règle vps-ops : pas de requête ad hoc).
+    # Mesure les DEUX sources : `constraints.combats[]` (fiche de combat, monstres
+    # avec/sans id) et les tags `activityTags` (compteur historique 746/742).
+    compose "$env" exec -T "db-$env" \
+      sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -A -F "|"' <<'SQL'
+WITH seq AS (
+  SELECT s.id, s."constraints"
+  FROM "GuideSequence" s
+  JOIN "GuideMilestone" m ON m.id = s."milestoneId"
+  JOIN "OptimizedGuide" g ON g.id = m."guideId"
+  WHERE g.slug = 'rush-sylvestre'
+    AND jsonb_typeof(s."constraints"->'combats') = 'array'
+), combat AS (
+  SELECT seq.id AS sequence_id, c AS combat
+  FROM seq, LATERAL jsonb_array_elements(seq."constraints"->'combats') c
+), monster AS (
+  SELECT c.sequence_id, mon
+  FROM combat c, LATERAL jsonb_array_elements(c.combat->'monsters') mon
+)
+SELECT 'combats_constraints' AS mesure, count(*)::text AS valeur FROM combat
+UNION ALL
+SELECT 'combats_avec_monstre_sans_id', count(*)::text
+FROM combat c
+WHERE EXISTS (
+  SELECT 1 FROM jsonb_array_elements(c.combat->'monsters') mon
+  WHERE mon->>'id' IS NULL
+)
+UNION ALL
+SELECT 'monstres_constraints', count(*)::text FROM monster
+UNION ALL
+SELECT 'monstres_sans_id', count(*)::text FROM monster WHERE mon->>'id' IS NULL
+UNION ALL
+SELECT 'noms_distincts_sans_id', count(DISTINCT mon->>'name')::text
+FROM monster WHERE mon->>'id' IS NULL
+UNION ALL
+SELECT 'tags_combat_activity', count(*)::text
+FROM "GuideSequence" s
+JOIN "GuideMilestone" m ON m.id = s."milestoneId"
+JOIN "OptimizedGuide" g ON g.id = m."guideId",
+LATERAL jsonb_array_elements(s."activityTags") t
+WHERE g.slug = 'rush-sylvestre'
+  AND t->>'type' IN ('combat_solo', 'combat_plusieurs');
+WITH seq AS (
+  SELECT s.id, s."constraints"
+  FROM "GuideSequence" s
+  JOIN "GuideMilestone" m ON m.id = s."milestoneId"
+  JOIN "OptimizedGuide" g ON g.id = m."guideId"
+  WHERE g.slug = 'rush-sylvestre'
+    AND jsonb_typeof(s."constraints"->'combats') = 'array'
+), combat AS (
+  SELECT c AS combat
+  FROM seq, LATERAL jsonb_array_elements(seq."constraints"->'combats') c
+), monster AS (
+  SELECT mon
+  FROM combat c, LATERAL jsonb_array_elements(c.combat->'monsters') mon
+)
+SELECT mon->>'name' AS monstre_sans_id, count(*)::text AS occurrences
+FROM monster
+WHERE mon->>'id' IS NULL
+GROUP BY 1
+ORDER BY count(*) DESC, 1
+LIMIT 30;
 SQL
     ;;
 

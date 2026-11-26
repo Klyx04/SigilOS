@@ -995,12 +995,56 @@ details.da-conseil[open] .da-conseil-body {
   padding: .4rem .1rem .55rem .25rem;
 }
 
-/* Réinitialiser est une ICÔNE de 28 px, pas un déclencheur : sans `flex: none`,
-   `.da-dock button { flex: 1 }` l'étirait et poussait le titre au milieu de la
-   barre, en laissant un grand vide à droite (retour user du 24/11/2026). */
+/* Réinitialiser porte désormais un libellé (26/11/2026) : il reste `flex: none`,
+   avec un vrai padding horizontal et un état « armé » lisible. */
 .da-dock button.da-dock-reset {
   flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .25rem;
+  padding: 0 .5rem;
+  border: 1px solid var(--da-ln);
+  border-radius: 4px;
+  color: var(--da-muted);
+}
+
+.da-dock button.da-dock-reset[data-armed="true"] {
+  border-color: var(--da-warn);
+  color: var(--da-warn);
+}
+
+.da-dock button.da-dock-reset:hover:not(:disabled) {
+  border-color: var(--da-warn);
+  color: var(--da-warn);
+}
+
+/* Navigation « bloc précédent / suivant » dans la barre : deux icônes de 28 px,
+   jamais étirées par `.da-dock button { flex: 1 }` (26/11/2026). */
+.da-dock button.da-dock-nav {
+  flex: none;
+  display: grid;
+  place-items: center;
   padding: 0;
+  border: 1px solid var(--da-ln);
+  border-radius: 4px;
+  color: var(--da-muted);
+}
+
+.da-dock button.da-dock-nav:hover:not(:disabled) {
+  border-color: var(--da-ln);
+  color: var(--da-ink);
+}
+
+.da-dock button.da-dock-nav:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
+
+.da-dock button.da-dock-nav:focus-visible,
+.da-dock button.da-dock-reset:focus-visible {
+  outline: 2px solid var(--da-acc);
+  outline-offset: 1px;
 }
 
 /* Compteur + chevron : un seul bloc collé à droite, insensible au passage du titre

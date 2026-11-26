@@ -43,6 +43,7 @@ import {
   doneDungeonKeysForSequence,
   missingRequiredDungeons,
   occurrenceState,
+  shouldAutoValidateAfterDungeon,
   type RushDungeonMemberState,
   type RushDungeonState,
   type RushDungeonStateMap,
@@ -473,6 +474,10 @@ export default function GuideOverlayClient({
   const [guestDungeonStates, setGuestDungeonStates] = useState<RushDungeonStateMap>(() =>
     isGuest ? readDungeonStates(storagePrefix) : {}
   );
+  /** Appel différé de la validation (évite la dépendance circulaire avec `dungeonActions`). */
+  const autoValidateQuestRef = useRef<(ms: RushMilestone, seqId: string, doneKeys?: string[]) => void>(
+    () => {}
+  );
   const dungeonActions = useMemo(() => {
     if (isGuest) {
       return {
@@ -480,12 +485,42 @@ export default function GuideOverlayClient({
         busyKey: null as string | null,
         others: [] as RushDungeonMemberState[],
         onSet: (sequenceId: string, dungeonKey: string, state: RushDungeonState | null) => {
-          setGuestDungeonStates(
-            writeDungeonState(storagePrefix, dungeonOccurrenceKey(sequenceId, dungeonKey), state)
+          const nextStates = writeDungeonState(
+            storagePrefix,
+            dungeonOccurrenceKey(sequenceId, dungeonKey),
+            state
           );
+          setGuestDungeonStates(nextStates);
+          // ── Auto-validation (26/11/2026) : le dernier donjon requis coché valide la
+          // quête. On passe les clés à jour pour ne pas lire l'état local encore ancien.
+          if (state === "done") {
+            const owner = milestones.find((m) => m.sequences.some((s) => s.id === sequenceId));
+            const seq = owner?.sequences.find((s) => s.id === sequenceId);
+            const already =
+              !!owner &&
+              (completedIds.has(owner.id) ||
+                (completedStepsByMs.get(owner.id)?.has(sequenceId) ?? false));
+            if (
+              owner &&
+              seq &&
+              !already &&
+              shouldAutoValidateAfterDungeon({
+                sequence: seq,
+                states: nextStates,
+                sequenceId,
+                changedDungeonKey: dungeonKey,
+                changedState: state,
+              })
+            ) {
+              const doneKeys = [
+                ...new Set([...doneDungeonKeysForSequence(nextStates, sequenceId), dungeonKey]),
+              ];
+              autoValidateQuestRef.current(owner, sequenceId, doneKeys);
+            }
+            return;
+          }
           // ── S0-7 : un donjon qui n'est plus « fait » DÉVALIDE la quête ──────────
           // Aucun serveur côté invité : on retire la quête des étapes cochées ici.
-          if (state === "done") return;
           const next = deselectSequenceFromProgress({
             completedStepsByMs,
             completedIds,
@@ -515,7 +550,35 @@ export default function GuideOverlayClient({
       states: guildDungeons.states,
       busyKey: guildDungeons.busyKey,
       others: guildDungeons.others,
-      onSet: guildDungeons.setState,
+      onSet: async (sequenceId: string, dungeonKey: string, state: RushDungeonState | null) => {
+        const res = await guildDungeons.setState(sequenceId, dungeonKey, state);
+        // Auto-validation : uniquement sur une coche « done » réussie.
+        if (state !== "done" || !res) return res;
+        const owner = milestones.find((m) => m.sequences.some((s) => s.id === sequenceId));
+        const seq = owner?.sequences.find((s) => s.id === sequenceId);
+        const already =
+          !!owner &&
+          (completedIds.has(owner.id) ||
+            (completedStepsByMs.get(owner.id)?.has(sequenceId) ?? false));
+        if (
+          owner &&
+          seq &&
+          !already &&
+          shouldAutoValidateAfterDungeon({
+            sequence: seq,
+            states: guildDungeons.states,
+            sequenceId,
+            changedDungeonKey: dungeonKey,
+            changedState: state,
+          })
+        ) {
+          const doneKeys = [
+            ...new Set([...doneDungeonKeysForSequence(guildDungeons.states, sequenceId), dungeonKey]),
+          ];
+          autoValidateQuestRef.current(owner, sequenceId, doneKeys);
+        }
+        return res;
+      },
       ensureLoaded: guildDungeons.ensureLoaded,
     };
   }, [
@@ -925,7 +988,7 @@ export default function GuideOverlayClient({
   }, [milestones, completedStepsByMs]);
 
   const getSeqGate = useCallback(
-    (seq: RushSequence): {
+    (seq: RushSequence, doneKeysOverride?: string[]): {
       locked: boolean;
       prereqs: RushPrereqRef[];
       missingDungeons: RushMissingDungeon[];
@@ -936,9 +999,11 @@ export default function GuideOverlayClient({
       const refs = prereqBySeq.get(seq.id) || getPrereqRefs(seq, milestones);
       // Verrou UNITAIRE : un donjon **requis** non coché bloque la quête. La validation
       // par bloc bypass ce verrou (décision 20/11) ; la quête seule le conserve (24/11).
+      // `doneKeysOverride` sert à l'auto-validation : le donjon vient d'être écrit et
+      // l'état local du hook n'est pas encore re-rendu (26/11/2026).
       const missingDungeons = missingRequiredDungeons(
         seq,
-        doneDungeonKeysForSequence(dungeonActions.states, seq.id)
+        doneKeysOverride ?? doneDungeonKeysForSequence(dungeonActions.states, seq.id)
       );
       // Le verrou est celui du SERVEUR (`isSequenceBlockedByPrereqs`) : tags ET, chaîne
       // des rangs, palier de cité et groupes « au choix ». La liste `refs` ne sert qu'à
@@ -1383,7 +1448,7 @@ export default function GuideOverlayClient({
   );
 
   const handleToggleSeq = useCallback(
-    async (ms: RushMilestone, seqId: string) => {
+    async (ms: RushMilestone, seqId: string, doneKeysOverride?: string[]) => {
       if (!canValidate) {
         toast.warning("Choisis ton personnage dans le guide avant de cocher tes quêtes.");
         return;
@@ -1394,7 +1459,7 @@ export default function GuideOverlayClient({
       if (!was) {
         const seqObj = ms.sequences.find((s) => s.id === seqId);
         const gate = seqObj
-          ? getSeqGate(seqObj)
+          ? getSeqGate(seqObj, doneKeysOverride)
           : { locked: false, prereqs: [] as RushPrereqRef[], missingDungeons: [] as RushMissingDungeon[] };
         if (gate.locked) {
           toast.warning(
@@ -1570,6 +1635,12 @@ export default function GuideOverlayClient({
     },
     [completedStepsByMs, completedIds, bookmarksByMs, guildId, effectiveAltPseudo, getSeqGate, goToNextMs, resourceChecks, isGuest, persistGuestResourceChecks, notifyBlockDone, guildDungeons.refresh, canValidate]
   );
+  // Auto-validation : la référence porte toujours la dernière version du handler.
+  useEffect(() => {
+    autoValidateQuestRef.current = (ms, seqId, doneKeys) => {
+      void handleToggleSeq(ms, seqId, doneKeys);
+    };
+  }, [handleToggleSeq]);
 
   // Réinitialise TOUTE la progression du guide (synchro serveur + dashboard),
   // et vide l'état local de l'overlay (blocs cochés, quêtes, repères).

@@ -88,7 +88,7 @@ import { RushOverlayResourcesModal } from "@/app/overlay/guide/[guildId]/[slug]/
 import { aggregateRushResources, getDungeons } from "@/app/overlay/guide/[guildId]/[slug]/components/overlay-utils";
 import { isSequenceBlockedByPrereqs, alignmentCountForCamp, findNextAlignmentCityQuest, getPrereqRefs, resolveRushSeqIcon, getSequenceNpc, isZaapCopyEnabled, getSequenceManualZaap, resolvePrereqTarget, RUSH_RESOURCES_PICTO, RUSH_ACTIVITY_TAG_CONFIG, getSequenceCoord, blockHeaderCoord, getAlignmentSet, collectCascadeUncheck, rushChapterNumbers, getSequenceSuccesses, type RushGuideQuestRef, type RushPrereqRef } from "@/lib/rush-guide-utils";
 // Verrou de DONJONS : la MÊME règle que le serveur et le guide public (`rush-dungeons`).
-import { doneDungeonKeysForSequence, missingRequiredDungeons, occurrenceState, sequenceDungeonProgress, type RushDungeonMemberState, type RushDungeonState } from "@/lib/rush-dungeons";
+import { doneDungeonKeysForSequence, missingRequiredDungeons, occurrenceState, sequenceDungeonProgress, shouldAutoValidateAfterDungeon, type RushDungeonMemberState, type RushDungeonState } from "@/lib/rush-dungeons";
 import type { DungeonAchievementDungeon, DungeonAchievementPanelLoadInput, DungeonAchievementToggleInput } from "@/lib/rush-dungeon-achievements";
 import { DungeonAchievementsModal } from "@/components/dofus-quests/rush/DungeonAchievementsModal";
 import { RushDungeonsProgressTile } from "@/components/dofus-quests/rush/RushDungeonsProgressTile";
@@ -1932,9 +1932,13 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
   const [resourcesModalOpen,setResourcesModalOpen]=useState(false);
   const [resourceChecks,setResourceChecks]=useState<Set<string>>(()=>new Set(initialResourceChecks??[]));
   // Particules d'ambiance teintées au Dofus actif — désactivable (Options, défaut activé).
-  const [rushParticlesEnabled,setRushParticlesEnabled]=useState<boolean>(() => {
-    try { return localStorage.getItem(`rush-particles-${guide.slug}`) !== "false"; } catch { return true; }
-  });
+  const [rushParticlesEnabled,setRushParticlesEnabled]=useState<boolean>(true);
+  const [rushParticlesHydrated,setRushParticlesHydrated]=useState(false);
+  // Hydratation APRÈS le montage : le SSR rend le défaut, puis on applique le réglage.
+  useEffect(()=>{
+    try { setRushParticlesEnabled(localStorage.getItem(`rush-particles-${guide.slug}`) !== "false"); } catch {}
+    setRushParticlesHydrated(true);
+  },[guide.slug]);
   const toggleRushParticles = useCallback(() => {
     setRushParticlesEnabled((prev) => {
       const next = !prev;
@@ -1993,6 +1997,8 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
   // être bloquée AVANT l'aller-retour serveur. Le serveur reste l'autorité : ce n'est
   // qu'une anticipation du refus (`setRushSequenceProgress` / `toggleMilestoneProgress`).
   const dungeonsState=useRushDungeonStates({guildId,slug:guide.slug,altPseudo:effectiveAltPseudo});
+  /** Appel différé de la validation de quête (évite la dépendance circulaire avec `handleSetDungeon`). */
+  const autoValidateQuestRef=useRef<(ms:Milestone,seqId:string,doneKeys?:string[])=>void>(()=>{});
   // ── Bloc J — vue « Progression Donjons » (tuile + panneau) ─────────────
   const [dungeonsOverviewOpen, setDungeonsOverviewOpen] = useState(false);
   const [dungeonsCommunity, setDungeonsCommunity] = useState<RushOverviewMember[] | null>(null);
@@ -2048,13 +2054,27 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
   const handleSetDungeon=useCallback(async(sequenceId:string,dungeonKey:string,state:RushDungeonState|null)=>{
     const res=await dungeonsState.setState(sequenceId,dungeonKey,state);
     const invalidated=res?.invalidatedSequenceId;
-    if(!invalidated)return;
-    const owner=milestones.find(m=>m.sequences.some(s=>s.id===invalidated));
+    if(invalidated){
+      const owner=milestones.find(m=>m.sequences.some(s=>s.id===invalidated));
+      if(!owner)return;
+      setCompletedStepsByMs(prev=>{const n=new Map(prev);const set=new Set(n.get(owner.id)||[]);set.delete(invalidated);n.set(owner.id,set);return n;});
+      setCompletedIds(prev=>{const n=new Set(prev);n.delete(owner.id);return n;});
+      toast.info("Donjon décoché : la quête a été dévalidée.");
+      return;
+    }
+    // Auto-validation (26/11/2026) : le dernier donjon REQUIS coché valide la quête.
+    // On ne valide que si l'écriture a réussi et que la quête n'est pas déjà cochée.
+    if(state!=="done"||!res)return;
+    const owner=milestones.find(m=>m.sequences.some(s=>s.id===sequenceId));
     if(!owner)return;
-    setCompletedStepsByMs(prev=>{const n=new Map(prev);const set=new Set(n.get(owner.id)||[]);set.delete(invalidated);n.set(owner.id,set);return n;});
-    setCompletedIds(prev=>{const n=new Set(prev);n.delete(owner.id);return n;});
-    toast.info("Donjon décoché : la quête a été dévalidée.");
-  },[dungeonsState.setState,milestones]);
+    const seq=owner.sequences.find(s=>s.id===sequenceId);
+    const already=completedIds.has(owner.id)||(completedStepsByMs.get(owner.id)?.has(sequenceId)??false);
+    if(already||!seq)return;
+    if(shouldAutoValidateAfterDungeon({sequence:seq,states:dungeonsState.states,sequenceId,changedDungeonKey:dungeonKey,changedState:state})){
+      const doneKeys=[...new Set([...doneDungeonKeysForSequence(dungeonsState.states,sequenceId),dungeonKey])];
+      autoValidateQuestRef.current(owner,sequenceId,doneKeys);
+    }
+  },[dungeonsState.setState,dungeonsState.states,milestones,completedIds,completedStepsByMs]);
   // Une seule valeur pour toute la timeline : pastilles ET panneaux de quête lisent ici.
   const dungeonActionsValue=useMemo(()=>({states:dungeonsState.states,busyKey:dungeonsState.busyKey,others:dungeonsState.others,onSet:handleSetDungeon,refresh:dungeonsState.refresh}),[dungeonsState.states,dungeonsState.busyKey,dungeonsState.others,handleSetDungeon,dungeonsState.refresh]);
   // Alignement de la guilde : `guildProgress` porte DÉJÀ alignment / ordre / tranche
@@ -2390,7 +2410,7 @@ const timelineItems=useMemo(()=>{
       liveRefreshTimer.current = null;
     }
   }, []);
-  const handleToggleSequence=useCallback(async(ms:Milestone,seqId:string)=>{
+  const handleToggleSequence=useCallback(async(ms:Milestone,seqId:string,doneKeysOverride?:string[])=>{
     const prevSet=new Set(completedStepsByMs.get(ms.id)||[]);
     let cur=new Set(prevSet);
     const was=cur.has(seqId);
@@ -2400,7 +2420,7 @@ const timelineItems=useMemo(()=>{
     if(!was){
       const seqObj=ms.sequences.find((s:any)=>s.id===seqId);
       if(seqObj){
-        const doneKeys=doneDungeonKeysForSequence(dungeonsState.states,seqId);
+        const doneKeys=doneKeysOverride??doneDungeonKeysForSequence(dungeonsState.states,seqId);
         if(sequenceDungeonProgress(seqObj as any,doneKeys).blocked){
           const names=missingRequiredDungeons(seqObj as any,doneKeys).map((d:any)=>d.name);
           if (typeof window !== "undefined") {
@@ -2517,6 +2537,10 @@ const timelineItems=useMemo(()=>{
       toast.error("Erreur réseau");
     }finally{setLoading(ms.id,false);}
   },[completedStepsByMs,completedIds,bookmarksByMs,guildId,effectiveAltPseudo,setLoading,blockedSeqIds,allCompletedSeqIds,milestones,dungeonsState.states,dungeonsState.refresh,resourceChecks,scheduleLiveRefresh]);
+  // Auto-validation : la référence porte toujours la dernière version du handler.
+  useEffect(()=>{
+    autoValidateQuestRef.current=(ms,seqId,doneKeys)=>{void handleToggleSequence(ms,seqId,doneKeys);};
+  },[handleToggleSequence]);
   const handleToggle=useCallback(async(ms:Milestone)=>{
     const was=completedIds.has(ms.id);
     const contentSeqs=(ms.sequences||[]).filter((s:any)=>!isInfoSequence(s));
@@ -2989,7 +3013,7 @@ const timelineItems=useMemo(()=>{
     style={daTheme.accent ? ({ "--da-acc": daTheme.accent } as React.CSSProperties) : undefined}
   >
     {/* Braises d'ambiance teintées au Dofus actif (désactivable via Options) */}
-    <GuideParticles active={rushParticlesEnabled} colors={particlePalette} haloColor={ambientDofusColor} />
+    <GuideParticles active={rushParticlesHydrated && rushParticlesEnabled} colors={particlePalette} haloColor={ambientDofusColor} />
     <div className="relative overflow-hidden rounded-[6px] p-5 sm:p-6 border border-border bg-surface">
       <div className="relative flex flex-col gap-5">
         {/* Top Header Navigation & Meta Actions */}

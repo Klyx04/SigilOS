@@ -89,6 +89,7 @@ import {
   occurrenceState,
   resolveSequenceDungeons,
   sequenceDungeonProgress,
+  shouldAutoValidateAfterDungeon,
   type RushDungeonState,
 } from "@/lib/rush-dungeons";
 import {
@@ -465,7 +466,9 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
   // facultatifs) : chaque personnage garde SES étapes cochées et SON repère. Sans
   // personnage déclaré, les clés restent celles d'origine (`sigil_guest_<slug>_…`) :
   // aucun visiteur déjà en cours de rush ne perd sa progression.
-  const [character, setCharacter] = useState<GuestCharacter | null>(() => readGuestCharacter(guide.slug));
+  const [character, setCharacter] = useState<GuestCharacter | null>(null);
+  /** L'hydratation localStorage est faite APRÈS le montage (SSR identique au premier rendu). */
+  const [hydrated, setHydrated] = useState(false);
   const storagePrefix = guestProgressPrefix(guide.slug, character);
 
   // ── Route d'alignement (lot 5) ──────────────────────────────────────────────
@@ -476,23 +479,8 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
   const routeStorageKey = guestRouteStorageKey(guide.slug);
   /** Ordre du choix LOCAL : le camp pilote la route, l'Ordre est ce qu'affiche la modale. */
   const routeOrderKey = guestRouteOrderStorageKey(guide.slug);
-  const [routeCamp, setRouteCamp] = useState<"bontarien" | "brakmarien" | null>(() => {
-    if (typeof window === "undefined") return null;
-    try {
-      const stored = localStorage.getItem(routeStorageKey);
-      return stored === "bontarien" || stored === "brakmarien" ? stored : null;
-    } catch {
-      return null;
-    }
-  });
-  const [routeOrder, setRouteOrder] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
-    try {
-      return localStorage.getItem(routeOrderKey);
-    } catch {
-      return null;
-    }
-  });
+  const [routeCamp, setRouteCamp] = useState<"bontarien" | "brakmarien" | null>(null);
+  const [routeOrder, setRouteOrder] = useState<string | null>(null);
   const handleRouteChange = useCallback(
     (value: "bontarien" | "brakmarien" | null) => {
       setRouteCamp(value);
@@ -642,14 +630,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
   // ── Coches MANUELLES de ressources (« déjà préparé ») ────────────────────────
   // Persistées LOCALEMENT (aucun compte requis), par personnage — même clé que le
   // reste de la progression visiteur. Côté guilde, la même coche vit en base.
-  const [resourceChecks, setResourceChecks] = useState<Set<string>>(() => {
-    if (typeof window === "undefined") return new Set<string>();
-    try {
-      const raw = localStorage.getItem(`${storagePrefix}resources`);
-      if (raw) return new Set(JSON.parse(raw) as string[]);
-    } catch {}
-    return new Set<string>();
-  });
+  const [resourceChecks, setResourceChecks] = useState<Set<string>>(new Set());
   const handleToggleResourceCheck = useCallback(
     (key: string) => {
       setResourceChecks((prev) => {
@@ -855,53 +836,45 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
     setTimeout(tryScroll, 100);
   }, [seqToChapterId]);
 
-  // Completed steps & milestones (Local-First localStorage)
-  const [completedIds, setCompletedIds] = useState<Set<string>>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const raw = localStorage.getItem(`${storagePrefix}completed_ms`);
-        if (raw) return new Set(JSON.parse(raw));
-      } catch {}
-    }
-    return new Set<string>();
-  });
+  // Completed steps & milestones (Local-First localStorage, hydraté après montage)
+  const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
 
-  const [completedStepsByMs, setCompletedStepsByMs] = useState<Map<string, Set<string>>>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const raw = localStorage.getItem(`${storagePrefix}steps`);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          const m = new Map<string, Set<string>>();
-          for (const [k, v] of Object.entries(parsed)) {
-            m.set(k, new Set(v as string[]));
-          }
-          return m;
-        }
-      } catch {}
-    }
-    return new Map<string, Set<string>>();
-  });
+  const [completedStepsByMs, setCompletedStepsByMs] = useState<Map<string, Set<string>>>(new Map());
 
-  const [bookmarksByMs, setBookmarksByMs] = useState<Map<string, string>>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const raw = localStorage.getItem(`${storagePrefix}bookmarks`);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          return new Map(Object.entries(parsed));
-        }
-      } catch {}
-    }
-    return new Map<string, string>();
-  });
+  const [bookmarksByMs, setBookmarksByMs] = useState<Map<string, string>>(new Map());
 
   // ── Donjons : coches LOCALES (sans compte, sans base) ─────────────────────────
   // La fenêtre est la MÊME coquille que l'overlay et le dashboard ; seule la
   // persistance change (ici : `localStorage`, emplacement du personnage déclaré).
-  const [dungeonStates, setDungeonStates] = useState<LocalDungeonStates>(() =>
-    readDungeonStates(storagePrefix)
-  );
+  const [dungeonStates, setDungeonStates] = useState<LocalDungeonStates>({});
+  // Hydratation APRÈS le montage : le SSR ne connaît pas localStorage. Toutes les
+  // préférences locales (personnage, route, progression, donjons) partent des valeurs
+  // neutres ci-dessus, puis sont relues ici — plus de mismatch d'hydratation (Sentry 33).
+  useEffect(() => {
+    const storedCharacter = readGuestCharacter(guide.slug);
+    setCharacter(storedCharacter);
+    try {
+      const storedCamp = localStorage.getItem(routeStorageKey);
+      setRouteCamp(storedCamp === "bontarien" || storedCamp === "brakmarien" ? storedCamp : null);
+      setRouteOrder(localStorage.getItem(routeOrderKey));
+    } catch {
+      setRouteCamp(null);
+      setRouteOrder(null);
+    }
+    const snapshot = readGuestProgress(guide.slug, storedCharacter);
+    setCompletedIds(snapshot.completedIds);
+    setCompletedStepsByMs(snapshot.completedStepsByMs);
+    setBookmarksByMs(snapshot.bookmarksByMs);
+    const storedPrefix = guestProgressPrefix(guide.slug, storedCharacter);
+    setDungeonStates(readDungeonStates(storedPrefix));
+    try {
+      const storedResources = localStorage.getItem(`${storedPrefix}resources`);
+      setResourceChecks(storedResources ? new Set(JSON.parse(storedResources) as string[]) : new Set());
+    } catch {
+      setResourceChecks(new Set());
+    }
+    setHydrated(true);
+  }, [guide.slug, routeStorageKey, routeOrderKey]);
   // Quelle quête a SON panneau donjon ouvert (`null` = aucun). Aucune fenêtre globale.
   const [openDungeonPanel, setOpenDungeonPanel] = useState<string | null>(null);
   // ─── Bloc I — succès de donjon (modale pleine + mini PiP) ──────────────────
@@ -996,8 +969,15 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
   // Changement de personnage (ou adoption d'une progression anonyme) = changement
   // d'emplacement : on relit SES coches de donjons, comme ses étapes cochées.
   useEffect(() => {
+    if (!hydrated) return;
     setDungeonStates(readDungeonStates(storagePrefix));
-  }, [storagePrefix]);
+    try {
+      const storedResources = localStorage.getItem(`${storagePrefix}resources`);
+      setResourceChecks(storedResources ? new Set(JSON.parse(storedResources) as string[]) : new Set());
+    } catch {
+      setResourceChecks(new Set());
+    }
+  }, [hydrated, storagePrefix]);
 
   // ─── Progression EN BASE (V1d) — connectés seulement ────────────────────────
   // Le navigateur reste la **source** (D1) ; la base est un **miroir**, pour que la suite
@@ -1069,7 +1049,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
   // (`createMany skipDuplicates`) ; le `Set` évite simplement de rejouer l'appel.
   const adoptedSlots = useRef<Set<string>>(new Set());
   useEffect(() => {
-    if (!isConnected || adoptedSlots.current.has(characterSlot)) return;
+    if (!hydrated || !isConnected || adoptedSlots.current.has(characterSlot)) return;
     adoptedSlots.current.add(characterSlot);
     void (async () => {
       const state = await loadMyRushProgress({ characterSlot });
@@ -1077,14 +1057,14 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
         await adoptMyRushProgress(buildProgressSnapshot());
       }
     })();
-  }, [isConnected, characterSlot, buildProgressSnapshot]);
+  }, [hydrated, isConnected, characterSlot, buildProgressSnapshot]);
 
   // Miroir débouncé : 2 s après la dernière coche, on envoie l'état complet.
   // Pas de `flush` à la fermeture d'onglet : une server action ne survit pas à un
   // `beforeunload`, et la base reste un miroir — le navigateur n'a rien perdu.
   const firstMirrorRun = useRef(true);
   useEffect(() => {
-    if (!isConnected) return;
+    if (!hydrated || !isConnected) return;
     if (firstMirrorRun.current) {
       firstMirrorRun.current = false;
       return;
@@ -1093,7 +1073,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
       void saveMyRushProgress(buildProgressSnapshot());
     }, 2000);
     return () => clearTimeout(timer);
-  }, [isConnected, buildProgressSnapshot]);
+  }, [hydrated, isConnected, buildProgressSnapshot]);
 
   // Popup « Reprendre ? » : uniquement au retour sur le guide avec un repère
   // local pré-existant — jamais juste après avoir posé le repère soi-même.
@@ -1225,10 +1205,13 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
    * conserve (décision 24/11). Le guide public est local : la règle est ici.
    */
   const isSeqBlockedByDungeon = useCallback(
-    (seqId: string): boolean => {
+    (seqId: string, doneKeysOverride?: string[]): boolean => {
       const s = seqById.get(seqId);
       if (!s || completedSeqIds.has(seqId)) return false;
-      return sequenceDungeonProgress(s, doneDungeonKeysForSequence(dungeonStates, seqId)).blocked;
+      return sequenceDungeonProgress(
+        s,
+        doneKeysOverride ?? doneDungeonKeysForSequence(dungeonStates, seqId)
+      ).blocked;
     },
     [seqById, completedSeqIds, dungeonStates]
   );
@@ -1241,15 +1224,50 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
     [storagePrefix, setDungeonStates]
   );
 
+  /** Appel différé de la validation (évite la dépendance circulaire avec `handleToggleStep`). */
+  const autoValidateQuestRef = useRef<(msId: string, seqId: string, doneKeys?: string[]) => void>(
+    () => {}
+  );
+
   /** Coche / décoche une OCCURRENCE (re-cliquer retire l'état). */
   const handleSetDungeonState = useCallback(
     (sequenceId: string, dungeonKey: string, state: RushDungeonState | null) => {
-      setDungeonStates(
-        writeDungeonState(storagePrefix, dungeonOccurrenceKey(sequenceId, dungeonKey), state)
+      const nextStates = writeDungeonState(
+        storagePrefix,
+        dungeonOccurrenceKey(sequenceId, dungeonKey),
+        state
       );
+      setDungeonStates(nextStates);
+      // ── Auto-validation (26/11/2026) : le dernier donjon requis coché valide la
+      // quête, avec les clés à jour (l'état local n'est pas encore re-rendu).
+      if (state === "done") {
+        const owner = milestones.find((m) => m.sequences.some((s) => s.id === sequenceId));
+        const seq = owner?.sequences.find((s) => s.id === sequenceId);
+        const already =
+          !!owner &&
+          (completedSeqIds.has(sequenceId) ||
+            (completedStepsByMs.get(owner.id)?.has(sequenceId) ?? false));
+        if (
+          owner &&
+          seq &&
+          !already &&
+          shouldAutoValidateAfterDungeon({
+            sequence: seq,
+            states: nextStates,
+            sequenceId,
+            changedDungeonKey: dungeonKey,
+            changedState: state,
+          })
+        ) {
+          const doneKeys = [
+            ...new Set([...doneDungeonKeysForSequence(nextStates, sequenceId), dungeonKey]),
+          ];
+          autoValidateQuestRef.current(owner.id, sequenceId, doneKeys);
+        }
+        return;
+      }
       // ── S0-7 : un donjon qui n'est plus « fait » DÉVALIDE la quête ────────────
       // Pas de serveur ici : c'est la surface qui retire la quête de ses étapes cochées.
-      if (state === "done") return;
       const next = deselectSequenceFromProgress({
         completedStepsByMs,
         completedIds,
@@ -1274,7 +1292,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
       }
       toast.info("Donjon décoché : la quête a été dévalidée.");
     },
-    [storagePrefix, completedStepsByMs, completedIds, milestones]
+    [storagePrefix, completedStepsByMs, completedIds, milestones, completedSeqIds]
   );
 
   const remainingResources = useMemo(
@@ -1329,7 +1347,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
 
   // Toggle step
   const handleToggleStep = useCallback(
-    (msId: string, seqId: string) => {
+    (msId: string, seqId: string, doneKeysOverride?: string[]) => {
       let current = new Set(completedStepsByMs.get(msId) || []);
       const was = current.has(seqId);
       // Porte de départ : sans personnage, aucune NOUVELLE coche (la lecture et la
@@ -1349,7 +1367,7 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
       }
 
       // Verrou UNITAIRE de donjon : la validation par bloc bypass, pas la quête seule.
-      if (!was && isSeqBlockedByDungeon(seqId)) {
+      if (!was && isSeqBlockedByDungeon(seqId, doneKeysOverride)) {
         toast.error("Donjon requis non fait — coche-le sur la pastille Donjon de cette quête.");
         return;
       }
@@ -1405,6 +1423,12 @@ export function PublicRushGuideClient({ guide, milestones: rawMilestones, isConn
     },
     [completedStepsByMs, milestones, storagePrefix, isStepLocked, isSeqBlockedByDungeon, clearDungeonStatesOnInvalidate, applyResourceChecksForQuest, startState.needsCharacter]
   );
+  // Auto-validation : la référence porte toujours la dernière version du handler.
+  useEffect(() => {
+    autoValidateQuestRef.current = (msId, seqId, doneKeys) => {
+      handleToggleStep(msId, seqId, doneKeys);
+    };
+  }, [handleToggleStep]);
 
   // Toggle whole chapter
   const handleToggleChapterAll = useCallback(

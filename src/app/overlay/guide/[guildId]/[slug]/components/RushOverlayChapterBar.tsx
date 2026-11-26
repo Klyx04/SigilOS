@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { ChevronDown, Check, RotateCcw } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Check, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isNonCheckableBlock } from "@/lib/rush-guide-utils";
 import { getDofusMeta } from "@/lib/rush-dofus-meta";
@@ -29,6 +29,11 @@ interface RushOverlayChapterBarProps {
   onToggleChapter?: (ms: RushMilestone) => void;
   /** Réinitialise le bloc courant (confirmation en 2 temps, comme le guide interne). */
   onResetChapter?: (ms: RushMilestone) => void;
+  /** Navigation bloc précédent / suivant, dans la barre (le footer garde la même action). */
+  onPrevChapter?: () => void;
+  onNextChapter?: () => void;
+  canPrevChapter?: boolean;
+  canNextChapter?: boolean;
   /** Bloc courant en cours d'écriture serveur : la case ne repart pas en double. */
   loading?: boolean;
 }
@@ -62,6 +67,10 @@ export function RushOverlayChapterBar({
   className,
   onToggleChapter,
   onResetChapter,
+  onPrevChapter,
+  onNextChapter,
+  canPrevChapter = false,
+  canNextChapter = false,
   loading = false,
 }: RushOverlayChapterBarProps) {
   const [open, setOpen] = useState(false);
@@ -141,7 +150,8 @@ export function RushOverlayChapterBar({
         )}
 
         {/* Réinitialiser le bloc courant — manque signalé le 23/11/2026 dans l'overlay.
-            Confirmation en 2 temps : le premier clic arme, le second écrit. */}
+            Confirmation en 2 temps : le premier clic arme, le second écrit. Le libellé
+            remplace l'icône seule (retour du 26/11/2026 : « pas assez clair »). */}
         {activeMs && onResetChapter && showProgress && (
           <button
             type="button"
@@ -155,6 +165,7 @@ export function RushOverlayChapterBar({
               onResetChapter(activeMs);
             }}
             disabled={loading}
+            data-armed={resetArmed ? "true" : undefined}
             aria-label={
               resetArmed ? "Confirmer la réinitialisation du bloc" : "Réinitialiser le bloc"
             }
@@ -164,7 +175,7 @@ export function RushOverlayChapterBar({
                 : "Réinitialiser ce bloc"
             }
             className={cn(
-              "da-dock-reset grid h-7 w-7 shrink-0 place-items-center rounded-[4px] border transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent",
+              "da-dock-reset inline-flex h-7 shrink-0 items-center gap-1 rounded-[4px] border px-2 transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent",
               resetArmed
                 ? "border-danger/60 text-danger"
                 : "border-border text-muted-foreground hover:border-danger/40 hover:text-danger",
@@ -172,6 +183,9 @@ export function RushOverlayChapterBar({
             )}
           >
             <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+            <span className="text-[10px] font-semibold">
+              {resetArmed ? "Confirmer" : "Réinitialiser"}
+            </span>
           </button>
         )}
 
@@ -210,12 +224,10 @@ export function RushOverlayChapterBar({
           <span className="da-dock-trail">
             {showChapterCount && (
               <span
-                className={cn(
-                  "hidden shrink-0 text-[9px] font-semibold uppercase tracking-[0.12em] sm:inline",
-                  "text-muted-foreground"
-                )}
+                className="shrink-0 font-mono text-[9px] font-semibold tabular-nums text-muted-foreground"
+                aria-label={`Bloc ${chapterPos + 1} sur ${selectable.length}`}
               >
-                Chapitre {chapterPos + 1} / {selectable.length}
+                {chapterPos + 1}/{selectable.length}
               </span>
             )}
             {msDone && (
@@ -248,9 +260,34 @@ export function RushOverlayChapterBar({
             )}
           </span>
         </button>
+        {/* Navigation bloc précédent / suivant — même action que le footer, mais
+            TOUJOURS visible dans la barre (la PiP peut couper le bas de la fenêtre). */}
+        {onPrevChapter && onNextChapter ? (
+          <div className="flex shrink-0 items-center gap-1">
+            <button
+              type="button"
+              onClick={onPrevChapter}
+              disabled={!canPrevChapter || loading}
+              aria-label="Bloc précédent"
+              title="Bloc précédent"
+              className="da-dock-nav h-7 w-7 rounded-[4px]"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              onClick={onNextChapter}
+              disabled={!canNextChapter || loading}
+              aria-label="Bloc suivant"
+              title="Bloc suivant"
+              className="da-dock-nav h-7 w-7 rounded-[4px]"
+            >
+              <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+          </div>
+        ) : null}
       </div>
-      {/* Jauge fine collée au bas de la barre : la progression ne coûte plus une rangée
-          entière (c'était le 2ᵉ des trois blocs empilés). */}
+      {/* Jauge fine collée au bas de la barre : la progression ne coûte plus une rangée. */}
       {showProgress && (
         <span
           className="absolute inset-x-0 bottom-0 h-[2px] bg-elevated"

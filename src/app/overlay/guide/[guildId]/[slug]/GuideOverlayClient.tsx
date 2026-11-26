@@ -2050,6 +2050,10 @@ export default function GuideOverlayClient({
             doneByMs={completedStepsByMs}
             onToggleChapter={handleToggleMs}
             onResetChapter={handleResetMs}
+            onPrevChapter={goToPrevMs}
+            onNextChapter={goToNextMs}
+            canPrevChapter={currentMsIndex > 0}
+            canNextChapter={currentMsIndex < milestones.length - 1}
             loading={!!currentMs && loadingIds.has(currentMs.id)}
           />
 

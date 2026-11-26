@@ -105,7 +105,8 @@ async function runBackgroundDataset(
             partial: result.failedIcons > 0,
             message:
                 `${result.classes}/${classIds.length} grimoire(s) · ${result.spells} sort(s) · ` +
-                `${result.icons} icône(s)${result.failedIcons > 0 ? ` (${result.failedIcons} en échec)` : ""}`,
+                `${result.icons} icône(s)${result.failedIcons > 0 ? ` (${result.failedIcons} en échec)` : ""}` +
+                `${result.deferred ? " · limite locale atteinte, reprise au prochain passage" : ""}`,
             errors: result.errors,
         });
         return result;

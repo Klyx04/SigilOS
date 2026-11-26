@@ -313,16 +313,20 @@ annonces de **prod**) avec `> /dev/null` (⇒ **aucun log**, donc invisible dans
 # ⚠️ `flock` + `-m 300` : après une longue coupure, la passe relit les panoplies des 60 derniers jours.
 0 5 * * 0 /usr/bin/flock -n /tmp/data-watch.lock curl -s -m 300 -o /dev/null -w "data-watch \%{http_code} $(date -Is)\n" -H "x-cron-secret: $CRON_SECRET" "$APP_URL/api/cron/data-watch" >> "$LOG_DIR/data-watch.log" 2>&1
 
-# 🧬 Veille des CLASSES DofusDB — QUOTIDIEN 04h45 UTC (avant data-watch le dimanche).
-# Prod = vérité live ; bêta = aperçu. Le manifeste et les icônes sont écrits dans le
-# volume `assets-dofus` de l'environnement appelé (jamais partagés beta/prod).
+# 🧬 Veille des CLASSES DofusDB — QUOTIDIEN 04h45 UTC (beta) / 04h50 UTC (prod).
+# Prod = vérité live ; bêta = aperçu. Chaque route écrit le manifeste + les icônes dans
+# le volume `assets-dofus` de SON environnement (jamais partagés beta/prod).
 # Dimanche : la même passe met en file une **passe complète des grimoires** (attrape
 # un rééquilibrage de sorts qui ne change ni le nom ni le nombre de sorts).
-# ⚠️ Deux lignes si les deux environnements doivent être veillés : remplacer
-#    $APP_URL/$CRON_SECRET par $APP_URL_BETA/$CRON_SECRET_BETA puis
-#    $APP_URL_PROD/$CRON_SECRET_PROD, et garder un log par environnement.
+# ⚠️ Variables à définir en tête du crontab : APP_URL_BETA + CRON_SECRET_BETA,
+#    APP_URL_PROD + CRON_SECRET_PROD (les secrets des `.env.beta` / `.env.prod`).
+# ⚠️ Deux lignes, deux `flock` : 5 min d'écart pour ne pas marteler DofusDB en parallèle.
 # ⚠️ `\%` obligatoire (cron coupe la ligne au premier `%` non échappé).
-45 4 * * * /usr/bin/flock -n /tmp/class-watch.lock curl -s -m 180 -o /dev/null -w "class-watch \%{http_code} $(date -Is)\n" -H "x-cron-secret: $CRON_SECRET" "$APP_URL/api/cron/class-watch" >> "$LOG_DIR/class-watch.log" 2>&1
+45 4 * * * /usr/bin/flock -n /tmp/class-watch-beta.lock curl -s -m 180 -o /dev/null -w "class-watch-beta \%{http_code} $(date -Is)\n" -H "x-cron-secret: $CRON_SECRET_BETA" "$APP_URL_BETA/api/cron/class-watch" >> "$LOG_DIR/class-watch.log" 2>&1
+50 4 * * * /usr/bin/flock -n /tmp/class-watch-prod.lock curl -s -m 180 -o /dev/null -w "class-watch-prod \%{http_code} $(date -Is)\n" -H "x-cron-secret: $CRON_SECRET_PROD" "$APP_URL_PROD/api/cron/class-watch" >> "$LOG_DIR/class-watch.log" 2>&1
+# Backfill / relance manuelle des grimoires : God ▸ Tableau ▸ « Grimoires de classes »
+# ▸ Lancer, sur CHAQUE environnement. Le cron quotidien met aussi en file les classes
+# modifiées ; une limite locale est un **différé** (pas un `PARTIAL`), rejouée au passage suivant.
 
 # 📋 Conditions d'équipement (DofusDude → `GameItem.conditions`) — UNE FOIS par mois.
 # C'est ce qui permet d'afficher et de **bloquer** une variante sur un trophée conditionnel

@@ -27,6 +27,7 @@ dans `docker-compose.prod.yml` (profil `ops`, jamais démarré par `up`).
 | `rush-delete-archive <env> <slug>` | non | montre la suppression | préfixe `rush-sylvestre-archive-` |
 | `rush-delete-archive … --apply` | oui | supprime l'archive (cascade) | préfixe + dump préalable |
 | `rush-verify <env>` | non | séquences, conseils, `pos_tags`, tags avec monstres | lecture seule |
+| `rush-combats <env>` | non | combats `constraints` + monstres sans id + tags `activityTags` | lecture seule |
 
 ## 2. Procédure (bêta puis prod)
 
@@ -37,6 +38,7 @@ cd ~/SigilOS
 ./scripts/ops/vps.sh rush-archive beta --apply
 # God ▸ Rush Sylvestre ▸ JSON : analyser puis appliquer le seed
 ./scripts/ops/vps.sh rush-verify beta
+./scripts/ops/vps.sh rush-combats beta
 ```
 
 ## 3. Rollback

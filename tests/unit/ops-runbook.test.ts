@@ -78,9 +78,17 @@ describe("ops-runbook — harnais", () => {
     expect(SKILL).toContain("--apply");
   });
 
+  it("expose la mesure combats en lecture seule", () => {
+    expect(SCRIPT).toContain("rush-combats");
+    expect(SCRIPT).toContain("combats_constraints");
+    expect(SCRIPT).toContain("monstres_sans_id");
+    expect(SCRIPT).toContain("tags_combat_activity");
+  });
+
   it("la doc décrit la matrice et le rollback", () => {
     expect(DOC).toContain("rush-archive");
     expect(DOC).toContain("rush-verify");
+    expect(DOC).toContain("rush-combats");
     expect(DOC).toContain("Rollback");
     expect(DOC).toContain("stage `ops`");
   });

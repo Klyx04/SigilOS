@@ -313,6 +313,17 @@ annonces de **prod**) avec `> /dev/null` (⇒ **aucun log**, donc invisible dans
 # ⚠️ `flock` + `-m 300` : après une longue coupure, la passe relit les panoplies des 60 derniers jours.
 0 5 * * 0 /usr/bin/flock -n /tmp/data-watch.lock curl -s -m 300 -o /dev/null -w "data-watch \%{http_code} $(date -Is)\n" -H "x-cron-secret: $CRON_SECRET" "$APP_URL/api/cron/data-watch" >> "$LOG_DIR/data-watch.log" 2>&1
 
+# 🧬 Veille des CLASSES DofusDB — QUOTIDIEN 04h45 UTC (avant data-watch le dimanche).
+# Prod = vérité live ; bêta = aperçu. Le manifeste et les icônes sont écrits dans le
+# volume `assets-dofus` de l'environnement appelé (jamais partagés beta/prod).
+# Dimanche : la même passe met en file une **passe complète des grimoires** (attrape
+# un rééquilibrage de sorts qui ne change ni le nom ni le nombre de sorts).
+# ⚠️ Deux lignes si les deux environnements doivent être veillés : remplacer
+#    $APP_URL/$CRON_SECRET par $APP_URL_BETA/$CRON_SECRET_BETA puis
+#    $APP_URL_PROD/$CRON_SECRET_PROD, et garder un log par environnement.
+# ⚠️ `\%` obligatoire (cron coupe la ligne au premier `%` non échappé).
+45 4 * * * /usr/bin/flock -n /tmp/class-watch.lock curl -s -m 180 -o /dev/null -w "class-watch \%{http_code} $(date -Is)\n" -H "x-cron-secret: $CRON_SECRET" "$APP_URL/api/cron/class-watch" >> "$LOG_DIR/class-watch.log" 2>&1
+
 # 📋 Conditions d'équipement (DofusDude → `GameItem.conditions`) — UNE FOIS par mois.
 # C'est ce qui permet d'afficher et de **bloquer** une variante sur un trophée conditionnel
 # (« Bonus de panoplies < 2 », « PA < 12 »…).
@@ -327,6 +338,7 @@ annonces de **prod**) avec `> /dev/null` (⇒ **aucun log**, donc invisible dans
 
 | Ce qui change côté jeu | Porté par | Automatique ? |
 |---|---|---|
+| **Nouvelle classe / classe modifiée / retirée** | `class-catalog.json` (volume par env) + `GameDataChangeLog` + icônes | ⚠️ **`class-watch` quotidien** : détecte prod + bêta, télécharge l'icône, alerte. Une classe **bêta seule** reste `preview` ; l'ajout au bundle client reste une **PR humaine** sur `DOFUS_CLASSES`. Aucune suppression automatique. |
 | Nouvel objet / objet retiré | `GameItem` | ✅ `data-watch` hebdo : alerte God **+** veille ciblée |
 | **Stats / effets d'un objet existant** (rééquilibrage 3.7) | `GameItem.effects` **et** le payload Dofusbook du build | ✅ veille ciblée hebdo (inconditionnelle depuis le 26/10/2026) |
 | **Paliers de bonus d'une panoplie** | `GameItemSet` (référentiel **à nous**) | ✅ passe ciblée `data-watch` (`updatedAt[$gt]`, filigrane Redis `game-data:watch:item-sets`) |

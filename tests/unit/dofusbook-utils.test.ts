@@ -13,10 +13,14 @@ function buildRaw(overrides: Record<string, unknown> = {}) {
 }
 
 describe("processDofusbookRawData — résolution de classe (#galerie Inconnu)", () => {
-    it("résout la classe quand Dofusbook renvoie un character_class valide (1-19)", () => {
-        const res = processDofusbookRawData("123", buildRaw({ stuff: { name: "Forge Rush", character_class: 19 } }));
-        expect(res.classId).toBe(19);
-        expect(res.className).toBe("Forgelance");
+    it("résout la classe quand Dofusbook renvoie un character_class valide (1-20)", () => {
+        const forge = processDofusbookRawData("123", buildRaw({ stuff: { name: "Forge Rush", character_class: 19 } }));
+        expect(forge.classId).toBe(19);
+        expect(forge.className).toBe("Forgelance");
+
+        const bella = processDofusbookRawData("124", buildRaw({ stuff: { name: "Bella Rush", character_class: 20 } }));
+        expect(bella.classId).toBe(20);
+        expect(bella.className).toBe("Bellaphone");
     });
 
     it("NE produit PAS un faux « Inconnu » quand character_class est absent → classId 0 / className vide", () => {
@@ -340,10 +344,11 @@ describe("dofusbookItemIconId — icônes d'items (bug « mauvais items » galer
 });
 
 describe("getClassName", () => {
-    it("mappe les 19 classes Dofus", () => {
+    it("mappe toutes les classes Dofus (ordre Dofusbook)", () => {
         expect(getClassName(1)).toBe("Féca");
         expect(getClassName(13)).toBe("Roublard");
         expect(getClassName(19)).toBe("Forgelance");
+        expect(getClassName(20)).toBe("Bellaphone");
     });
 
     it("renvoie « Inconnu » pour un id hors bornes", () => {
@@ -400,22 +405,28 @@ describe("isUsableDofusbookRawPayload — validation du JSON fourni par le navig
     });
 });
 
-describe("canonicalClassId (filtre galerie : Forgelance 19 vs 20)", () => {
-    it("garde la numérotation Dofusbook 1-19 telle quelle", () => {
+describe("canonicalClassId (Dofusbook 1-20 vs breed DofusDB 20-21)", () => {
+    it("garde la numérotation Dofusbook telle quelle (Forgelance 19, Bellaphone 20)", () => {
         expect(canonicalClassId(1)).toBe(1);
         expect(canonicalClassId(9)).toBe(9);
         expect(canonicalClassId(19)).toBe(19);
+        expect(canonicalClassId(20)).toBe(20);
         expect(canonicalClassId("9")).toBe(9);
+        expect(canonicalClassId("20")).toBe(20);
     });
 
-    it("convertit le breed DofusDB / l'id d'icône 20 vers Forgelance = 19", () => {
-        expect(canonicalClassId(20)).toBe(19);
-        expect(canonicalClassId("20")).toBe(19);
+    it("convertit un breed DofusDB (Forgelance 20, Bellaphone 21)", () => {
+        expect(canonicalClassId(20, "breed")).toBe(19);
+        expect(canonicalClassId("20", "breed")).toBe(19);
+        expect(canonicalClassId(21, "breed")).toBe(20);
+        expect(canonicalClassId("21", "breed")).toBe(20);
     });
 
     it("résout les slugs et noms legacy (insensible accents/casse)", () => {
         expect(canonicalClassId("forgelance")).toBe(19);
         expect(canonicalClassId("Forgelance")).toBe(19);
+        expect(canonicalClassId("bellaphone")).toBe(20);
+        expect(canonicalClassId("Bellaphone")).toBe(20);
         expect(canonicalClassId("Cra")).toBe(9);
         expect(canonicalClassId("ecaflip")).toBe(6);
     });

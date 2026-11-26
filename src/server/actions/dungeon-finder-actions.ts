@@ -16,6 +16,7 @@ import { emitGuildActivity } from "@/server/guild-activity-emit";
 import { createAuditLog } from "./audit-actions";
 import { sanitizeName } from "@/lib/security";
 import { getDiscordApiCode, getDiscordApiStatus } from "@/lib/discord-api-errors";
+import { DOFUS_CLASSES } from "@/lib/dofus-assets";
 import { getMultiDungeons, achievementLines, embedCoverUrl, formatDiscordDateStamp, mergeMultiDungeonTargetDates, mergeMultiDungeonRequiredClasses, getDjDungeonStats, getMultiMessageIds, withMultiMessageIds, getDjCreatorClass, withDjCreatorClass, isDjDungeonClosed, withDjDungeonsClosed, openDjDungeonIndexes, resolveDjJoinCapacity } from "@/lib/dungeon-finder-utils";
 import { visibleDungeonAchievements } from "@/lib/dungeon-no-achievement";
 import { resolveOwnedClass } from "@/lib/user-character-classes";
@@ -366,7 +367,7 @@ const createMultiPostSchema = z.object({
         // #203 — taille du groupe PAR donjon (2-8), optionnelle (fallback global).
         maxMembers: z.number().min(2).max(8).optional(),
         /** #26 — classes recherchées **de ce donjon** (jamais la liste globale pour tous). */
-        requiredClasses: z.array(z.string().max(30)).max(19).default([]),
+        requiredClasses: z.array(z.string().max(30)).max(DOFUS_CLASSES.length).default([]),
     })).min(2).max(5),
     maxMembers: z.number().min(2).max(8).default(4),
     requiredClasses: z.array(z.string()).default([]),
@@ -390,7 +391,7 @@ const updatePostSchema = z.object({
     message: z.string().max(500).nullable().catch(null),
     targetDate: z.date().nullable().catch(null),
     wantedAchievementIds: z.array(z.string().max(40)).max(50).default([]),
-    requiredClasses: z.array(z.string().max(30)).max(19).default([]),
+    requiredClasses: z.array(z.string().max(30)).max(DOFUS_CLASSES.length).default([]),
     /** Classe du créateur — `undefined` = ne pas toucher, `null` = effacer (repli profil). */
     creatorClass: z.string().max(30).nullable().optional(),
     questName: z.string().max(100).nullable().catch(null).optional(),
@@ -399,9 +400,9 @@ const updatePostSchema = z.object({
     multiDungeonDates: z.array(z.object({
         targetDate: z.date().nullable().catch(null),
     })).max(5).nullable().optional(),
-    /** #26 — classes recherchées PAR donjon d'un post multi (max 5 donjons, 19 classes). */
+    /** #26 -- classes recherchées PAR donjon d'un post multi (max 5 donjons, une par classe). */
     multiDungeonClasses: z.array(
-        z.array(z.string().max(30)).max(19)
+        z.array(z.string().max(30)).max(DOFUS_CLASSES.length)
     ).max(5).nullable().optional(),
 });
 

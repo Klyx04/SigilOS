@@ -1,4 +1,5 @@
-﻿import { resolveDofusStatTheme } from "@/lib/dofus-stats-theme";
+﻿import { DOFUS_CLASSES, getDofusClassByDofusbookId } from "@/lib/dofus-assets";
+import { resolveDofusStatTheme } from "@/lib/dofus-stats-theme";
 import { activeTierCount } from "@/lib/dofus-set-bonuses";
 
 export type DofusbookItemEffect = {
@@ -512,13 +513,7 @@ export function dofusbookCharacteristicRows(
 }
 
 export function getClassName(id: number): string {
-    const classes: Record<number, string> = {
-        1: "Féca", 2: "Osamodas", 3: "Enutrof", 4: "Sram", 5: "Xélor",
-        6: "Écaflip", 7: "Éniripsa", 8: "Iop", 9: "Crâ", 10: "Sadida",
-        11: "Sacrieur", 12: "Pandawa", 13: "Roublard", 14: "Zobal", 15: "Steamer",
-        16: "Éliotrope", 17: "Huppermage", 18: "Ouginak", 19: "Forgelance"
-    };
-    return classes[id] || "Inconnu";
+    return getDofusClassByDofusbookId(id)?.name ?? "Inconnu";
 }
 
 /** Normalisation insensible aux accents/casse pour comparer des noms de classe. */
@@ -527,28 +522,36 @@ function stripAccents(s: string): string {
 }
 
 /**
- * Canonise un identifiant de classe vers la numérotation Dofusbook (1-19).
- * Deux numérotations coexistent : Dofusbook (`character_class`, liens galerie,
- * `getClassSpells`) compte Forgelance = 19, tandis que les icônes
- * `/assets/dofus/classes/*.png` + DofusDB (`breedId`) comptent Forgelance = 20
- * (d'où le filtre galerie qui envoyait "20" pour des builds stockés "19" → 0 résultat).
- * Accepte aussi les slugs/noms legacy ("cra", "Forgelance"). Retourne 0 si inconnu.
+ * Nature d'un identifiant de classe numérique.
+ *
+ * Deux numérotations coexistent : **Dofusbook** (`character_class`, builds,
+ * `ClassSpellbook.classId`) compte Forgelance = 19, Bellaphone = 20 ; **DofusDB/Dofus
+ * Unity** (`breed`) compte Forgelance = 20, Bellaphone = 21. Le nombre `20` est donc
+ * ambigu : c'est Forgelance en breed, Bellaphone en Dofusbook. L'appelant doit dire
+ * laquelle il manipule — jamais deviner.
  */
-export function canonicalClassId(value: unknown): number {
+export type ClassIdKind = "dofusbook" | "breed";
+
+/**
+ * Canonise un identifiant de classe vers la numérotation **Dofusbook** (1-20).
+ * Accepte un nombre, un slug (`cra`, `bellaphone`) ou un libellé (`Féca`,
+ * `Forgelance`). `kind` lève l'ambiguïté du nombre 20. Retourne 0 si inconnu.
+ */
+export function canonicalClassId(value: unknown, kind: ClassIdKind = "dofusbook"): number {
     if (typeof value === "number" && Number.isInteger(value)) {
-        if (value >= 1 && value <= 19) return value;
-        if (value === 20) return 19; // breed DofusDB → ordre Dofusbook
-        return 0;
+        if (kind === "breed") {
+            return DOFUS_CLASSES.find((c) => c.breed === value)?.dofusbookId ?? 0;
+        }
+        return getDofusClassByDofusbookId(value)?.dofusbookId ?? 0;
     }
     if (typeof value === "string") {
         const t = value.trim();
-        if (/^\d+$/.test(t)) return canonicalClassId(Number(t));
+        if (/^\d+$/.test(t)) return canonicalClassId(Number(t), kind);
         const norm = stripAccents(t).toLowerCase();
-        for (let id = 1; id <= 19; id++) {
-            const name = stripAccents(getClassName(id)).toLowerCase();
-            if (name === norm) return id;
-        }
-        return 0;
+        const cls = DOFUS_CLASSES.find(
+            (c) => stripAccents(c.name).toLowerCase() === norm || c.id === norm,
+        );
+        return cls?.dofusbookId ?? 0;
     }
     return 0;
 }
@@ -972,7 +975,9 @@ export function processDofusbookRawData(id: string, raw: any): DofusbookPreviewD
     // misleading "Inconnu" label — expose a validated classId (or 0) and let the
     // caller fall back to the selected class / name-based guess.
     const rawClassId = Number(raw.stuff?.character_class);
-    const validClassId = Number.isFinite(rawClassId) && rawClassId >= 1 && rawClassId <= 19 ? rawClassId : null;
+    const validClassId = Number.isFinite(rawClassId) && getDofusClassByDofusbookId(rawClassId)
+        ? rawClassId
+        : null;
 
     /**
      * 📊 Détail « équipement / base / parchotage » par caractéristique primaire

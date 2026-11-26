@@ -27,6 +27,7 @@ export const DOFUS_CLASSES = [
     "Steamer",
     "Xélor",
     "Zobal",
+    "Bellaphone",
 ] as const;
 
 export type DofusClass = typeof DOFUS_CLASSES[number];

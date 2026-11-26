@@ -271,10 +271,12 @@ export function RushBranchesCockpit({
         </div>
       </section>
 
-      {/* Étage 3 — 19 classes, un emplacement par classe. */}
+      {/* Étage 3 — une variante par classe (le nombre vient de DOFUS_CLASSES). */}
       <section className="space-y-3" aria-label="Quêtes de classe">
         <header className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-foreground">Classes — 19 variantes</h2>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-foreground">
+            Classes — {classView ? `${classView.target} variantes` : "une variante par classe"}
+          </h2>
           <span className="text-caption text-muted-foreground">
             {classView ? `${classView.present} / ${classView.target} · ${classView.missing} manque(s)` : "vue indisponible"}
           </span>

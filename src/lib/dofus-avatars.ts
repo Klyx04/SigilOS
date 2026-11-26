@@ -19,6 +19,7 @@ export const DOFUS_AVATARS = [
   { id: 17, name: "Zobal",       emoji: "🎭",  color: "#9C27B0" },
   { id: 18, name: "Masqueraider",emoji: "🎪",  color: "#E91E63" },
   { id: 19, name: "Forgelance",  emoji: "🔱",  color: "#FF9800" },
+  { id: 20, name: "Bellaphone",  emoji: "🐲",  color: "#2DD4BF" },
 ];
 
 export function getDofusAvatar(seed: string) {

@@ -98,12 +98,12 @@ describe("cockpit Branches — un emplacement est un geste", () => {
 
   it("une classe sans quête est nommée « — manque — » et propose sa création", () => {
     // 19 classes, une seule remplie (Féca) : 18 emplacements vides.
-    expect(html.match(/— manque —/g)?.length).toBe(18);
+    expect(html.match(/— manque —/g)?.length).toBe(CLASS_VIEW.target - 1);
     expect(html).toContain("Créer la quête de classe Iop");
   });
 
   it("l'écran nomme les manques de route sans rien inventer", () => {
-    expect(html).toContain("Classes — 19 variantes");
+    expect(html).toContain(`Classes — ${CLASS_VIEW.target} variantes`);
     expect(html).toContain("Ordres — 3 par cité, 5 paliers");
     expect(html).toContain("emplacement");
   });

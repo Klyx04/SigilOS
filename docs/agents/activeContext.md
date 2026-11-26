@@ -6,6 +6,15 @@
 > consultables via `git log -p -- docs/agents/activeContext.md` (l'historique git n'est pas concerné).
 > En fin de session : ajouter le nouveau bloc EN HAUT, et **sortir le 7ᵉ** (récupérable via `git log`).
 
+## 📝 Session 26/11/2026 (suite 79) — **Bellaphone + veille souveraine des classes DofusDB** — branche `feat/bellaphone-class-2026-11-26` (PR **#1563**)
+
+> **Demande user (verbatim)** : « tu lance b1 b2 , tu siphonne bellaphone pour l'appliquer partout comme totues les autre classes , tu mets à jour un workflow pour chaque modif de classe / ajout / suppression depuis dofudb en souverain vps , pense au cron , à la beta dofudb qui est différent de la prod et qui sort du contenu en avance pas forcément tjrs à jour jusqua la sortie officielle de la mise à jour ingame .. pense à tout ».
+> **Mesuré** : DofusDB **prod 19 breeds / bêta 20** ; Bellaphone = breed **21**, `shortName.fr` Bellaphone, **22 variantes / 44 sorts / 91 grades**, symbole 128×128 ; `SmallHead_210/211` **404** sur la bêta. Deux numérotations : Dofusbook Forgelance **19** / Bellaphone **20**, breed Forgelance **20** / Bellaphone **21** ; `canonicalClassId(20)` était ambigu. Listes fermées : Songes, `VALID_CLASSES` Discord, builds Dofusbook, galerie/OG, bornes 1-19 des grimoires/Rush.
+> **Fait** : `DOFUS_CLASSES` enrichi (`dofusbookId`, `preview`, `headFallback`, Bellaphone en **fin** pour ne pas changer `DOFUS_CLASSES[0]`) + `dofusClassHead(21) → 21.png` ; listes alignées ; `canonicalClassId(value, "dofusbook"|"breed")` ; builds Dofusbook dérivés de la source unique (icône 21, couleurs) ; `class-spells-siphon` lit la **bêta** pour une classe preview et accepte `classIds`/`source` ; grimoire local Bellaphone **44 sorts** (`ClassSpellbook.classId=20`) ; workflow `class-watch` (`class-catalog` pur + `class-catalog-siphon` : manifeste par env, icônes hors code dans le volume, `GameDataChangeLog` `CLASSES`, jamais de DELETE), route cron quotidienne 04h45 + **passe complète des grimoires le dimanche**, reprise `class-spell-refresh-pending.json`, verbe ops `class-watch` (dry-run/--apply), volumes `ops-beta`/`ops-prod`, build esbuild, dataset God `CLASSES`.
+> **Preuves** : **8 628 tests / 847 fichiers ✅** · `tsc` 0 · `lint` 0 erreur · `security:audit` franchie · manifeste local `class-catalog.json` (Bellaphone `preview`, `codeDofusbookId: 20`) · `class-catalog` 11 cas + `class-catalog-cron` 5 · aucune migration.
+> **Reste** : déployer la bêta ; poser les lignes crontab `class-watch` beta **et** prod (secrets séparés) ; lancer `./scripts/ops/vps.sh class-watch beta` (dry-run puis `--apply`) ; lancer `CLASS_SPELLS` (ou attendre le cron) sur bêta/prod ; ajouter la quête de classe Bellaphone à `RUSH_CLASS_QUESTS` quand Tougli/DofusDB l'expose ; maquette overlay tight (303→126 px, 4→6 quêtes) **en attente d'arbitrage** reset/flèches — non codée dans ce lot.
+> **Rotation** : bloc « suite 73 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
+
 ## 📝 Session 26/11/2026 (suite 78) — **Rush : une étape à choix = une quête, et choix du donjon** — branche `fix/rush-choice-counts-2026-11-26` (PR **#1562**)
 
 > **Demande user (verbatim)** : captures Turquoise **17/18** avec l'étape 66 « 2 variantes · 1 étape », « Alignement 2/4 » **45/47** alors que le bloc est validé, et « le bouton chercher un groupe … semble prendre que le 1er de la liste ».
@@ -52,13 +61,5 @@
 > **Reste** : **perf** — action batch de validation d'un succès (1 chargement/transaction au lieu de ~20 appels), cache/pagination de l'agrégat guilde, **graphe des succès** (idée, lazy, sous-graphe par succès/Dofus), **raccourcis overlay + sélecteur de bloc** (idée, PiP focus, localStorage), **⑮/⑯/⑰/⑱**, ops bêta/prod (migration `GuideMilestoneChild`, données), prod.
 > **Rotation** : bloc « suite 68 » sorti (7ᵉ) — récupérable via `git log -p -- docs/agents/activeContext.md`.
 
-## 📝 Session 25/11/2026 (suite 73) — **Rush : vrai verrou des rangs et prochaine quête de cité** — branche `fix/rush-locked-reason-next-2026-11-25` (PR **#1542**)
-
-> **Demande user (verbatim)** : capture du rang 4 bloqué par « Apprentissage : Chevalier du Désespoir » pourtant coché, avec 81 quêtes Brâkmarien · « ajoute un truc intelligent avec un bouton qui envoie à la prochaine quête alignement » · « côté brakmar il y avait 2 endroits où il y a un choix ? » · « tout doit être gérable côté god, rien en dur ».
-> **Mesuré** : 81 quêtes d'alignement ≠ 81 quêtes de **cité** — le palier 80 ne compte que les quêtes de cité (les 15 quêtes d'Ordre sont exclues). La carte affichait **tous** les prérequis, y compris le rang 3 déjà coché, au lieu du palier réel. Le futur bouton aurait aussi pu viser les variantes exclusives 55/66 (274/272/312), qui ne sont pas des quêtes de cité à faire.
-> **Fait** : `missingPrereqs` seulement ; ordre du verrou **palier → prérequis manquant → donjon → verrouillée** ; message « Encore N quêtes de cité (x/y) » ; `findNextAlignmentCityQuest` (même cité, hors Ordre, **hors `choice_group`**, préfère une candidate non bloquée) ; bouton **« Prochaine quête de cité »** sur dashboard, public et overlay (lien ambre, sans second cadre) ; palier God en **nombre libre 1–200** + suggestions, valeur en base. Bêta : les **deux** choix Brak sont bien là (55 = 3 variantes, 66 = 2).
-> **Preuves** : **8 524 tests ✅** · `tsc` 0 · `lint` 0 erreur · 25 cas `rush-order-chain` (dont 79/80 cité, exclusion des variantes) · aucune migration.
-> **Reste** : redéployer la bêta ; ops prod plus tard ; ⑮/⑯/⑰/⑱.
-> **Rotation** : blocs « suite 66 » et « suite 67 » sortis — récupérables via `git log -p -- docs/agents/activeContext.md`.
 
 

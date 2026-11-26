@@ -10,6 +10,7 @@
 
 import { logger } from "@/lib/logger";
 import { getClassName } from "@/lib/dofusbook-utils";
+import { getDofusClassByDofusbookId } from "@/lib/dofus-assets";
 import { applyCharLevelToSpells } from "@/lib/dofus-spells";
 import {
     CLASS_SPELLS_TTL_MS,
@@ -61,7 +62,7 @@ function sortSpells(spells: ClassSpellDamage[]): ClassSpellDamage[] {
  * re-dérivé à la lecture (`applyCharLevelToSpells`) : une seule ligne par classe.
  */
 export async function getClassSpells(classId: number, charLevel: number = 200): Promise<ActionResponse<ClassSpellsResponse>> {
-    if (!Number.isInteger(classId) || classId < 1 || classId > 19) {
+    if (!Number.isInteger(classId) || !getDofusClassByDofusbookId(classId)) {
         return { success: false, error: "Classe invalide" };
     }
 

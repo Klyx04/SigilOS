@@ -58,8 +58,8 @@ describe("game-data — état des datasets (progression vraie)", () => {
         expect(state.lastError).toBeNull();
     });
 
-    it("les 11 datasets du dashboard ont un libellé (aucune ligne muette)", () => {
-        expect(GAME_DATA_DATASETS.length).toBe(11);
+    it("tous les datasets du dashboard ont un libellé (aucune ligne muette)", () => {
+        expect(GAME_DATA_DATASETS.length).toBe(12);
         for (const dataset of GAME_DATA_DATASETS) {
             expect(GAME_DATA_DATASET_LABEL[dataset]?.length).toBeGreaterThan(3);
         }
@@ -134,7 +134,7 @@ describe("game-data — siphons en arrière-plan (file + worker)", () => {
         expect(queue).toContain("backoff");
         const state = read("src/lib/game-data-sync-state.ts");
         expect(state).toContain(
-            'GAME_DATA_BACKGROUND_DATASETS = ["CATALOGUE", "ANOMALY_BOSSES", "ZONES", "FAMILIES", "BOUNTIES", "ITEMS", "REFERENTIALS", "QUESTS", "CLASS_SPELLS"] as const',
+            'GAME_DATA_BACKGROUND_DATASETS = ["CATALOGUE", "ANOMALY_BOSSES", "ZONES", "FAMILIES", "BOUNTIES", "ITEMS", "REFERENTIALS", "QUESTS", "CLASS_SPELLS", "CLASSES"] as const',
         );
         // ⚠️ Garde anti-régression (incident du 22/09/2026 : `Can't resolve 'dns'`) :
         // ce module est importé par un composant CLIENT ⇒ il ne doit tirer NI `bullmq`
@@ -260,7 +260,7 @@ describe("game-data — siphons en arrière-plan (file + worker)", () => {
         expect(core).toContain("from '@/lib/game-items-cadence'");
     });
 
-    it("chaque dataset dit COMMENT il se lance : 3 modes qui partitionnent les 11 (plus de renvoi « ci-dessous »)", () => {
+    it("chaque dataset dit COMMENT il se lance : 3 modes qui partitionnent tous les datasets (plus de renvoi « ci-dessous »)", () => {
         // Les 3 modes couvrent TOUS les datasets, sans recouvrement (aucun dataset orphelin).
         expect(
             GAME_DATA_BACKGROUND_DATASETS.length + GAME_DATA_INLINE_DATASETS.length + GAME_DATA_SCRIPT_DATASETS.length,
@@ -268,8 +268,10 @@ describe("game-data — siphons en arrière-plan (file + worker)", () => {
         expect(gameDataLaunchKind("CATALOGUE")).toBe("BACKGROUND");
         expect(gameDataLaunchKind("ITEMS")).toBe("BACKGROUND");
         // 🧙 CLASS_SPELLS est passé en arrière-plan le 24/09/2026 (cœur descendu en `src/lib`) :
-        // c'est ce qui permet de remplir les 19 grimoires **sans onglet ouvert**.
+        // c'est ce qui permet de remplir les grimoires **sans onglet ouvert**.
         expect(gameDataLaunchKind("CLASS_SPELLS")).toBe("BACKGROUND");
+        // 🧬 CLASSES : veille prod/bêta + assets, cœur dans `src/lib` lui aussi.
+        expect(gameDataLaunchKind("CLASSES")).toBe("BACKGROUND");
         expect(gameDataLaunchKind("ASSETS_WEBP")).toBe("INLINE");
         // Cœurs descendus en `lib` le 23/09/2026 : ces siphons partent en file.
         expect(gameDataLaunchKind("REFERENTIALS")).toBe("BACKGROUND");

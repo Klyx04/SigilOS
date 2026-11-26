@@ -316,7 +316,7 @@ export function resolveRushScenario(input: RushScenarioInput): RushScenarioResul
     baseCounts.orderQuests > 0 && campState.camp !== null && order === null && canChooseOrder;
 
   if (needsClassChoice) {
-    warnings.push("Aucune classe déclarée : les 19 quêtes de classe sont masquées jusqu'au choix.");
+    warnings.push("Aucune classe déclarée : les quêtes de classe sont masquées jusqu'au choix.");
   }
   if (needsCampChoice) {
     warnings.push(

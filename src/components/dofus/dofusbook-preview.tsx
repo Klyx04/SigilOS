@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef, memo } from "react";
 import { getClassName, processDofusbookRawData, dofusbookItemIconUrl, dofusbookItemIconId, dofusbookCharacteristicRows, isDofusbookNonStatCode, DOFUSBOOK_STAT_LABELS as statLabelMapping, type DofusbookPreviewData, type DofusbookItem } from "@/lib/dofusbook-utils";
+import { dofusClassIconForDofusbookId } from "@/lib/dofus-assets";
 import { bakeDofusbookFromBrowser } from "@/lib/dofusbook-client-bake";
 import { ExternalLink, Users, Loader2, Zap, Move, Shield, Sparkles, RefreshCw, Copy, X, RotateCcw, Check, AlertTriangle } from "lucide-react";
 import NextImage from "next/image";
@@ -128,7 +129,11 @@ const parseDofusbookSmithmagic = (smithmagic: any, items: any) => {
     return entries;
 };
 
-const getIconId = (id: number) => id === 19 ? 20 : id;
+// Dofusbook 19 = Forgelance (icône 20), 20 = Bellaphone (icône 21).
+const getIconId = (id: number) => {
+    const icon = dofusClassIconForDofusbookId(id);
+    return icon ? Number(icon.match(/classes\/(\d+)\.png/)?.[1] ?? id) : id;
+};
 
 /** Convertit un `DofusbookPreviewData` en stats exploitables par `computeSpellDamage`. */
 function spellsBuild(data: DofusbookPreviewData): BuildStatsForSpells {
@@ -836,7 +841,8 @@ export const DofusbookPreview = memo(function DofusbookPreview({ url, title, cla
             "ecaflip": 6, "eca": 6, "eniripsa": 7, "eni": 7, "iop": 8, "cra": 9, "sadida": 10, "sadi": 10,
             "sacrieur": 11, "sacri": 11, "pandawa": 12, "panda": 12, "roublard": 13, "roub": 13,
             "zobal": 14, "steamer": 15, "steam": 15, "eliotrope": 16, "elio": 16,
-            "huppermage": 17, "hupper": 17, "ouginak": 18, "ougi": 18, "forgelance": 19, "forg": 19
+            "huppermage": 17, "hupper": 17, "ouginak": 18, "ougi": 18, "forgelance": 19, "forg": 19,
+            "bellaphone": 20, "bella": 20
         };
 
         let gId = classId || data?.classId || 0;

@@ -23,6 +23,9 @@ export const ASSET_DIRS = {
     spells: path.join(process.cwd(), 'public', 'uploads', 'assets-dofus', 'spells'),
     achievements: path.join(process.cwd(), 'public', 'uploads', 'assets-dofus', 'achievements'),
     challenges: path.join(process.cwd(), 'public', 'uploads', 'assets-dofus', 'challenges'),
+    // Icônes de classe **nouvelles** (hors `DOFUS_CLASSES` statique) : le veilleur
+    // de classes les télécharge ici, volume persistant, sans redéploiement d'image.
+    classes: path.join(process.cwd(), 'public', 'uploads', 'assets-dofus', 'classes'),
 };
 
 export const PUBLIC_ASSET_PATHS = {
@@ -31,6 +34,7 @@ export const PUBLIC_ASSET_PATHS = {
     spells: '/uploads/assets-dofus/spells',
     achievements: '/uploads/assets-dofus/achievements',
     challenges: '/uploads/assets-dofus/challenges',
+    classes: '/uploads/assets-dofus/classes',
 };
 
 // S'assure que les dossiers de stockage existent au démarrage
@@ -52,6 +56,7 @@ const DEFAULT_HEADERS = {
 const ALLOWED_ASSET_DOMAINS = new Set([
     'dofusdb.fr',
     'api.dofusdb.fr',
+    'api.beta.dofusdb.fr',
     'static.dofusdb.fr',
     'static.ankama.com',
     's.ankama.com',
@@ -138,7 +143,7 @@ export interface SiphonAndCompressOptions {
  */
 export async function siphonAndCompressImage(
     remoteUrl: string | null | undefined,
-    targetType: 'monsters' | 'items' | 'spells',
+    targetType: 'monsters' | 'items' | 'spells' | 'classes',
     entityId: number | string,
     force = false,
     opts: SiphonAndCompressOptions = {}
@@ -214,6 +219,8 @@ export async function siphonAndCompressImage(
                 ? `/img/items/${cleanId}.png`
                 : targetType === 'spells'
                 ? `/img/spells/${cleanId}.png`
+                : targetType === 'classes'
+                ? `/img/breeds/symbol_${cleanId}.png`
                 : `/img/monsters/${cleanId}.png`;
 
             try {
@@ -331,6 +338,8 @@ export async function siphonAndCompressImage(
                     : `essayé : img/items/${cleanId}.png puis la fiche /items/${cleanId} → imgset`
                 : targetType === 'spells'
                 ? `essayé : img/spells/${cleanId}.png`
+                : targetType === 'classes'
+                ? `essayé : img/breeds/symbol_${cleanId}.png`
                 : `essayé : img/monsters/${cleanId}.png puis la fiche /monsters/${cleanId} → img`;
         const why = failureReasons.length > 0 ? ` — cause : ${failureReasons.join(' | ')}` : '';
         throw new Error(`Impossible de récupérer l'image pour ${targetType} #${cleanId} (${triedDetail}${why})`);
@@ -579,6 +588,7 @@ export function getAssetStorageStats() {
         spells: { count: 0, sizeBytes: 0 },
         challenges: { count: 0, sizeBytes: 0 },
         achievements: { count: 0, sizeBytes: 0 },
+        classes: { count: 0, sizeBytes: 0 },
         totalCount: 0,
         totalSizeBytes: 0,
         totalSizeFormatted: '0 Mo',

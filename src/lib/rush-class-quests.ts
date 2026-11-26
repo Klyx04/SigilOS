@@ -27,4 +27,7 @@ export const RUSH_CLASS_QUESTS: Readonly<Record<number, string>> = {
     1677: "huppermage",
     1841: "ouginak",
     2470: "forgelance",
+    // Bellaphone : aucune quête de classe n'est encore exposée par Tougli/DofusDB
+    // (mesure du 26/11/2026). Dès que l'id DofusDB est connu, ajouter l'entrée ici
+    // puis rejouer le split : sinon la branche Bellaphone reste « — manque — ».
 };

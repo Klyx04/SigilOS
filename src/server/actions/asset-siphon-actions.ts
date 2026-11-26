@@ -19,6 +19,7 @@ import { persistMonsterStat } from '@/lib/dofensive-sync';
 import { bossMatchKey } from '@/lib/data-health';
 import { deriveDofensiveMonsterName, resolveMonsterKey } from '@/lib/dofensive-boss';
 import { getClassName } from '@/lib/dofusbook-utils';
+import { getDofusClassByDofusbookId } from '@/lib/dofus-assets';
 import { upsertClassSpellbookWithJournal, fetchClassSpellsFull } from '@/lib/class-spells-siphon';
 import {
     GUIDE_ICON_CHUNK_SIZE,
@@ -414,8 +415,8 @@ export async function warmClassSpellbook(classId: number): Promise<ActionRespons
         if (!(await canManageSiphon())) {
             return { success: false, error: 'Non autorisé' };
         }
-        if (!Number.isInteger(classId) || classId < 1 || classId > 19) {
-            return { success: false, error: 'Classe invalide (1-19)' };
+        if (!Number.isInteger(classId) || !getDofusClassByDofusbookId(classId)) {
+            return { success: false, error: 'Classe invalide' };
         }
 
         const className = getClassName(classId) || fallbackName;

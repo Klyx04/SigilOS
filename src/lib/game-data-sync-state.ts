@@ -16,7 +16,7 @@ import { normalizeGameDataErrorGroups, type GameDataErrorGroup } from "@/lib/gam
 export type GameDataDataset =
     | "CATALOGUE"        // public/game-data/dungeon-monsters.json
     | "BOUNTIES"         // avis de recherche (5 races)
-    | "CLASS_SPELLS"     // grimoires des 19 classes
+    | "CLASS_SPELLS"     // grimoires des classes
     | "ASSETS_WEBP"      // images (fiches, items, cartes)
     | "ITEMS"            // items DofusDB → GameItem
     | "REFERENTIALS"     // effets & caractéristiques
@@ -24,12 +24,14 @@ export type GameDataDataset =
     | "FAMILIES"         // familles de monstres
     | "QUESTS"           // quêtes DofusDB
     | "HARVEST"          // récoltables
-    | "ANOMALY_BOSSES";  // boss d'anomalie
+    | "ANOMALY_BOSSES"   // boss d'anomalie
+    | "CLASSES";         // veille des classes (prod vs bêta, manifeste + assets)
 
 export const GAME_DATA_DATASETS: readonly GameDataDataset[] = [
     "CATALOGUE",
     "BOUNTIES",
     "CLASS_SPELLS",
+    "CLASSES",
     "ASSETS_WEBP",
     "ITEMS",
     "REFERENTIALS",
@@ -45,6 +47,7 @@ export const GAME_DATA_DATASET_LABEL: Record<GameDataDataset, string> = {
     CATALOGUE: "Catalogue local (donjons & monstres)",
     BOUNTIES: "Avis de recherche",
     CLASS_SPELLS: "Grimoires de classes",
+    CLASSES: "Veille des classes (prod / bêta)",
     ASSETS_WEBP: "Images WebP",
     ITEMS: "Items & ressources",
     REFERENTIALS: "Référentiels (effets, caractéristiques)",
@@ -71,7 +74,7 @@ export type GameDataRunStatus = "IDLE" | "RUNNING" | "OK" | "PARTIAL" | "ERROR";
  * Règle : seuls ceux dont le CŒUR vit dans `src/lib` (appelable sans session Next).
  * ⚠️ Ce module est importé par des composants CLIENT : jamais d'import de `bullmq` ici.
  */
-export const GAME_DATA_BACKGROUND_DATASETS = ["CATALOGUE", "ANOMALY_BOSSES", "ZONES", "FAMILIES", "BOUNTIES", "ITEMS", "REFERENTIALS", "QUESTS", "CLASS_SPELLS"] as const;
+export const GAME_DATA_BACKGROUND_DATASETS = ["CATALOGUE", "ANOMALY_BOSSES", "ZONES", "FAMILIES", "BOUNTIES", "ITEMS", "REFERENTIALS", "QUESTS", "CLASS_SPELLS", "CLASSES"] as const;
 export type GameDataBackgroundDataset = (typeof GAME_DATA_BACKGROUND_DATASETS)[number];
 
 export function isBackgroundDataset(dataset: GameDataDataset): dataset is GameDataBackgroundDataset {
@@ -154,6 +157,7 @@ export const GAME_DATA_JOURNAL_DATASETS: readonly GameDataDataset[] = [
     "ITEMS",
     "QUESTS",
     "CLASS_SPELLS",
+    "CLASSES",
     "ANOMALY_BOSSES",
     "FAMILIES",
     "ZONES",
@@ -217,6 +221,7 @@ export const GAME_DATA_STALE_RUN_MINUTES: Record<GameDataDataset, number> = {
     FAMILIES: 15,
     REFERENTIALS: 15,
     CLASS_SPELLS: 45,
+    CLASSES: 30,
     ASSETS_WEBP: 45,
     HARVEST: 15,
 };

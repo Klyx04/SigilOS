@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DO_TAGS } from "@/lib/dofus-tags";
 import { TagWithIcons } from "@/components/gallery/gallery-filters";
+import { DOFUS_CLASSES as DOFUS_CLASS_REFERENCE } from "@/lib/dofus-assets";
 import { isDofusbookBuildUrl } from "@/lib/dofusbook-utils";
 import type { DofusBookLink } from "./builds-card";
 
@@ -28,22 +29,16 @@ interface AddBuildModalProps {
 
 // ─── Constants ─────────────────────────────────────────────────────────────
 
-const DOFUS_CLASSES = [
-    { id: 1, name: "Féca" }, { id: 2, name: "Osamodas" }, { id: 3, name: "Enutrof" },
-    { id: 4, name: "Sram" }, { id: 5, name: "Xélor" }, { id: 6, name: "Écaflip" },
-    { id: 7, name: "Éniripsa" }, { id: 8, name: "Iop" }, { id: 9, name: "Crâ" },
-    { id: 10, name: "Sadida" }, { id: 11, name: "Sacrieur" }, { id: 12, name: "Pandawa" },
-    { id: 13, name: "Roublard" }, { id: 14, name: "Zobal" }, { id: 15, name: "Steamer" },
-    { id: 16, name: "Éliotrope" }, { id: 17, name: "Huppermage" }, { id: 18, name: "Ouginak" },
-    { id: 19, name: "Forgelance" }
-];
-
-const CLASS_COLORS: Record<number, string> = {
-    1: "#8b5cf6", 2: "#f59e0b", 3: "#10b981", 4: "#6366f1", 5: "#3b82f6",
-    6: "#ef4444", 7: "#ec4899", 8: "#f97316", 9: "#84cc16", 10: "#059669",
-    11: "#dc2626", 12: "#4ade80", 13: "#7c3aed", 14: "#1e40af", 15: "#0ea5e9",
-    16: "#2563eb", 17: "#9333ea", 18: "#ea580c", 19: "#06b6d4"
-};
+/**
+ * Classes du sélecteur de build — **source unique** `DOFUS_CLASSES`, projetée sur
+ * l'ordre Dofusbook (Forgelance 19, Bellaphone 20) et l'icône officielle.
+ */
+const DOFUS_CLASSES = DOFUS_CLASS_REFERENCE.map((c) => ({
+    id: c.dofusbookId,
+    name: c.name,
+    icon: c.icon,
+    color: c.color,
+}));
 
 const TAG_CATEGORIES = [
     {
@@ -457,7 +452,7 @@ export function AddBuildModal({ guildId, links, onSave, targetUserId, trigger }:
                                                         : "opacity-70 group-hover:opacity-100 group-"
                                                 )}>
                                                     <NextImage
-                                                        src={`/assets/dofus/classes/${cls.id === 19 ? 20 : cls.id}.png`}
+                                                        src={cls.icon}
                                                         alt={cls.name}
                                                         fill
                                                         sizes="32px"

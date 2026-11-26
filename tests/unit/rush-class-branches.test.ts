@@ -1,7 +1,7 @@
 /**
  * Rush Sylvestre — vue **Classes** (3ᵉ étage de la route, G4 du 02/11/2026).
  *
- * Cibles mesurées : **19** quêtes de classe, une par classe jouable (`classReq` = id
+ * Cible : **une quête de classe par classe jouable** (`classReq` = id
  * stable). Ce que ces verrous interdisent :
  *  · rattacher d'office une valeur inconnue — la route la masque en fail-closed ;
  *  · compter deux quêtes pour une classe sans le signaler ;
@@ -27,23 +27,23 @@ function seq(overrides: Partial<RushBranchSequence> & { id: string }): RushBranc
 
 const CLASS_IDS = DOFUS_CLASSES.map((c) => c.id);
 
-describe("cible — les 19 classes jouables", () => {
-    it("compte 19 emplacements, même sans aucune quête de classe", () => {
+describe("cible — une classe jouable = un emplacement", () => {
+    it("compte un emplacement par classe, même sans aucune quête de classe", () => {
         const view = buildRushClassBranches([]);
 
         expect(view.target).toBe(DOFUS_CLASSES.length);
-        expect(view.classes).toHaveLength(19);
+        expect(view.classes).toHaveLength(DOFUS_CLASSES.length);
         expect(view.present).toBe(0);
-        expect(view.missing).toBe(19);
+        expect(view.missing).toBe(DOFUS_CLASSES.length);
         expect(view.classes.every((c) => c.sequences.length === 0)).toBe(true);
     });
 
-    it("une quête par classe remplit les 19 emplacements", () => {
+    it("une quête par classe remplit tous les emplacements", () => {
         const view = buildRushClassBranches(
             CLASS_IDS.map((id, i) => seq({ id: `q-${id}`, classReq: id, order: i })),
         );
 
-        expect(view.present).toBe(19);
+        expect(view.present).toBe(DOFUS_CLASSES.length);
         expect(view.missing).toBe(0);
         expect(view.classes.every((c) => c.sequences.length === 1)).toBe(true);
     });
@@ -69,7 +69,7 @@ describe("une classe = un emplacement", () => {
         ]);
 
         expect(view.present).toBe(1);
-        expect(view.missing).toBe(18);
+        expect(view.missing).toBe(DOFUS_CLASSES.length - 1);
         const feca = view.classes.find((c) => c.id === "feca")!;
         expect(feca.sequences.map((s) => s.id)).toEqual(["feca-1", "feca-2"]);
     });
@@ -101,7 +101,7 @@ describe("aucune perte silencieuse", () => {
 
         expect(view.unknown.map((s) => s.id)).toEqual(["ancien-id", "libelle"]);
         expect(view.present).toBe(0);
-        expect(view.missing).toBe(19);
+        expect(view.missing).toBe(DOFUS_CLASSES.length);
     });
 
     it("une quête de classe qui porte une cité est signalée, mais garde son emplacement", () => {

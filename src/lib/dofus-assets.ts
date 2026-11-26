@@ -14,28 +14,48 @@ export interface DofusClass {
     color: string;
     /** breedId client (Dofus Unity) — l'icône `/assets/dofus/classes/<breed>.png` le porte déjà. */
     breed: number;
+    /**
+     * Ordre **Dofusbook** (1-19, Forgelance = 19) : c'est la numérotation des builds
+     * (`dofusBookLinks.classId`) et des grimoires (`ClassSpellbook.classId`). Elle diffère
+     * du `breed` DofusDB pour Forgelance (20) et Bellaphone (21).
+     */
+    dofusbookId: number;
+    /**
+     * Classe déjà servie par DofusDB **bêta** mais pas encore par la prod : elle reste
+     * jouable/selectionnable côté SigilOS (demande du 26/11/2026) mais sa source de
+     * vérité est la bêta jusqu'à la sortie officielle.
+     */
+    preview?: boolean;
+    /**
+     * DofusDB ne sert pas encore les têtes `SmallHead_<breed*10+gender>.png` : la carte
+     * tactique retombe sur l'icône de classe au lieu d'une image cassée.
+     */
+    headFallback?: boolean;
 }
 
 export const DOFUS_CLASSES = [
-    { id: "cra", name: "Cra", icon: "/assets/dofus/classes/9.png", color: "#4ade80", breed: 9 },
-    { id: "ecaflip", name: "Ecaflip", icon: "/assets/dofus/classes/6.png", color: "#ec4899", breed: 6 },
-    { id: "eliotrope", name: "Eliotrope", icon: "/assets/dofus/classes/16.png", color: "#3b82f6", breed: 16 },
-    { id: "eniripsa", name: "Eniripsa", icon: "/assets/dofus/classes/7.png", color: "#f472b6", breed: 7 },
-    { id: "enutrof", name: "Enutrof", icon: "/assets/dofus/classes/3.png", color: "#f59e0b", breed: 3 },
-    { id: "feca", name: "Féca", icon: "/assets/dofus/classes/1.png", color: "#60a5fa", breed: 1 },
-    { id: "forgelance", name: "Forgelance", icon: "/assets/dofus/classes/20.png", color: "#fcd34d", breed: 20 },
-    { id: "huppermage", name: "Huppermage", icon: "/assets/dofus/classes/17.png", color: "#8b5cf6", breed: 17 },
-    { id: "iop", name: "Iop", icon: "/assets/dofus/classes/8.png", color: "#ef4444", breed: 8 },
-    { id: "osamodas", name: "Osamodas", icon: "/assets/dofus/classes/2.png", color: "#ef4444", breed: 2 },
-    { id: "ouginak", name: "Ouginak", icon: "/assets/dofus/classes/18.png", color: "#f59e0b", breed: 18 },
-    { id: "pandawa", name: "Pandawa", icon: "/assets/dofus/classes/12.png", color: "#16a34a", breed: 12 },
-    { id: "roublard", name: "Roublard", icon: "/assets/dofus/classes/13.png", color: "#f97316", breed: 13 },
-    { id: "sacrieur", name: "Sacrieur", icon: "/assets/dofus/classes/11.png", color: "#dc2626", breed: 11 },
-    { id: "sadida", name: "Sadida", icon: "/assets/dofus/classes/10.png", color: "#22c55e", breed: 10 },
-    { id: "sram", name: "Sram", icon: "/assets/dofus/classes/4.png", color: "#a855f7", breed: 4 },
-    { id: "steamer", name: "Steamer", icon: "/assets/dofus/classes/15.png", color: "#06b6d4", breed: 15 },
-    { id: "xelor", name: "Xélor", icon: "/assets/dofus/classes/5.png", color: "#6366f1", breed: 5 },
-    { id: "zobal", name: "Zobal", icon: "/assets/dofus/classes/14.png", color: "#ef4444", breed: 14 },
+    { id: "cra", name: "Cra", icon: "/assets/dofus/classes/9.png", color: "#4ade80", breed: 9, dofusbookId: 9 },
+    { id: "ecaflip", name: "Ecaflip", icon: "/assets/dofus/classes/6.png", color: "#ec4899", breed: 6, dofusbookId: 6 },
+    { id: "eliotrope", name: "Eliotrope", icon: "/assets/dofus/classes/16.png", color: "#3b82f6", breed: 16, dofusbookId: 16 },
+    { id: "eniripsa", name: "Eniripsa", icon: "/assets/dofus/classes/7.png", color: "#f472b6", breed: 7, dofusbookId: 7 },
+    { id: "enutrof", name: "Enutrof", icon: "/assets/dofus/classes/3.png", color: "#f59e0b", breed: 3, dofusbookId: 3 },
+    { id: "feca", name: "Féca", icon: "/assets/dofus/classes/1.png", color: "#60a5fa", breed: 1, dofusbookId: 1 },
+    { id: "forgelance", name: "Forgelance", icon: "/assets/dofus/classes/20.png", color: "#fcd34d", breed: 20, dofusbookId: 19 },
+    { id: "huppermage", name: "Huppermage", icon: "/assets/dofus/classes/17.png", color: "#8b5cf6", breed: 17, dofusbookId: 17 },
+    { id: "iop", name: "Iop", icon: "/assets/dofus/classes/8.png", color: "#ef4444", breed: 8, dofusbookId: 8 },
+    { id: "osamodas", name: "Osamodas", icon: "/assets/dofus/classes/2.png", color: "#ef4444", breed: 2, dofusbookId: 2 },
+    { id: "ouginak", name: "Ouginak", icon: "/assets/dofus/classes/18.png", color: "#f59e0b", breed: 18, dofusbookId: 18 },
+    { id: "pandawa", name: "Pandawa", icon: "/assets/dofus/classes/12.png", color: "#16a34a", breed: 12, dofusbookId: 12 },
+    { id: "roublard", name: "Roublard", icon: "/assets/dofus/classes/13.png", color: "#f97316", breed: 13, dofusbookId: 13 },
+    { id: "sacrieur", name: "Sacrieur", icon: "/assets/dofus/classes/11.png", color: "#dc2626", breed: 11, dofusbookId: 11 },
+    { id: "sadida", name: "Sadida", icon: "/assets/dofus/classes/10.png", color: "#22c55e", breed: 10, dofusbookId: 10 },
+    { id: "sram", name: "Sram", icon: "/assets/dofus/classes/4.png", color: "#a855f7", breed: 4, dofusbookId: 4 },
+    { id: "steamer", name: "Steamer", icon: "/assets/dofus/classes/15.png", color: "#06b6d4", breed: 15, dofusbookId: 15 },
+    { id: "xelor", name: "Xélor", icon: "/assets/dofus/classes/5.png", color: "#6366f1", breed: 5, dofusbookId: 5 },
+    { id: "zobal", name: "Zobal", icon: "/assets/dofus/classes/14.png", color: "#ef4444", breed: 14, dofusbookId: 14 },
+    // ⚠️ Ajoutée EN FIN : `DOFUS_CLASSES[0]` sert de défaut dans `RushConditionsEditor`
+    // et `alt-pseudos` (Cra). Une insertion alphabétique changerait ce défaut en silence.
+    { id: "bellaphone", name: "Bellaphone", icon: "/assets/dofus/classes/21.png", color: "#2dd4bf", breed: 21, dofusbookId: 20, preview: true, headFallback: true },
 ] as const;
 
 export type DofusClassId = typeof DOFUS_CLASSES[number]["id"];
@@ -51,6 +71,23 @@ export function getClass(id: string) {
     return resolved ? DOFUS_CLASSES.find((c) => c.id === resolved) : undefined;
 }
 
+/** Classe par `breed` DofusDB/Dofus Unity (Forgelance 20, Bellaphone 21). */
+export function getDofusClassByBreed(breed: number): (typeof DOFUS_CLASSES)[number] | undefined {
+    return DOFUS_CLASSES.find((c) => c.breed === breed);
+}
+
+/** Classe par ordre Dofusbook (Forgelance 19, Bellaphone 20) — builds et grimoires. */
+export function getDofusClassByDofusbookId(
+    dofusbookId: number,
+): (typeof DOFUS_CLASSES)[number] | undefined {
+    return DOFUS_CLASSES.find((c) => c.dofusbookId === dofusbookId);
+}
+
+/** Icône d'une classe depuis son id Dofusbook (null si inconnu). */
+export function dofusClassIconForDofusbookId(dofusbookId: number): string | null {
+    return getDofusClassByDofusbookId(dofusbookId)?.icon ?? null;
+}
+
 /** Genre d'un visuel de classe du jeu : 0 = masculin, 1 = féminin. */
 export type DofusClassGender = 0 | 1;
 
@@ -61,6 +98,10 @@ export type DofusClassGender = 0 | 1;
  */
 export function dofusClassHead(breedId: number, gender: DofusClassGender = 0): string {
     const breed = Number.isFinite(breedId) ? Math.floor(Math.abs(breedId)) : 0;
+    // Bellaphone : DofusDB bêta déclare `SmallHead_210/211` mais les sert en 404
+    // (mesuré le 26/11/2026). On retombe sur l'icône de classe plutôt qu'une image cassée.
+    const cls = getDofusClassByBreed(breed);
+    if (cls && "headFallback" in cls && cls.headFallback) return cls.icon;
     const headId = breed * 10 + (gender === 1 ? 1 : 0);
     return `/assets/dofus/classes/heads/Head_${headId}.png`;
 }

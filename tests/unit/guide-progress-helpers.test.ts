@@ -68,6 +68,7 @@ describe("buildGuildProgressRows", () => {
         userName: "Klyx",
         userAvatar: "https://x/avatar.png",
         profileSlug: "Klyx",
+        dofusClass: null,
         alignment: null,
         alignmentOrder: null,
         alignmentLevel: null,
@@ -82,6 +83,7 @@ describe("buildGuildProgressRows", () => {
         currentStep: null,
         userName: "Bob",
         profileSlug: "p2",
+        dofusClass: null,
         alignment: null,
         alignmentOrder: null,
         alignmentLevel: null,
@@ -96,11 +98,38 @@ describe("buildGuildProgressRows", () => {
         currentStep: "GP2-5",
         userName: "Voyageur",
         profileSlug: "p3",
+        dofusClass: null,
         alignment: null,
         alignmentOrder: null,
         alignmentLevel: null,
       },
     ]);
+  });
+
+  it("porte la classe du personnage, y compris celle d'une mule", () => {
+    const [main, mule] = buildGuildProgressRows([
+      {
+        profileId: "p1",
+        milestoneId: "m1",
+        characterSlot: "PRINCIPAL",
+        isCompleted: false,
+        completedSteps: [],
+        currentStep: null,
+        profile: { pseudoDofus: "Wylan", classe: "iop", altPseudos: [{ pseudo: "Mule", classe: "cra" }] },
+      },
+      {
+        profileId: "p1",
+        milestoneId: "m1",
+        characterSlot: "Mule",
+        isCompleted: false,
+        completedSteps: [],
+        currentStep: null,
+        profile: { pseudoDofus: "Wylan", classe: "iop", altPseudos: [{ pseudo: "Mule", classe: "cra" }] },
+      },
+    ] as any);
+
+    expect(main.dofusClass).toBe("iop");
+    expect(mule.dofusClass).toBe("cra");
   });
 });
 

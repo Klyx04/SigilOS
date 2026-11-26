@@ -45,6 +45,8 @@ type DofusMemberStat = MemberDofusProgress & {
   characterSlot: string;
   userName: string;
   userAvatar?: string;
+  /** Classe Dofus du personnage (icône à côté du pseudo). */
+  dofusClass?: string | null;
   /** Pseudo du principal quand ce personnage est une mule. */
   ownerName?: string | null;
   /** Personnage actif du lecteur (badge « MOI »). */
@@ -239,6 +241,7 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
             characterSlot: character.characterSlot,
             userName: character.name,
             userAvatar: character.avatar ?? undefined,
+            dofusClass: character.dofusClass ?? null,
             ownerName: character.ownerName ?? null,
             isViewer: character.isViewer,
             ...memberDofusProgress(quests, completedSteps, currentStep),
@@ -292,6 +295,7 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
         currentStep,
         name: character.name,
         avatar: character.avatar ?? null,
+        dofusClass: character.dofusClass ?? null,
         isViewer: character.isViewer,
         muleOf: character.isMule ? character.ownerName ?? null : null,
       }];
@@ -448,6 +452,7 @@ export const GuildStatusPanel = memo(function GuildStatusPanel({
             ? selected.membersInProgress.map((member) => ({
                 name: member.userName,
                 avatar: member.userAvatar ?? null,
+                dofusClass: member.dofusClass ?? null,
                 current: member.current ? member.current.label : null,
                 done: member.done,
                 total: member.total,

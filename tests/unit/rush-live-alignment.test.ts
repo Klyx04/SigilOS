@@ -37,7 +37,7 @@ describe("présence serveur — alignement joint à l'identité", () => {
 
   it("la projection publique est unique et ne divulgue pas lastSeen", () => {
     const code = read(SERVER);
-    expect(code).toMatch(/function publicPresenceMember\(entry: PresenceEntry\)/);
+    expect(code).toMatch(/function publicPresenceMember\(entry: MergedPresenceEntry\)/);
     expect(code.match(/members\.map\(publicPresenceMember\)/g)?.length).toBe(2);
     const start = code.indexOf("function publicPresenceMember");
     const block = code.slice(start, start + 500);

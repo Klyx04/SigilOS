@@ -9,7 +9,7 @@ import {
   BookmarkCheck, Loader2, CheckCheck,
   Sparkles, Construction, Sword, Lock, MapPin, Plus,
   Pencil, Crown, ChevronRight, ListCollapse, Info, Check, Search, X, CircleHelp, ClipboardList,
-  Settings2, Ghost, Maximize2, Lightbulb
+  Settings2, Maximize2, Lightbulb
 } from "lucide-react";
 
 import Link from "next/link";
@@ -189,7 +189,7 @@ const RETURN_TOAST_ID: { current: string | number | null } = { current: null };
 
 type Sequence = { id: string; subGuideRef: string; subGuideName: string; stepFrom?: number|null; stepTo?: number|null; note?: string|null; isOptional: boolean; order: number; dungeon?: DungeonRef|null; dungeons?: DungeonRef[]; dofusdbUrl?: string|null; dofuspourlesnoobsUrl?: string|null; tips?: string|null; constraints?: RushQuestConstraints|null; alignReq?: string|null; alignOrderCode?: string|null; alignLevelReq?: number|null; isSuccess?: boolean; icon?: string | null; metamobMonsterId?: number|null; activityTags?: ActivityTag[]; };
 type Milestone = { id:string; title:string; subtitle?:string|null; description?:string|null; type:string; accentColor?:string|null; imageUrl?:string|null; chapter:number; chapterLabel:string; order:number; isOptional:boolean; tips?:string|null; dofusId?:string|null; sequences:Sequence[]; children?:RushMilestoneChild[]; playerProgress?:{isCompleted:boolean;completedSteps?:any;currentStep?:string|null}[]; };
-type GuildMemberProgress = { profileId:string; milestoneId:string; characterSlot?:string; userId?:string|null; isCompleted:boolean; userName:string; userAvatar?:string; currentStep?:string|null };
+type GuildMemberProgress = { profileId:string; milestoneId:string; characterSlot?:string; userId?:string|null; isCompleted:boolean; userName:string; userAvatar?:string; dofusClass?:string|null; currentStep?:string|null };
 type RushTimelineClientProps = { guide:{id:string;name:string;slug:string;description?:string|null;isUnderConstruction?:boolean;imageUrl?:string|null;isDiscordConfigured?:boolean}; milestones:Milestone[]; guildProgress:GuildMemberProgress[]; guildId:string; selectedCharacter?:string; currentProfileId?:string; currentUserId?:string; mules?:any[]; rushUIConfig?: RushUIConfig; currentUserProfile:{alignment?:string|null;alignmentOrder?:string|null;alignmentLevel?:number;altPseudos?:any[];dofusClass?:string|null;metamobPseudo?:string|null;metiers?:any[];pseudoDofus?:string|null;}; ocreStats?:{bosses?:{total:number;gathered:number};archis?:{total:number;gathered:number};progressPercent?:number;currentStep?:number;serverName?:string;parallelQuests?:number}|null; capturedOcreMonsterIds?:number[]; capturedMonsterNames?:string[]; ocreMonsters?:OcreMonsterLite[]; initialResourceChecks?:string[]; canViewSucces?:boolean; };
 // Dofus du jeu — SOURCE UNIQUE (`src/lib/rush-dofus-meta.ts`), partagée avec le
 // studio God, le guide public et l'overlay (cinq copies divergentes avant le
@@ -1062,13 +1062,18 @@ function RushLiveMemberRow({
   member: {
     userName?: string | null;
     userAvatar?: string | null;
+    characterSlot?: string | null;
+    surfaces?: string[];
+    dofusClass?: string | null;
     alignment?: string | null;
     alignmentLevel?: number | null;
     whereLabel?: string | null;
+    isViewer?: boolean;
   };
   online: boolean;
 }) {
   const level = Number(member.alignmentLevel ?? 0);
+  const cls = member.dofusClass ? getClass(member.dofusClass) : null;
   const alignLabel =
     member.alignment === "brakmarien"
       ? "Brakmarien"
@@ -1090,9 +1095,32 @@ function RushLiveMemberRow({
         )}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-xs font-bold text-foreground">{member.userName}</span>
-        {!online && member.whereLabel && (
-          <span className="block truncate text-[10px] text-muted-foreground">Vu sur « {member.whereLabel} »</span>
+        <span className="flex min-w-0 items-center gap-1.5">
+          {cls ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={cls.icon}
+              alt=""
+              title={cls.name}
+              className="h-3.5 w-3.5 shrink-0 object-contain"
+            />
+          ) : null}
+          <span className="truncate text-xs font-bold text-foreground">{member.userName}</span>
+          {member.surfaces?.includes("overlay") ? (
+            <span className="shrink-0 rounded-[3px] border border-info/30 bg-info/10 px-1 py-0.5 text-[9px] font-semibold uppercase text-info">
+              Overlay
+            </span>
+          ) : null}
+          {member.isViewer && (
+            <span className="shrink-0 rounded-[3px] border border-success/30 bg-success/10 px-1 py-0.5 text-[9px] font-semibold uppercase text-success">
+              Moi
+            </span>
+          )}
+        </span>
+        {member.whereLabel && (
+          <span className="block truncate text-[10px] text-muted-foreground">
+            {online ? "Sur" : "Vu sur"} « {member.whereLabel} »
+          </span>
         )}
       </span>
       {showAlign && (
@@ -2110,9 +2138,7 @@ const capturedMonsterSet=useMemo(()=>new Set(capturedOcreMonsterIds||[]),[captur
   }, [dofusFilter, selectedMsId, milestones]);
   // Palette des braises (mémoïsée : nouvelle identité = respawn du canvas).
   const particlePalette = useMemo(() => [ambientDofusColor, "#f6e9cb"], [ambientDofusColor]);
-  const [incognito,setIncognito]=useState(false);
-  useEffect(()=>{if(typeof window==="undefined")return;const k=`guide-incognito-${guildId}`;const stored=localStorage.getItem(k);if(stored!==null)setIncognito(stored==="true");},[guildId]);
-  const toggleIncognito=useCallback(()=>{setIncognito(prev=>{const next=!prev;localStorage.setItem(`guide-incognito-${guildId}`,next?"true":"false");return next;});},[guildId]);
+
   const [metamobLinkOpen,setMetamobLinkOpen]=useState(false);
   // Lot 1 — la modale d'alignement de la guilde remplace le renvoi au profil perso.
   const [guildAlignmentOpen,setGuildAlignmentOpen]=useState(false);
@@ -2940,8 +2966,10 @@ const timelineItems=useMemo(()=>{
       milestones.find((ms) => !isRushNonQuestBlock(ms.type))?.id ??
       milestones[0]?.id ??
       null,
-    userName: currentUserProfile?.pseudoDofus || selectedCharacter,
-    enabled: !incognito,
+    userName: effectiveAltPseudo || currentUserProfile?.pseudoDofus || selectedCharacter,
+    characterSlot: effectiveAltPseudo ?? "PRINCIPAL",
+    surface: "dashboard",
+    dofusClass: selectedMuleSlot?.classe || currentUserProfile?.dofusClass || null,
   });
 
   // Un event de progression (autre membre) rafraîchit la fiche Dofus et le bandeau :
@@ -2986,23 +3014,36 @@ const timelineItems=useMemo(()=>{
   /** Connectés À L'INSTANT (WebSocket) — vide tant que la connexion n'est pas établie. */
   const liveMembers = useMemo(() => {
     if (guideLive.connectionStatus !== "connected") return [];
+    const viewerSlot = effectiveAltPseudo ?? "PRINCIPAL";
     return guideLive.presence.map((m) => {
       const a = alignmentByProfile.get(m.profileId);
+      const where = milestones.find((x) => x.id === m.milestoneId);
       return {
         profileId: m.profileId,
         userName: m.userName,
         userAvatar: m.userAvatar,
         milestoneId: m.milestoneId,
+        characterSlot: m.characterSlot ?? "PRINCIPAL",
+        surfaces: m.surfaces ?? [],
+        dofusClass: m.dofusClass ?? null,
+        whereLabel: where?.title ?? null,
+        isViewer:
+          !!currentProfileId &&
+          m.profileId === currentProfileId &&
+          (m.characterSlot ?? "PRINCIPAL") === viewerSlot,
         alignment: a?.alignment ?? null,
         alignmentLevel: a?.alignmentLevel ?? null,
         alignmentOrder: a?.alignmentOrder ?? null,
       };
     });
-  }, [guideLive.connectionStatus, guideLive.presence, alignmentByProfile]);
+  }, [guideLive.connectionStatus, guideLive.presence, alignmentByProfile, milestones, currentProfileId, effectiveAltPseudo]);
 
   /** Dernière position CONNUE (progression en base) — des membres hors ligne, dits comme tels. */
   const offlineMembers = useMemo(() => {
     const rows: any[] = guildProgress || [];
+    // Hors ligne : **une ligne par compte**, pas une par mule. Les personnages en
+    // ligne sont listés individuellement dans le groupe du dessus ; les mules hors
+    // ligne ne doivent pas tripler la liste (retour user du 26/11/2026).
     const liveIds = new Set(liveMembers.map((m) => m.profileId));
     const seen = new Set<string>();
     return rows
@@ -3018,14 +3059,16 @@ const timelineItems=useMemo(()=>{
           profileId: p.profileId,
           userName: p.userName,
           userAvatar: p.userAvatar,
+          dofusClass: p.dofusClass ?? null,
           milestoneId: p.milestoneId,
           whereLabel: where?.title ?? null,
+          isViewer: !!currentProfileId && p.profileId === currentProfileId,
           alignment: a?.alignment ?? null,
           alignmentLevel: a?.alignmentLevel ?? null,
           alignmentOrder: a?.alignmentOrder ?? null,
         };
       });
-  }, [guildProgress, liveMembers, alignmentByProfile, milestones]);
+  }, [guildProgress, liveMembers, alignmentByProfile, milestones, currentProfileId]);
 
   // « Reprendre ? » : 1 popup par session et par jalon repéré — uniquement si le
   // repère existait déjà à l'arrivée sur la page (retour), jamais après l'avoir posé.
@@ -3451,7 +3494,11 @@ const timelineItems=useMemo(()=>{
                 <p className="px-1 text-[11px] text-muted-foreground">Personne n'est connecté à cette seconde.</p>
               ) : (
                 liveMembers.map((m) => (
-                  <RushLiveMemberRow key={m.profileId || m.userName} member={m} online />
+                  <RushLiveMemberRow
+                    key={`${m.profileId}:${m.characterSlot}`}
+                    member={m}
+                    online
+                  />
                 ))
               )}
               {/* Groupe 2 : dernière position connue en base — hors ligne, dit comme tel. */}
@@ -3461,7 +3508,7 @@ const timelineItems=useMemo(()=>{
                 </p>
               )}
               {offlineMembers.map((m) => (
-                <RushLiveMemberRow key={m.profileId || m.userName} member={m} online={false} />
+                <RushLiveMemberRow key={m.profileId} member={m} online={false} />
               ))}
             </>
           )}
@@ -3536,10 +3583,6 @@ const timelineItems=useMemo(()=>{
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="bg-background/95 border-border text-foreground min-w-[220px] rounded-[4px] p-1.5 z-[var(--z-dropdown)]">
-          <DropdownMenuItem onClick={toggleIncognito} className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer">
-            <Ghost className={`w-4 h-4 ${incognito ? "text-info" : "text-muted-foreground"}`} />
-            <span className="text-xs font-bold">{incognito ? "Mode discret : actif" : "Mode discret"}</span>
-          </DropdownMenuItem>
           <DropdownMenuItem onClick={toggleRushParticles} className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer">
             <Sparkles className={`w-4 h-4 ${rushParticlesEnabled ? "text-success" : "text-muted-foreground"}`} />
             <span className="text-xs font-bold">{rushParticlesEnabled ? "Ambiance : active" : "Ambiance : coupée"}</span>

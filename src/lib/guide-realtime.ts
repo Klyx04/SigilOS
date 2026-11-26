@@ -15,9 +15,29 @@ import { redis } from "@/lib/redis";
 import { logger } from "@/lib/logger";
 
 /** Contrat de payload temps réel du guide (Phase 4 — GUIDE-DEMARRAGE). */
+export type GuidePresenceSurface = "dashboard" | "overlay" | "public";
+
 export type GuideRealtimeEvent =
-  | { type: "presence:join"; profileId: string; userName: string; userAvatar?: string; milestoneId: string }
-  | { type: "presence:leave"; profileId: string; userName?: string; milestoneId: string }
+  | {
+      type: "presence:join";
+      profileId: string;
+      userName: string;
+      userAvatar?: string;
+      milestoneId: string;
+      surface?: GuidePresenceSurface | string;
+      characterSlot?: string;
+      dofusClass?: string | null;
+    }
+  | {
+      type: "presence:leave";
+      profileId: string;
+      userName?: string;
+      milestoneId: string;
+      surface?: GuidePresenceSurface | string;
+      characterSlot?: string;
+      /** Une autre surface (dashboard/overlay) garde le personnage en ligne. */
+      stillPresent?: boolean;
+    }
   | { type: "step:validated"; profileId: string; userName: string; userAvatar?: string; subGuideRef: string; stepNumber: number; stepTitle?: string }
   | { type: "step:validated:batch"; profileId: string; userName: string; subGuideRef: string; count: number }
   | { type: "milestone:completed"; profileId: string; userName: string; milestoneId: string; milestoneTitle: string };

@@ -31,6 +31,8 @@ export function RushOverlayToolbar({
     total,
     members = [],
     onOpenMembers,
+    liveMembers = [],
+    onOpenLive,
     className,
 }: {
     filter: RushQuestFilter;
@@ -42,6 +44,9 @@ export function RushOverlayToolbar({
     total: number;
     members?: RushOverlayToolbarMember[];
     onOpenMembers?: () => void;
+    /** Personnages réellement sur l'overlay (présence WebSocket, surface = overlay). */
+    liveMembers?: RushOverlayToolbarMember[];
+    onOpenLive?: () => void;
     className?: string;
 }) {
     const shown = members.slice(0, 3);
@@ -88,6 +93,19 @@ export function RushOverlayToolbar({
                     </b>
                 )}
             </button>
+
+            {liveMembers.length > 0 && onOpenLive && (
+                <button
+                    type="button"
+                    onClick={onOpenLive}
+                    title={`Rush Live : ${liveMembers.length} sur l'overlay`}
+                    aria-label={`Rush Live : ${liveMembers.length} personnage${liveMembers.length > 1 ? "s" : ""} sur l'overlay`}
+                    className="da-btn da-toolbar-live gap-1 px-2 py-1 text-[11px]"
+                >
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-success" aria-hidden="true" />
+                    <span className="tabular-nums">{liveMembers.length}</span>
+                </button>
+            )}
 
             {members.length > 0 && (
                 <button

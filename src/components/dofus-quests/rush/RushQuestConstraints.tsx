@@ -80,6 +80,7 @@ export function RushQuestConstraints({
                 mobs={constraint.mobs}
                 label={constraint.label}
                 icon={constraint.icon}
+                viewer={viewer}
               />
             </div>
           );
@@ -286,11 +287,16 @@ function RushBashMobsCard({
   mobs,
   label,
   icon,
+  viewer = "preview",
 }: {
   mobs: RushBashMob[];
   label: string;
   icon: string;
+  viewer?: RushTagViewer;
 }) {
+  const [fiche, setFiche] = useState<{ slug: string; name: string } | null>(null);
+  const chipClass =
+    "inline-flex items-center gap-1 rounded-full border border-border bg-elevated px-1.5 py-0.5 text-[11px] text-foreground";
   return (
     <div className="rounded-[4px] border border-border bg-surface p-2">
       <div className="flex items-center gap-1.5">
@@ -300,17 +306,59 @@ function RushBashMobsCard({
         </span>
       </div>
       <div className="mt-1.5 flex flex-wrap gap-1.5">
-        {mobs.map((mob, index) => (
-          <span
-            key={`${mob.name}-${index}`}
-            className="inline-flex items-center gap-1 rounded-full border border-border bg-elevated px-1.5 py-0.5 text-[11px] text-foreground"
-          >
-            <RushPortrait src={mob.imageUrl} alt={mob.name} className="h-4 w-4 rounded-full" />
-            {mob.name}
-            {mob.level !== undefined ? ` · ${mob.level}` : ""}
-          </span>
-        ))}
+        {mobs.map((mob, index) => {
+          const monsterId = monsterIdFromImageUrl(mob.imageUrl);
+          const content = (
+            <>
+              <RushPortrait src={mob.imageUrl} alt={mob.name} className="h-4 w-4 rounded-full" />
+              {mob.name}
+              {mob.level !== undefined ? ` · ${mob.level}` : ""}
+            </>
+          );
+          // Même règle que les combats : fiche interne pour un membre, lien public
+          // pour un visiteur, aucune navigation en aperçu God.
+          if (monsterId && viewer === "member") {
+            return (
+              <button
+                key={`${mob.name}-${index}`}
+                type="button"
+                onClick={() => setFiche({ slug: String(monsterId), name: mob.name })}
+                title={`Ouvrir la fiche de ${mob.name}`}
+                aria-label={`Ouvrir la fiche de ${mob.name}`}
+                className={cn(chipClass, "transition-colors hover:border-border-strong hover:text-foreground")}
+              >
+                {content}
+              </button>
+            );
+          }
+          if (monsterId && viewer === "visitor") {
+            return (
+              <a
+                key={`${mob.name}-${index}`}
+                href={`/bestiaire/${monsterId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={`Ouvrir la fiche publique de ${mob.name}`}
+                className={cn(chipClass, "transition-colors hover:border-border-strong hover:text-foreground")}
+              >
+                {content}
+              </a>
+            );
+          }
+          return (
+            <span key={`${mob.name}-${index}`} className={chipClass}>
+              {content}
+            </span>
+          );
+        })}
       </div>
+      {fiche && (
+        <RushMonsterFicheModal
+          slug={fiche.slug}
+          name={fiche.name}
+          onClose={() => setFiche(null)}
+        />
+      )}
     </div>
   );
 }

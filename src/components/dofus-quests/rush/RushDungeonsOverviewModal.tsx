@@ -11,6 +11,7 @@ import {
   defaultOpenBlockId,
   filterRushDungeonsOverview,
   groupRushDungeonsByBlock,
+  groupRushOverviewMembersByOwner,
   type RushOverviewDungeon,
   type RushOverviewFilter,
   type RushOverviewMe,
@@ -125,29 +126,35 @@ function MemberStatusStack({
   if (members.length === 0) return null;
   const done = new Set(occurrence.doneBy);
   const flagged = new Set(occurrence.flaggedBy);
-  const shown = members.slice(0, 6);
-  const rest = members.length - shown.length;
+  // Un **compte** par avatar : les mules d'un même joueur ne s'empilent plus.
+  const groups = groupRushOverviewMembersByOwner(members);
+  const shown = groups.slice(0, 6);
+  const rest = groups.length - shown.length;
+  const stateOf = (group: { members: RushOverviewMember[] }) =>
+    group.members.some((member) => done.has(member.key))
+      ? "done"
+      : group.members.some((member) => flagged.has(member.key))
+        ? "flag"
+        : "todo";
   return (
     <span
       className="flex items-center gap-0.5"
-      title={members
-        .map(
-          (member) =>
-            `${member.name} — ${
-              done.has(member.key) ? "fait" : flagged.has(member.key) ? "repère" : "pas fait"
-            }`
-        )
+      title={groups
+        .map((group) => {
+          const characters = group.members.length > 1 ? ` (${group.members.length} persos)` : "";
+          const state = stateOf(group);
+          return `${group.owner}${characters} — ${
+            state === "done" ? "fait" : state === "flag" ? "repère" : "pas fait"
+          }`;
+        })
         .join(" · ")}
     >
-      {shown.map((member) => {
-        const state = done.has(member.key)
-          ? "done"
-          : flagged.has(member.key)
-            ? "flag"
-            : "todo";
+      {shown.map((group, index) => {
+        const primary = group.members.find((member) => member.isMain) ?? group.members[0];
+        const state = stateOf(group);
         return (
           <span
-            key={member.key}
+            key={`${group.owner}-${index}`}
             className={cn(
               "relative grid h-4 w-4 place-items-center overflow-hidden rounded-full border bg-elevated",
               state === "done"
@@ -158,8 +165,8 @@ function MemberStatusStack({
             )}
           >
             <MemberAvatar
-              src={member.avatar}
-              name={member.name}
+              src={primary.avatar}
+              name={primary.name}
               fallbackClassName="text-[8px] font-semibold text-muted-foreground"
             />
             {state !== "todo" ? (

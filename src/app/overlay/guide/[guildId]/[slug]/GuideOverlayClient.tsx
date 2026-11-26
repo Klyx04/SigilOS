@@ -326,7 +326,7 @@ export default function GuideOverlayClient({
   const [showOcre, setShowOcre] = useState<boolean>(false);
   // Alignement (vue guilde + mon choix) : panneau maison, jamais un Dialog Radix en PiP.
   const [showAlignment, setShowAlignment] = useState<boolean>(false);
-  const [membersModal, setMembersModal] = useState<{ title: string; members: OverlayMember[] } | null>(null);
+  const [membersModal, setMembersModal] = useState<{ title: string; members: OverlayMember[]; liveMembers?: OverlayMember[] } | null>(null);
   const [showTutorial, setShowTutorial] = useState<boolean>(false);
   // F11 : le panneau de retour est monté ICI (fin de racine), plus dans l'en-tête.
   const [feedbackOpen, setFeedbackOpen] = useState<boolean>(false);
@@ -365,37 +365,6 @@ export default function GuideOverlayClient({
     setMembersModal({ title: "Sur ce chapitre", members });
   }, []);
 
-  // ─── Présence temps réel : l'overlay CONSOMME, il n'émet pas ───────────────────
-  // L'onglet du dashboard émet déjà le heartbeat du profil courant ; un second émetteur
-  // depuis la fenêtre PiP créerait une présence en double, et l'overlay public n'a de toute
-  // façon aucune identité à annoncer. `enabled: false` ⇒ aucun heartbeat. Le serveur ferme
-  // la room aux non-membres (fail-closed) : un visiteur non authentifié reçoit une liste
-  // vide — jamais une présence inventée.
-  const guideLive = useGuidePresence({
-    guildId,
-    guideSlug: guide.slug,
-    milestoneId: null,
-    enabled: false,
-  });
-
-  /** Membres RÉELLEMENT connectés (WebSocket), prêts pour la modale des membres. */
-  const liveMembers = useMemo<OverlayMember[]>(
-    () =>
-      guideLive.presence.map((m) => {
-        const where = milestones.find((x) => x.id === m.milestoneId);
-        // Alignement (cité · Ordre · tranche) lu côté serveur, puis la position.
-        const parts = [
-          m.alignment ? alignmentSummary(m.alignment, m.alignmentOrder) : "",
-          where?.title ? `sur « ${where.title} »` : "",
-        ].filter(Boolean);
-        return {
-          name: m.userName,
-          avatar: m.userAvatar,
-          subtitle: parts.length ? parts.join(" · ") : undefined,
-        };
-      }),
-    [guideLive.presence, milestones]
-  );
 
   // ─── Progression Locale Optimiste / Guest LocalStorage ───────────────────────
   // Le préfixe vient de l'appelant quand il est fourni (page publique : progression
@@ -717,6 +686,55 @@ export default function GuideOverlayClient({
 
   const [currentMsIndex, setCurrentMsIndex] = useState<number>(defaultMsIndex);
   const currentMs = milestones[currentMsIndex] || milestones[0] || null;
+
+  // ─── Présence temps réel : l'overlay ÉMET aussi quand il est la fenêtre visible ──
+  // Mesure du 26/11/2026 : l'onglet du dashboard cesse d'émettre quand il est réduit ;
+  // la PiP, elle, restait muette (`enabled: false`) alors qu'elle était la seule fenêtre
+  // ouverte. Le serveur déduplique par `profileId::characterSlot`, donc deux fenêtres du
+  // même personnage ne créent pas de doublon. L'overlay public (`isGuest`) reste récepteur.
+  const guideLive = useGuidePresence({
+    guildId,
+    guideSlug: guide.slug,
+    // La fiche suit le bloc courant : la présence dit où le personnage travaille.
+    milestoneId: currentMs?.id ?? null,
+    userName: character?.pseudo,
+    characterSlot: effectiveAltPseudo ?? "PRINCIPAL",
+    surface: "overlay",
+    dofusClass: character?.classe ?? null,
+    enabled: !isGuest,
+  });
+
+  /** Membres RÉELLEMENT connectés (WebSocket), prêts pour la modale des membres. */
+  const liveMembers = useMemo<OverlayMember[]>(
+    () =>
+      guideLive.presence.map((m) => {
+        const where = milestones.find((x) => x.id === m.milestoneId);
+        // Alignement (cité · Ordre · tranche) lu côté serveur, puis la position.
+        const parts = [
+          m.alignment ? alignmentSummary(m.alignment, m.alignmentOrder) : "",
+          where?.title ? `sur « ${where.title} »` : "",
+        ].filter(Boolean);
+        return {
+          name: m.userName,
+          avatar: m.userAvatar,
+          subtitle: parts.length ? parts.join(" · ") : undefined,
+          surfaces: m.surfaces ?? [],
+          dofusClass: m.dofusClass ?? null,
+          characterSlot: m.characterSlot ?? "PRINCIPAL",
+        };
+      }),
+    [guideLive.presence, milestones]
+  );
+
+  /** Seulement les personnages dont une surface `overlay` émet : c'est le « Rush Live » de la PiP. */
+  const overlayLiveMembers = useMemo(
+    () => liveMembers.filter((member) => member.surfaces?.includes("overlay")),
+    [liveMembers]
+  );
+
+  const handleOpenLiveMembers = useCallback(() => {
+    setMembersModal({ title: "Rush Live", members: [], liveMembers: overlayLiveMembers });
+  }, [overlayLiveMembers]);
 
   const goToNextMs = useCallback(() => {
     // Prochain bloc qui reste à valider — les bandeaux (séparateur, encart CONSEIL/TIPS,
@@ -2308,6 +2326,8 @@ export default function GuideOverlayClient({
               total={chapterResources.length}
               members={chapterMembers}
               onOpenMembers={handleOpenChapterMembers}
+              liveMembers={overlayLiveMembers}
+              onOpenLive={handleOpenLiveMembers}
             />
           ) : (
             <>
@@ -2350,6 +2370,36 @@ export default function GuideOverlayClient({
           {/* ══ PRÉSENCE COMMUNAUTÉ ══
               En tight, les avatars sont DANS le toolbar (une seule rangée) ; cette
               ligne ne reste que pour les modes large/normal. */}
+          {!isTight && overlayLiveMembers.length > 0 && (
+            <button
+              type="button"
+              onClick={handleOpenLiveMembers}
+              title={`Rush Live : ${overlayLiveMembers.length} personnage${overlayLiveMembers.length > 1 ? "s" : ""} sur l'overlay`}
+              className="px-3 pt-2 flex items-center gap-2 text-left"
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-success" aria-hidden="true" />
+              <span className="text-[9px] font-bold uppercase tracking-wide text-[#6e7784]">
+                Rush Live
+              </span>
+              <span className="text-[11px] font-semibold tabular-nums text-foreground">
+                {overlayLiveMembers.length} sur l'overlay
+              </span>
+              <span className="flex items-center -space-x-1.5">
+                {overlayLiveMembers.slice(0, 4).map((m, i) => (
+                  <MemberAvatar
+                    key={`${m.name}-${i}`}
+                    src={m.avatar}
+                    name={m.name}
+                    alt={m.name}
+                    title={m.name}
+                    className="w-5 h-5 rounded-full border border-success/40"
+                    fallbackClassName="bg-success/20 text-success text-[8px] font-bold uppercase"
+                  />
+                ))}
+              </span>
+            </button>
+          )}
+
           {!isTight && chapterMembers.length > 0 && (
             <button
               type="button"
@@ -2571,7 +2621,7 @@ export default function GuideOverlayClient({
         <RushOverlayMembersModal
           title={membersModal.title}
           members={membersModal.members}
-          liveMembers={liveMembers}
+          liveMembers={membersModal.liveMembers ?? liveMembers}
           onClose={() => setMembersModal(null)}
         />
       )}

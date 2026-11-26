@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef } from "react";
 import { nextFocusIndex } from "@/lib/focus-trap";
-import { X, MapPin, ExternalLink } from "lucide-react";
+import { X, MapPin } from "lucide-react";
 import type { RushMilestone, RushSequence } from "@/types/rush-guide-types";
 import { RushOverlayDungeonCard } from "./RushOverlayDungeonCard";
 import { QuestItemResourceGrid } from "@/components/dofus-quests/rush/QuestItemResourceGrid";
@@ -139,6 +139,42 @@ export function RushOverlayQuestDetailModal({
   const dofusImg = resolveDofusLocalImage(milestone.title) || resolveDofusLocalImage(name);
   const noobsIcon = brandIconForUrl(noobsUrl);
   const dbIcon = brandIconForUrl(dbUrl);
+  // Favicons de source **à côté des positions** (retour user du 26/11/2026) :
+  // mêmes icônes locales que la section « Liens », mais sans texte redondant.
+  const sourceLinks = (noobsUrl || dbUrl) ? (
+    <span className="flex items-center gap-1">
+      {noobsUrl && (
+        <a
+          href={noobsUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={noobsIcon?.label ?? "DofusPourLesNoobs"}
+          title={noobsIcon?.label ?? "DofusPourLesNoobs"}
+          className="inline-flex h-5 w-5 items-center justify-center rounded-[3px] transition-colors hover:bg-elevated"
+        >
+          {noobsIcon ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img src={noobsIcon.src} alt="" className="h-3.5 w-3.5 rounded-[3px]" loading="lazy" />
+          ) : null}
+        </a>
+      )}
+      {dbUrl && (
+        <a
+          href={dbUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={dbIcon?.label ?? "DofusDB"}
+          title={dbIcon?.label ?? "DofusDB"}
+          className="inline-flex h-5 w-5 items-center justify-center rounded-[3px] transition-colors hover:bg-elevated"
+        >
+          {dbIcon ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img src={dbIcon.src} alt="" className="h-3.5 w-3.5 rounded-[3px]" loading="lazy" />
+          ) : null}
+        </a>
+      )}
+    </span>
+  ) : null;
   // Icône de type choisie en God (repli : rien, le titre suffit).
   const seqIcon = safeImageUrl(resolveRushSeqIcon(seq.icon));
   // PNJ donneur (tag God) : nom + portrait par convention.
@@ -205,10 +241,6 @@ export function RushOverlayQuestDetailModal({
   /** Libellé de section : un losange d'or + le libellé, jamais un pavé. */
   const sectionLabel =
     "mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground before:h-1 before:w-1 before:rotate-45 before:bg-gold/80 before:content-['']";
-  /** Lien de source : action lisible, soulignée, sans pastille de couleur. */
-  const sourceLink =
-    "inline-flex items-center gap-1.5 text-[12px] font-semibold text-accent underline decoration-1 underline-offset-[0.28em] transition-colors hover:text-foreground";
-
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-3">
       <button
@@ -282,6 +314,7 @@ export function RushOverlayQuestDetailModal({
                     menuOnClick
                     npc={getSequenceNpc(seq)}
                   />
+                  {sourceLinks ? <span className="ml-auto shrink-0">{sourceLinks}</span> : null}
                 </div>
                 {seqNpc && seqNpc.name && !seqNpc.imageUrl && seqNpc.id === null && (
                   <div className="mt-1.5 flex items-center gap-2">
@@ -290,6 +323,10 @@ export function RushOverlayQuestDetailModal({
                 )}
               </section>
             )}
+
+            {!coord && sourceLinks ? (
+              <section className="py-2">{sourceLinks}</section>
+            ) : null}
 
             {dungeons.length > 0 && (
               <section className="py-3">
@@ -373,43 +410,6 @@ export function RushOverlayQuestDetailModal({
               </section>
             )}
 
-            {(noobsUrl || dbUrl) && (
-              <section className="py-3">
-                <p className={sectionLabel}>Liens</p>
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
-                  {noobsUrl && (
-                    <a href={noobsUrl} target="_blank" rel="noopener noreferrer" className={sourceLink}>
-                      {noobsIcon && (
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        <img
-                          src={noobsIcon.src}
-                          alt=""
-                          className="h-3.5 w-3.5 shrink-0 rounded-[3px]"
-                          loading="lazy"
-                        />
-                      )}
-                      {noobsIcon?.label ?? "DofusPourLesNoobs"}
-                      <ExternalLink className="h-3 w-3 shrink-0" aria-hidden="true" />
-                    </a>
-                  )}
-                  {dbUrl && (
-                    <a href={dbUrl} target="_blank" rel="noopener noreferrer" className={sourceLink}>
-                      {dbIcon && (
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        <img
-                          src={dbIcon.src}
-                          alt=""
-                          className="h-3.5 w-3.5 shrink-0 rounded-[3px]"
-                          loading="lazy"
-                        />
-                      )}
-                      {dbIcon?.label ?? "DofusDB"}
-                      <ExternalLink className="h-3 w-3 shrink-0" aria-hidden="true" />
-                    </a>
-                  )}
-                </div>
-              </section>
-            )}
           </div>
         </div>
       </div>

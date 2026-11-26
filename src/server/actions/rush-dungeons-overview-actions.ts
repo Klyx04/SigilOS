@@ -147,6 +147,7 @@ export async function getRushDungeonsCommunity(
       avatar: string | null;
       slot: string;
       isMain: boolean;
+      ownerName: string | null;
       done: Set<string>;
       flags: Set<string>;
     };
@@ -161,12 +162,17 @@ export async function getRushDungeonsCommunity(
       const key = `${profileId}::${slot}`;
       const existing = members.get(key);
       if (existing) return existing;
+      const owner = memberName(pseudo ?? name ?? null, "Membre");
       const member = {
         key,
-        name: memberName(name ?? pseudo ?? null, "Membre"),
+        // Principal : pseudo du compte. Mule : le pseudo de l'emplacement (slot),
+        // jamais le nom du compte — sinon les compteurs et la pile d'avatars
+        // affichent trois fois le même nom.
+        name: slot === "PRINCIPAL" ? owner : memberName(slot, "Membre"),
         avatar: avatar ?? null,
         slot,
         isMain: slot === "PRINCIPAL",
+        ownerName: slot === "PRINCIPAL" ? null : owner,
         done: new Set<string>(),
         flags: new Set<string>(),
       };
@@ -175,7 +181,7 @@ export async function getRushDungeonsCommunity(
     };
 
     // Le lecteur est un membre comme les autres (même compteur).
-    const me = ensure(ctx.profileId, characterSlot, ctx.name, null, ctx.image);
+    const me = ensure(ctx.profileId, characterSlot, ctx.name, ctx.pseudoDofus ?? null, ctx.image);
     for (const row of myStates) me.done.add(`${row.sequenceId}::${row.dungeonKey}`);
     for (const row of myProgress) if (row.currentStep) me.flags.add(row.currentStep.slice(0, 200));
 
@@ -210,6 +216,7 @@ export async function getRushDungeonsCommunity(
         avatar: member.avatar,
         slot: member.slot,
         isMain: member.isMain,
+        ownerName: member.ownerName,
         doneKeys: [...member.done],
         flags: [...member.flags],
       }));
@@ -262,10 +269,17 @@ export async function getPublicRushDungeonsCommunity(
     const members: RushOverviewMember[] = rows.slice(0, COMMUNITY_MAX_MEMBERS).map((row) => ({
       // Aucun identifiant de profil : la clé n'est qu'un repère d'affichage.
       key: `${row.characterSlot}::${row.characterName ?? row.profile?.pseudoDofus ?? "visiteur"}`,
-      name: memberName(row.characterName ?? row.profile?.pseudoDofus, "Visiteur"),
+      name:
+        row.characterSlot === "PRINCIPAL"
+          ? memberName(row.profile?.pseudoDofus ?? row.characterName, "Visiteur")
+          : memberName(row.characterName ?? row.characterSlot, "Visiteur"),
       avatar: null,
       slot: row.characterSlot,
       isMain: row.characterSlot === "PRINCIPAL",
+      ownerName:
+        row.characterSlot === "PRINCIPAL"
+          ? null
+          : memberName(row.profile?.pseudoDofus, "Visiteur"),
       doneKeys: doneKeysFromChecks(row.dungeonChecks),
       flags: flagsFromBookmarks(row.bookmarks),
     }));

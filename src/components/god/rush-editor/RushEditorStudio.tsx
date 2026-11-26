@@ -1192,6 +1192,15 @@ export function RushSylvestreAdminClient({
       onBulkMove={handleBulkMove}
       onBulkDelete={handleBulkDelete}
       onPublishQuest={handlePublishQuest}
+      onChildrenChange={(children) => {
+        // Le sous-bloc est écrit par sa propre action : sans cette remontée, l'inspecteur
+        // gardait la copie `editingMilestone` d'avant le refresh et la position semblait
+        // ne pas être enregistrée (mesure du 26/11/2026).
+        setEditingMilestone((prev) => (prev && prev.id === blockBeingEdited.id ? { ...prev, children } : prev));
+        setLocalMilestones((prev) =>
+          prev.map((item) => (item.id === blockBeingEdited.id ? { ...item, children } : item))
+        );
+      }}
       isFullscreen={blockFullscreen}
       onToggleFullscreen={() => setBlockFullscreen((v) => !v)}
     />
@@ -2463,6 +2472,7 @@ function BlockInspectorForm({
   milestone, editingData, isPending, onEditChange, onSave, onCancelEdit,
   onApplyBlockRoute, onSelectQuest, onAddSequence,
   milestones, onBulkRoute, onBulkMove, onBulkDelete, onPublishQuest,
+  onChildrenChange,
   isFullscreen, onToggleFullscreen,
 }: {
   milestone: Milestone;
@@ -2487,6 +2497,8 @@ function BlockInspectorForm({
   onBulkDelete: (sequenceIds: string[]) => void;
   /** Bloc B — publier / dépublier la page publique d'une quête. */
   onPublishQuest: (sequenceId: string, publish: boolean) => void;
+  /** Sous-blocs : remonte la liste au studio dès l'écriture (pas seulement au refresh). */
+  onChildrenChange: (children: RushMilestoneChild[]) => void;
   /** Tous les types de bloc : même instance, montée dans l'inspecteur ou en modale. */
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
@@ -2769,6 +2781,10 @@ function BlockInspectorForm({
       )}
       {/* Sous-blocs : Tips / Obtention Dofus / Combat posés après une quête du bloc. */}
       <RushBlockChildrenEditor
+        // Un brouillon de sous-bloc ne doit jamais survivre au changement de bloc :
+        // sans cette clé, React réutilisait l'instance et `editingId`/`draft` visaient
+        // encore le bloc précédent (mesure du 26/11/2026).
+        key={milestone.id}
         milestoneId={milestone.id}
         sequences={sequences.map((seq) => ({
           id: seq.id,
@@ -2777,6 +2793,7 @@ function BlockInspectorForm({
           subGuideRef: seq.subGuideRef,
         }))}
         childBlocks={milestone.children ?? []}
+        onChildrenChange={onChildrenChange}
       />
       {/* E3c — actions de masse : visibles seulement quand une quête est cochée. */}
       {!isTips && !isSeparator && bulk.count > 0 && (
